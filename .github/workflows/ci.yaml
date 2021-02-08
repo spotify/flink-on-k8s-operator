@@ -1,0 +1,10 @@
+on: [push, pull_request]
+name: Test
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+      - name: Build image
+        run: make operator-image
