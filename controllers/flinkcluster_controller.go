@@ -18,8 +18,9 @@ package controllers
 
 import (
 	"context"
-	"github.com/spotify/flink-on-k8s-operator/controllers/history"
 	"time"
+
+	"github.com/spotify/flink-on-k8s-operator/controllers/history"
 
 	"github.com/go-logr/logr"
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/api/v1beta1"
@@ -63,7 +64,7 @@ type FlinkClusterReconciler struct {
 // +kubebuilder:rbac:groups=extensions,resources=ingresses/status,verbs=get
 
 // Reconcile the observed state towards the desired state for a FlinkCluster custom resource.
-func (reconciler *FlinkClusterReconciler) Reconcile(
+func (reconciler *FlinkClusterReconciler) Reconcile(ctx context.Context,
 	request ctrl.Request) (ctrl.Result, error) {
 	var log = reconciler.Log.WithValues(
 		"cluster", request.NamespacedName)
@@ -79,7 +80,7 @@ func (reconciler *FlinkClusterReconciler) Reconcile(
 		recorder: reconciler.Mgr.GetEventRecorderFor("FlinkOperator"),
 		observed: ObservedClusterState{},
 	}
-	return handler.reconcile(request)
+	return handler.reconcile(ctx, request)
 }
 
 // SetupWithManager registers this reconciler with the controller manager and
@@ -110,7 +111,7 @@ type FlinkClusterHandler struct {
 	desired           model.DesiredClusterState
 }
 
-func (handler *FlinkClusterHandler) reconcile(
+func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 	request ctrl.Request) (ctrl.Result, error) {
 	var k8sClient = handler.k8sClient
 	var flinkClient = handler.flinkClient
