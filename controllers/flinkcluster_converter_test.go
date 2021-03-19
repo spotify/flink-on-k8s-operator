@@ -532,7 +532,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 				IngressRuleValue: extensionsv1beta1.IngressRuleValue{
 					HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
 						Paths: []extensionsv1beta1.HTTPIngressPath{{
-							Path: "/",
+							Path: "/*",
 							Backend: extensionsv1beta1.IngressBackend{
 								ServiceName: "flinkjobcluster-sample-jobmanager",
 								ServicePort: intstr.FromString("ui"),
