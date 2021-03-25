@@ -8,7 +8,7 @@
 set -euxo pipefail
 
 NAMESPACE=cert-manager
-CERT_MANAGER_VERSION=0.10.0
+CERT_MANAGER_VERSION=1.1.1
 
 # Create a namespace to run cert-manager in
 if ! kubectl get namespace "${NAMESPACE}" 1>/dev/null 2>&1; then
