@@ -122,6 +122,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 	}
 
 	// Setup.
+	storageClassName := "default-class"
 	var observed = &ObservedClusterState{
 		cluster: &v1beta1.FlinkCluster{
 			TypeMeta: metav1.TypeMeta{
@@ -242,6 +243,22 @@ func TestGetDesiredClusterState(t *testing.T) {
 					},
 					VolumeMounts: []corev1.VolumeMount{
 						{Name: "cache-volume", MountPath: "/cache"},
+					},
+					VolumeClaimTemplates: []v1.PersistentVolumeClaim{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "pvc-test",
+							},
+							Spec: v1.PersistentVolumeClaimSpec{
+								AccessModes: []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
+								Resources: v1.ResourceRequirements{
+									Requests: map[v1.ResourceName]resource.Quantity{
+										v1.ResourceStorage: resource.MustParse("100Gi"),
+									},
+								},
+								StorageClassName: &storageClassName,
+							},
+						},
 					},
 					Tolerations: tolerations,
 					PodAnnotations: map[string]string{
@@ -582,6 +599,22 @@ func TestGetDesiredClusterState(t *testing.T) {
 					"app":       "flink",
 					"cluster":   "flinkjobcluster-sample",
 					"component": "taskmanager",
+				},
+			},
+			VolumeClaimTemplates: []v1.PersistentVolumeClaim{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "pvc-test",
+					},
+					Spec: v1.PersistentVolumeClaimSpec{
+						AccessModes: []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
+						Resources: v1.ResourceRequirements{
+							Requests: map[v1.ResourceName]resource.Quantity{
+								v1.ResourceStorage: resource.MustParse("100Gi"),
+							},
+						},
+						StorageClassName: &storageClassName,
+					},
 				},
 			},
 			Template: corev1.PodTemplateSpec{
