@@ -8,6 +8,7 @@ metadata:
 webhooks:
 - admissionReviewVersions: null
   clientConfig:
+    caBundle: Cg==
     service:
       name: webhook-service
       namespace: system
@@ -35,6 +36,7 @@ metadata:
 webhooks:
 - admissionReviewVersions: null
   clientConfig:
+    caBundle: Cg==
     service:
       name: webhook-service
       namespace: system
