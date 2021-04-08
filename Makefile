@@ -85,7 +85,7 @@ operator-image: builder-image test-in-docker
 	@echo "updating kustomize image patch file for Flink Operator resource"
 
 # Push the Flink Operator docker image to container registry.
-push-operator-image:
+push-operator-image: operator-image
 	docker push ${IMG}
 
 
