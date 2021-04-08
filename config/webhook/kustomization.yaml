@@ -16,5 +16,8 @@ resources:
     - service.yaml
     - manifests.v1beta1.yaml
 
+patchesStrategicMerge:
+    - patches/admission_cabundle.yaml
+
 configurations:
     - kustomizeconfig.yaml
