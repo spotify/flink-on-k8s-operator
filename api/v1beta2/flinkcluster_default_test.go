@@ -55,6 +55,7 @@ func TestSetDefault(t *testing.T) {
 	var defatulJobManagerIngressTLSUse = false
 	var defaultMemoryOffHeapRatio = int32(25)
 	var defaultMemoryOffHeapMin = resource.MustParse("600M")
+	var defaultProcessMemoryRatio = int32(20)
 	defaultRecreateOnUpdate := new(bool)
 	*defaultRecreateOnUpdate = true
 	var expectedCluster = FlinkCluster{
@@ -81,6 +82,7 @@ func TestSetDefault(t *testing.T) {
 				Resources:          corev1.ResourceRequirements{},
 				MemoryOffHeapRatio: &defaultMemoryOffHeapRatio,
 				MemoryOffHeapMin:   defaultMemoryOffHeapMin,
+				ProcessMemoryRatio: &defaultProcessMemoryRatio,
 				Volumes:            nil,
 				VolumeMounts:       nil,
 				SecurityContext:    nil,
@@ -95,6 +97,7 @@ func TestSetDefault(t *testing.T) {
 				Resources:          corev1.ResourceRequirements{},
 				MemoryOffHeapRatio: &defaultMemoryOffHeapRatio,
 				MemoryOffHeapMin:   defaultMemoryOffHeapMin,
+				ProcessMemoryRatio: &defaultProcessMemoryRatio,
 				Volumes:            nil,
 				SecurityContext:    nil,
 			},
@@ -144,6 +147,7 @@ func TestSetNonDefault(t *testing.T) {
 	var jobManagerIngressTLSUse = true
 	var memoryOffHeapRatio = int32(50)
 	var memoryOffHeapMin = resource.MustParse("600M")
+	var processMemoryRatio = int32(20)
 	var securityContextUserGroup = int64(9999)
 	var securityContext = corev1.PodSecurityContext{
 		RunAsUser:  &securityContextUserGroup,
@@ -239,6 +243,7 @@ func TestSetNonDefault(t *testing.T) {
 				Resources:          corev1.ResourceRequirements{},
 				MemoryOffHeapRatio: &memoryOffHeapRatio,
 				MemoryOffHeapMin:   memoryOffHeapMin,
+				ProcessMemoryRatio: &processMemoryRatio,
 				Volumes:            nil,
 				VolumeMounts:       nil,
 				SecurityContext:    &securityContext,
@@ -253,6 +258,7 @@ func TestSetNonDefault(t *testing.T) {
 				Resources:          corev1.ResourceRequirements{},
 				MemoryOffHeapRatio: &memoryOffHeapRatio,
 				MemoryOffHeapMin:   memoryOffHeapMin,
+				ProcessMemoryRatio: &processMemoryRatio,
 				Volumes:            nil,
 				SecurityContext:    &securityContext,
 			},

@@ -77,6 +77,10 @@ func _SetJobManagerDefault(jmSpec *JobManagerSpec) {
 		jmSpec.MemoryOffHeapRatio = new(int32)
 		*jmSpec.MemoryOffHeapRatio = 25
 	}
+	if jmSpec.ProcessMemoryRatio == nil {
+		jmSpec.ProcessMemoryRatio = new(int32)
+		*jmSpec.ProcessMemoryRatio = 20
+	}
 }
 
 func _SetTaskManagerDefault(tmSpec *TaskManagerSpec) {
@@ -98,6 +102,10 @@ func _SetTaskManagerDefault(tmSpec *TaskManagerSpec) {
 	if tmSpec.MemoryOffHeapRatio == nil {
 		tmSpec.MemoryOffHeapRatio = new(int32)
 		*tmSpec.MemoryOffHeapRatio = 25
+	}
+	if tmSpec.ProcessMemoryRatio == nil {
+		tmSpec.ProcessMemoryRatio = new(int32)
+		*tmSpec.ProcessMemoryRatio = 20
 	}
 }
 

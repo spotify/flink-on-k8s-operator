@@ -550,7 +550,6 @@ func getDesiredConfigMap(
 	var labels = mergeLabels(
 		getClusterLabels(*flinkCluster),
 		getRevisionHashLabels(flinkCluster.Status))
-	var flinkHeapSize = calFlinkHeapSize(flinkCluster)
 	// Properties which should be provided from real deployed environment.
 	var flinkProps = map[string]string{
 		"jobmanager.rpc.address": getJobManagerServiceName(clusterName),
@@ -560,12 +559,23 @@ func getDesiredConfigMap(
 		"rest.port":              strconv.FormatInt(int64(*jmPorts.UI), 10),
 		"taskmanager.rpc.port":   strconv.FormatInt(int64(*tmPorts.RPC), 10),
 	}
+
+	var flinkHeapSize = calFlinkHeapSize(flinkCluster)
 	if flinkHeapSize["jobmanager.heap.size"] != "" {
 		flinkProps["jobmanager.heap.size"] = flinkHeapSize["jobmanager.heap.size"]
 	}
 	if flinkHeapSize["taskmanager.heap.size"] != "" {
 		flinkProps["taskmanager.heap.size"] = flinkHeapSize["taskmanager.heap.size"]
 	}
+
+	var flinkProcessMemorySize = calFlinkProcessMemorySize(flinkCluster)
+	if flinkProcessMemorySize["jobmanager.process.memory.size"] != "" {
+		flinkProps["jobmanager.process.memory.size"] = flinkProcessMemorySize["jobmanager.process.memory.size"]
+	}
+	if flinkProcessMemorySize["taskmanager.process.memory.size"] != "" {
+		flinkProps["taskmanager.process.memory.size"] = flinkProcessMemorySize["taskmanager.process.memory.size"]
+	}
+
 	// Add custom Flink properties.
 	for k, v := range flinkProperties {
 		// Do not allow to override properties from real deployment.
@@ -949,6 +959,42 @@ func calHeapSize(memSize int64, offHeapMin int64, offHeapRatio int64) int64 {
 		heapSizeMB = convertResourceMemoryToInt64(*heapSizeQuantity, divisor)
 	}
 	return heapSizeMB
+}
+
+func calProcessMemorySize(memSize, ratio int64) int64 {
+	if ratio >= 0 && ratio <= 100 {
+		size := int64(math.Ceil(float64(memSize-(memSize*ratio)) / 100))
+		divisor := resource.MustParse("1M")
+		quantity := resource.NewQuantity(size, resource.DecimalSI)
+		return convertResourceMemoryToInt64(*quantity, divisor)
+	}
+
+	return memSize
+}
+
+// Calculate process memory size in MB
+func calFlinkProcessMemorySize(cluster *v1beta2.FlinkCluster) map[string]string {
+	var flinkProcessMemory = make(map[string]string)
+	var jmMemoryLimitByte = cluster.Spec.JobManager.Resources.Limits.Memory().Value()
+	var tmMemLimitByte = cluster.Spec.TaskManager.Resources.Limits.Memory().Value()
+
+	if jmMemoryLimitByte > 0 {
+		ratio := int64(*cluster.Spec.JobManager.ProcessMemoryRatio)
+		sizeMB := calProcessMemorySize(jmMemoryLimitByte, ratio)
+		if sizeMB > 0 {
+			flinkProcessMemory["jobmanager.memory.process.size"] = strconv.FormatInt(sizeMB, 10) + "m"
+		}
+	}
+
+	if tmMemLimitByte > 0 {
+		ratio := int64(*cluster.Spec.TaskManager.ProcessMemoryRatio)
+		sizeMB := calProcessMemorySize(tmMemLimitByte, ratio)
+		if sizeMB > 0 {
+			flinkProcessMemory["taskmanager.memory.process.size"] = strconv.FormatInt(sizeMB, 10) + "m"
+		}
+	}
+
+	return flinkProcessMemory
 }
 
 func convertFlinkConfig(clusterName string) (*corev1.Volume, *corev1.VolumeMount) {

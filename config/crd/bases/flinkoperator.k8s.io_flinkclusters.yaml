@@ -114,6 +114,8 @@ spec:
                 additionalProperties:
                   type: string
                 type: object
+              flinkVersion:
+                type: string
               gcpConfig:
                 properties:
                   serviceAccount:
@@ -2156,6 +2158,9 @@ spec:
                         format: int32
                         type: integer
                     type: object
+                  processMemoryRatio:
+                    format: int32
+                    type: integer
                   replicas:
                     format: int32
                     type: integer
@@ -4258,6 +4263,9 @@ spec:
                         format: int32
                         type: integer
                     type: object
+                  processMemoryRatio:
+                    format: int32
+                    type: integer
                   replicas:
                     format: int32
                     type: integer
@@ -5749,6 +5757,7 @@ spec:
                 - replicas
                 type: object
             required:
+            - flinkVersion
             - image
             - jobManager
             - taskManager

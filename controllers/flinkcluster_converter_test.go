@@ -54,6 +54,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 	var hostFormat = "{{$clusterName}}.example.com"
 	var memoryOffHeapRatio int32 = 25
 	var memoryOffHeapMin = resource.MustParse("600M")
+	var processMemoryRatio int32 = 20
 	var jobBackoffLimit int32 = 0
 	var jmReadinessProbe = corev1.Probe{
 		Handler: corev1.Handler{
@@ -208,6 +209,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 					Tolerations:        tolerations,
 					MemoryOffHeapRatio: &memoryOffHeapRatio,
 					MemoryOffHeapMin:   memoryOffHeapMin,
+					ProcessMemoryRatio: &processMemoryRatio,
 					PodAnnotations: map[string]string{
 						"example.com": "example",
 					},
@@ -232,6 +234,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 					},
 					MemoryOffHeapRatio: &memoryOffHeapRatio,
 					MemoryOffHeapMin:   memoryOffHeapMin,
+					ProcessMemoryRatio: &processMemoryRatio,
 					Sidecars:           []corev1.Container{{Name: "sidecar", Image: "alpine"}},
 					Volumes: []corev1.Volume{
 						{
