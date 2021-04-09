@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
-	v1beta1 "github.com/spotify/flink-on-k8s-operator/api/v1beta1"
+	v1beta2 "github.com/spotify/flink-on-k8s-operator/api/v1beta2"
 	"gotest.tools/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -48,7 +48,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 	var tmQueryPort int32 = 6125
 	var replicas int32 = 42
 	var tolerationSeconds int64 = 30
-	var restartPolicy = v1beta1.JobRestartPolicyFromSavepointOnFailure
+	var restartPolicy = v1beta2.JobRestartPolicyFromSavepointOnFailure
 	var className = "org.apache.flink.examples.java.wordcount.WordCount"
 	var serviceAccount = "default"
 	var hostFormat = "{{$clusterName}}.example.com"
@@ -124,19 +124,19 @@ func TestGetDesiredClusterState(t *testing.T) {
 	// Setup.
 	storageClassName := "default-class"
 	var observed = &ObservedClusterState{
-		cluster: &v1beta1.FlinkCluster{
+		cluster: &v1beta2.FlinkCluster{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "FlinkCluster",
-				APIVersion: "flinkoperator.k8s.io/v1beta1",
+				APIVersion: "flinkoperator.k8s.io/v1beta2",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "flinkjobcluster-sample",
 				Namespace: "default",
 			},
-			Spec: v1beta1.FlinkClusterSpec{
-				Image:              v1beta1.ImageSpec{Name: "flink:1.8.1"},
+			Spec: v1beta2.FlinkClusterSpec{
+				Image:              v1beta2.ImageSpec{Name: "flink:1.8.1"},
 				ServiceAccountName: &serviceAccount,
-				Job: &v1beta1.JobSpec{
+				Job: &v1beta2.JobSpec{
 					Args:        []string{"--input", "./README.txt"},
 					ClassName:   &className,
 					JarFile:     "/cache/my-job.jar",
@@ -178,9 +178,9 @@ func TestGetDesiredClusterState(t *testing.T) {
 					},
 					SecurityContext: &securityContext,
 				},
-				JobManager: v1beta1.JobManagerSpec{
-					AccessScope: v1beta1.AccessScopeVPC,
-					Ingress: &v1beta1.JobManagerIngressSpec{
+				JobManager: v1beta2.JobManagerSpec{
+					AccessScope: v1beta2.AccessScopeVPC,
+					Ingress: &v1beta2.JobManagerIngressSpec{
 						HostFormat: &hostFormat,
 						Annotations: map[string]string{
 							"kubernetes.io/ingress.class":                "nginx",
@@ -189,7 +189,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 						},
 						UseTLS: &useTLS,
 					},
-					Ports: v1beta1.JobManagerPorts{
+					Ports: v1beta2.JobManagerPorts{
 						RPC:   &jmRPCPort,
 						Blob:  &jmBlobPort,
 						Query: &jmQueryPort,
@@ -213,9 +213,9 @@ func TestGetDesiredClusterState(t *testing.T) {
 					},
 					SecurityContext: &securityContext,
 				},
-				TaskManager: v1beta1.TaskManagerSpec{
+				TaskManager: v1beta2.TaskManagerSpec{
 					Replicas: 42,
-					Ports: v1beta1.TaskManagerPorts{
+					Ports: v1beta2.TaskManagerPorts{
 						Data:  &tmDataPort,
 						RPC:   &tmRPCPort,
 						Query: &tmQueryPort,
@@ -272,12 +272,12 @@ func TestGetDesiredClusterState(t *testing.T) {
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: "FOOMAP",
 					}}}},
-				HadoopConfig: &v1beta1.HadoopConfig{
+				HadoopConfig: &v1beta2.HadoopConfig{
 					ConfigMapName: "hadoop-configmap",
 					MountPath:     "/etc/hadoop/conf",
 				},
-				GCPConfig: &v1beta1.GCPConfig{
-					ServiceAccount: &v1beta1.GCPServiceAccount{
+				GCPConfig: &v1beta2.GCPConfig{
+					ServiceAccount: &v1beta2.GCPServiceAccount{
 						SecretName: "gcp-service-account-secret",
 						KeyFile:    "gcp_service_account_key.json",
 						MountPath:  "/etc/gcp_service_account/",
@@ -289,7 +289,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 					"logback-console.xml":      "bar",
 				},
 			},
-			Status: v1beta1.FlinkClusterStatus{
+			Status: v1beta2.FlinkClusterStatus{
 				NextRevision: "flinkjobcluster-sample-85dc8f749-1",
 			},
 		},
@@ -313,7 +313,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
-					APIVersion:         "flinkoperator.k8s.io/v1beta1",
+					APIVersion:         "flinkoperator.k8s.io/v1beta2",
 					Kind:               "FlinkCluster",
 					Name:               "flinkjobcluster-sample",
 					Controller:         &controller,
@@ -488,7 +488,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
-					APIVersion:         "flinkoperator.k8s.io/v1beta1",
+					APIVersion:         "flinkoperator.k8s.io/v1beta2",
 					Kind:               "FlinkCluster",
 					Name:               "flinkjobcluster-sample",
 					Controller:         &controller,
@@ -535,7 +535,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
-					APIVersion:         "flinkoperator.k8s.io/v1beta1",
+					APIVersion:         "flinkoperator.k8s.io/v1beta2",
 					Kind:               "FlinkCluster",
 					Name:               "flinkjobcluster-sample",
 					Controller:         &controller,
@@ -582,7 +582,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
-					APIVersion:         "flinkoperator.k8s.io/v1beta1",
+					APIVersion:         "flinkoperator.k8s.io/v1beta2",
 					Kind:               "FlinkCluster",
 					Name:               "flinkjobcluster-sample",
 					Controller:         &controller,
@@ -774,7 +774,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 				RevisionNameLabel: "flinkjobcluster-sample-85dc8f749",
 			},
 			OwnerReferences: []metav1.OwnerReference{
-				{APIVersion: "flinkoperator.k8s.io/v1beta1",
+				{APIVersion: "flinkoperator.k8s.io/v1beta2",
 					Kind:               "FlinkCluster",
 					Name:               "flinkjobcluster-sample",
 					Controller:         &controller,
@@ -948,7 +948,7 @@ taskmanager.rpc.port: 6122
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
-					APIVersion:         "flinkoperator.k8s.io/v1beta1",
+					APIVersion:         "flinkoperator.k8s.io/v1beta2",
 					Kind:               "FlinkCluster",
 					Name:               "flinkjobcluster-sample",
 					Controller:         &controller,
@@ -988,18 +988,18 @@ func TestSecurityContext(t *testing.T) {
 
 	// Provided security context
 	var observed = &ObservedClusterState{
-		cluster: &v1beta1.FlinkCluster{
+		cluster: &v1beta2.FlinkCluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "flinkjobcluster-sample",
 				Namespace: "default",
 			},
-			Spec: v1beta1.FlinkClusterSpec{
-				Job: &v1beta1.JobSpec{
+			Spec: v1beta2.FlinkClusterSpec{
+				Job: &v1beta2.JobSpec{
 					SecurityContext: &securityContext,
 				},
-				JobManager: v1beta1.JobManagerSpec{
-					AccessScope: v1beta1.AccessScopeVPC,
-					Ports: v1beta1.JobManagerPorts{
+				JobManager: v1beta2.JobManagerSpec{
+					AccessScope: v1beta2.AccessScopeVPC,
+					Ports: v1beta2.JobManagerPorts{
 						RPC:   &jmRPCPort,
 						Blob:  &jmBlobPort,
 						Query: &jmQueryPort,
@@ -1007,8 +1007,8 @@ func TestSecurityContext(t *testing.T) {
 					},
 					SecurityContext: &securityContext,
 				},
-				TaskManager: v1beta1.TaskManagerSpec{
-					Ports: v1beta1.TaskManagerPorts{
+				TaskManager: v1beta2.TaskManagerSpec{
+					Ports: v1beta2.TaskManagerPorts{
 						Data:  &tmDataPort,
 						RPC:   &tmRPCPort,
 						Query: &tmQueryPort,
@@ -1016,7 +1016,7 @@ func TestSecurityContext(t *testing.T) {
 					SecurityContext: &securityContext,
 				},
 			},
-			Status: v1beta1.FlinkClusterStatus{
+			Status: v1beta2.FlinkClusterStatus{
 				NextRevision: "flinkjobcluster-sample-85dc8f749-1",
 			},
 		},
@@ -1030,31 +1030,31 @@ func TestSecurityContext(t *testing.T) {
 
 	// No security context
 	var observed2 = &ObservedClusterState{
-		cluster: &v1beta1.FlinkCluster{
+		cluster: &v1beta2.FlinkCluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "flinkjobcluster-sample",
 				Namespace: "default",
 			},
-			Spec: v1beta1.FlinkClusterSpec{
-				Job: &v1beta1.JobSpec{},
-				JobManager: v1beta1.JobManagerSpec{
-					AccessScope: v1beta1.AccessScopeVPC,
-					Ports: v1beta1.JobManagerPorts{
+			Spec: v1beta2.FlinkClusterSpec{
+				Job: &v1beta2.JobSpec{},
+				JobManager: v1beta2.JobManagerSpec{
+					AccessScope: v1beta2.AccessScopeVPC,
+					Ports: v1beta2.JobManagerPorts{
 						RPC:   &jmRPCPort,
 						Blob:  &jmBlobPort,
 						Query: &jmQueryPort,
 						UI:    &jmUIPort,
 					},
 				},
-				TaskManager: v1beta1.TaskManagerSpec{
-					Ports: v1beta1.TaskManagerPorts{
+				TaskManager: v1beta2.TaskManagerSpec{
+					Ports: v1beta2.TaskManagerPorts{
 						Data:  &tmDataPort,
 						RPC:   &tmRPCPort,
 						Query: &tmQueryPort,
 					},
 				},
 			},
-			Status: v1beta1.FlinkClusterStatus{
+			Status: v1beta2.FlinkClusterStatus{
 				NextRevision: "flinkjobcluster-sample-85dc8f749-1",
 			},
 		},
@@ -1072,13 +1072,13 @@ func TestCalFlinkHeapSize(t *testing.T) {
 	var memoryOffHeapMin = resource.MustParse("600M")
 
 	// Case 1: Heap sizes are computed from memoryOffHeapMin or memoryOffHeapRatio
-	cluster := &v1beta1.FlinkCluster{
+	cluster := &v1beta2.FlinkCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster",
 			Namespace: "default",
 		},
-		Spec: v1beta1.FlinkClusterSpec{
-			JobManager: v1beta1.JobManagerSpec{
+		Spec: v1beta2.FlinkClusterSpec{
+			JobManager: v1beta2.JobManagerSpec{
 				Resources: corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceMemory: resource.MustParse("1Gi"),
@@ -1087,7 +1087,7 @@ func TestCalFlinkHeapSize(t *testing.T) {
 				MemoryOffHeapRatio: &memoryOffHeapRatio,
 				MemoryOffHeapMin:   memoryOffHeapMin,
 			},
-			TaskManager: v1beta1.TaskManagerSpec{
+			TaskManager: v1beta2.TaskManagerSpec{
 				Resources: corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceMemory: resource.MustParse("4Gi"),
@@ -1111,13 +1111,13 @@ func TestCalFlinkHeapSize(t *testing.T) {
 		expectedFlinkHeapSize)
 
 	// Case 2: No values when memory limits are missing or insufficient
-	cluster = &v1beta1.FlinkCluster{
+	cluster = &v1beta2.FlinkCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster",
 			Namespace: "default",
 		},
-		Spec: v1beta1.FlinkClusterSpec{
-			JobManager: v1beta1.JobManagerSpec{
+		Spec: v1beta2.FlinkClusterSpec{
+			JobManager: v1beta2.JobManagerSpec{
 				Resources: corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceMemory: resource.MustParse("500Mi"),
@@ -1126,7 +1126,7 @@ func TestCalFlinkHeapSize(t *testing.T) {
 				MemoryOffHeapRatio: &memoryOffHeapRatio,
 				MemoryOffHeapMin:   memoryOffHeapMin,
 			},
-			TaskManager: v1beta1.TaskManagerSpec{
+			TaskManager: v1beta2.TaskManagerSpec{
 				MemoryOffHeapRatio: &memoryOffHeapRatio,
 				MemoryOffHeapMin:   memoryOffHeapMin,
 			},
@@ -1139,7 +1139,7 @@ func TestCalFlinkHeapSize(t *testing.T) {
 
 func Test_getLogConf(t *testing.T) {
 	type args struct {
-		spec v1beta1.FlinkClusterSpec
+		spec v1beta2.FlinkClusterSpec
 	}
 	tests := []struct {
 		name string
@@ -1148,7 +1148,7 @@ func Test_getLogConf(t *testing.T) {
 	}{
 		{
 			name: "nil map uses defaults",
-			args: args{v1beta1.FlinkClusterSpec{LogConfig: nil}},
+			args: args{v1beta2.FlinkClusterSpec{LogConfig: nil}},
 			want: map[string]string{
 				"log4j-console.properties": DefaultLog4jConfig,
 				"logback-console.xml":      DefaultLogbackConfig,
@@ -1156,7 +1156,7 @@ func Test_getLogConf(t *testing.T) {
 		},
 		{
 			name: "map missing log4j-console.properties uses default",
-			args: args{v1beta1.FlinkClusterSpec{LogConfig: map[string]string{
+			args: args{v1beta2.FlinkClusterSpec{LogConfig: map[string]string{
 				"logback-console.xml": "xyz",
 			}}},
 			want: map[string]string{
@@ -1166,7 +1166,7 @@ func Test_getLogConf(t *testing.T) {
 		},
 		{
 			name: "map missing logback-console.xml uses default",
-			args: args{v1beta1.FlinkClusterSpec{LogConfig: map[string]string{
+			args: args{v1beta2.FlinkClusterSpec{LogConfig: map[string]string{
 				"log4j-console.properties": "xyz",
 			}}},
 			want: map[string]string{
@@ -1176,7 +1176,7 @@ func Test_getLogConf(t *testing.T) {
 		},
 		{
 			name: "map with both keys overrides defaults",
-			args: args{v1beta1.FlinkClusterSpec{LogConfig: map[string]string{
+			args: args{v1beta2.FlinkClusterSpec{LogConfig: map[string]string{
 				"log4j-console.properties": "hello",
 				"logback-console.xml":      "world",
 			}}},
@@ -1187,7 +1187,7 @@ func Test_getLogConf(t *testing.T) {
 		},
 		{
 			name: "extra keys preserved",
-			args: args{v1beta1.FlinkClusterSpec{LogConfig: map[string]string{
+			args: args{v1beta2.FlinkClusterSpec{LogConfig: map[string]string{
 				"log4j-console.properties": "abc",
 				"file.txt":                 "def",
 			}}},

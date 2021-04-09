@@ -20,8 +20,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/go-logr/logr"
-	v1beta1 "github.com/spotify/flink-on-k8s-operator/api/v1beta1"
+	v1beta2 "github.com/spotify/flink-on-k8s-operator/api/v1beta2"
 	"github.com/spotify/flink-on-k8s-operator/controllers/flinkclient"
 	"github.com/spotify/flink-on-k8s-operator/controllers/history"
 	appsv1 "k8s.io/api/apps/v1"
@@ -32,8 +35,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strings"
-	"time"
 )
 
 // ClusterStateObserver gets the observed state of the cluster.
@@ -48,7 +49,7 @@ type ClusterStateObserver struct {
 
 // ObservedClusterState holds observed state of a cluster.
 type ObservedClusterState struct {
-	cluster           *v1beta1.FlinkCluster
+	cluster           *v1beta2.FlinkCluster
 	revisions         []*appsv1.ControllerRevision
 	configMap         *corev1.ConfigMap
 	jmStatefulSet     *appsv1.StatefulSet
@@ -84,7 +85,7 @@ func (observer *ClusterStateObserver) observe(
 	var log = observer.log
 
 	// Cluster state.
-	var observedCluster = new(v1beta1.FlinkCluster)
+	var observedCluster = new(v1beta2.FlinkCluster)
 	err = observer.observeCluster(observedCluster)
 	if err != nil {
 		if client.IgnoreNotFound(err) != nil {
@@ -241,7 +242,7 @@ func (observer *ClusterStateObserver) observeJob(
 	// Get Flink job ID.
 	// While job state is pending and job submitter is completed, extract the job ID from the pod termination log.
 	var jobSubmitCompleted = observedJob != nil && (observedJob.Status.Succeeded > 0 || observedJob.Status.Failed > 0)
-	var jobInPendingState = recordedJobStatus != nil && recordedJobStatus.State == v1beta1.JobStatePending
+	var jobInPendingState = recordedJobStatus != nil && recordedJobStatus.State == v1beta2.JobStatePending
 	var flinkJobID string
 	if jobSubmitCompleted && jobInPendingState {
 		var observedJobPod *corev1.Pod
@@ -293,7 +294,7 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(
 	var flinkJobsUnexpected []string
 
 	// Wait until the job manager is ready.
-	var jmReady = observed.jmStatefulSet != nil && getStatefulSetState(observed.jmStatefulSet) == v1beta1.ComponentStateReady
+	var jmReady = observed.jmStatefulSet != nil && getStatefulSetState(observed.jmStatefulSet) == v1beta2.ComponentStateReady
 	if !jmReady {
 		log.Info(
 			"Skip getting Flink job status.",
@@ -323,7 +324,7 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(
 		if flinkJobID == job.ID {
 			flinkJob = new(flinkclient.JobStatus)
 			*flinkJob = job
-		} else if getFlinkJobDeploymentState(job.Status) == v1beta1.JobStateRunning {
+		} else if getFlinkJobDeploymentState(job.Status) == v1beta2.JobStateRunning {
 			flinkJobsUnexpected = append(flinkJobsUnexpected, job.ID)
 		}
 	}
@@ -356,7 +357,7 @@ func (observer *ClusterStateObserver) observeSavepoint(observed *ObservedCluster
 
 	// Get savepoint status in progress.
 	var savepointStatus = observed.cluster.Status.Savepoint
-	if savepointStatus != nil && savepointStatus.State == v1beta1.SavepointStateInProgress {
+	if savepointStatus != nil && savepointStatus.State == v1beta2.SavepointStateInProgress {
 		var flinkAPIBaseURL = getFlinkAPIBaseURL(observed.cluster)
 		var jobID = savepointStatus.JobID
 		var triggerID = savepointStatus.TriggerID
@@ -378,14 +379,14 @@ func (observer *ClusterStateObserver) observeSavepoint(observed *ObservedCluster
 }
 
 func (observer *ClusterStateObserver) observeCluster(
-	cluster *v1beta1.FlinkCluster) error {
+	cluster *v1beta2.FlinkCluster) error {
 	return observer.k8sClient.Get(
 		observer.context, observer.request.NamespacedName, cluster)
 }
 
 func (observer *ClusterStateObserver) observeRevisions(
 	revisions *[]*appsv1.ControllerRevision,
-	cluster *v1beta1.FlinkCluster) error {
+	cluster *v1beta2.FlinkCluster) error {
 	if cluster == nil {
 		return nil
 	}

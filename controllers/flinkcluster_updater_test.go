@@ -19,7 +19,7 @@ package controllers
 import (
 	"testing"
 
-	v1beta1 "github.com/spotify/flink-on-k8s-operator/api/v1beta1"
+	v1beta2 "github.com/spotify/flink-on-k8s-operator/api/v1beta2"
 	"gotest.tools/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -33,7 +33,7 @@ func TestGetStatefulSetStateNotReady(t *testing.T) {
 	}
 	var state = getStatefulSetState(&statefulSet)
 	assert.Assert(
-		t, state == v1beta1.ComponentStateNotReady)
+		t, state == v1beta2.ComponentStateNotReady)
 }
 
 func TestGetStatefulSetStateReady(t *testing.T) {
@@ -43,61 +43,61 @@ func TestGetStatefulSetStateReady(t *testing.T) {
 		Status: appsv1.StatefulSetStatus{ReadyReplicas: 3},
 	}
 	var state = getStatefulSetState(&statefulSet)
-	assert.Assert(t, state == v1beta1.ComponentStateReady)
+	assert.Assert(t, state == v1beta2.ComponentStateReady)
 }
 
 func TestIsStatusChangedFalse(t *testing.T) {
-	var oldStatus = v1beta1.FlinkClusterStatus{}
-	var newStatus = v1beta1.FlinkClusterStatus{}
+	var oldStatus = v1beta2.FlinkClusterStatus{}
+	var newStatus = v1beta2.FlinkClusterStatus{}
 	var updater = &ClusterStatusUpdater{}
 	assert.Assert(t, updater.isStatusChanged(oldStatus, newStatus) == false)
 }
 
 func TestIsStatusChangedTrue(t *testing.T) {
-	var oldStatus = v1beta1.FlinkClusterStatus{
-		Components: v1beta1.FlinkClusterComponentsStatus{
-			JobManagerStatefulSet: v1beta1.FlinkClusterComponentState{
+	var oldStatus = v1beta2.FlinkClusterStatus{
+		Components: v1beta2.FlinkClusterComponentsStatus{
+			JobManagerStatefulSet: v1beta2.FlinkClusterComponentState{
 				Name:  "my-jobmanager",
 				State: "NotReady",
 			},
-			TaskManagerStatefulSet: v1beta1.FlinkClusterComponentState{
+			TaskManagerStatefulSet: v1beta2.FlinkClusterComponentState{
 				Name:  "my-taskmanager",
 				State: "NotReady",
 			},
-			JobManagerService: v1beta1.JobManagerServiceStatus{
+			JobManagerService: v1beta2.JobManagerServiceStatus{
 				Name:  "my-jobmanager",
 				State: "NotReady",
 			},
-			JobManagerIngress: &v1beta1.JobManagerIngressStatus{
+			JobManagerIngress: &v1beta2.JobManagerIngressStatus{
 				Name:  "my-jobmanager",
 				State: "NotReady",
 			},
-			Job: &v1beta1.JobStatus{
+			Job: &v1beta2.JobStatus{
 				Name:  "my-job",
 				State: "Pending",
 			},
 		},
 		State: "Creating"}
-	var newStatus = v1beta1.FlinkClusterStatus{
-		Components: v1beta1.FlinkClusterComponentsStatus{
-			JobManagerStatefulSet: v1beta1.FlinkClusterComponentState{
+	var newStatus = v1beta2.FlinkClusterStatus{
+		Components: v1beta2.FlinkClusterComponentsStatus{
+			JobManagerStatefulSet: v1beta2.FlinkClusterComponentState{
 				Name:  "my-jobmanager",
 				State: "Ready",
 			},
-			TaskManagerStatefulSet: v1beta1.FlinkClusterComponentState{
+			TaskManagerStatefulSet: v1beta2.FlinkClusterComponentState{
 				Name:  "my-taskmanager",
 				State: "Ready",
 			},
-			JobManagerService: v1beta1.JobManagerServiceStatus{
+			JobManagerService: v1beta2.JobManagerServiceStatus{
 				Name:  "my-jobmanager",
 				State: "Ready",
 			},
-			JobManagerIngress: &v1beta1.JobManagerIngressStatus{
+			JobManagerIngress: &v1beta2.JobManagerIngressStatus{
 				Name:  "my-jobmanager",
 				State: "Ready",
 				URLs:  []string{"http://my-jobmanager"},
 			},
-			Job: &v1beta1.JobStatus{
+			Job: &v1beta2.JobStatus{
 				Name:  "my-job",
 				State: "Running",
 			},

@@ -14,7 +14,7 @@ limitations under the License.
 package schedulerinterface
 
 import (
-	"github.com/spotify/flink-on-k8s-operator/api/v1beta1"
+	"github.com/spotify/flink-on-k8s-operator/api/v1beta2"
 	"github.com/spotify/flink-on-k8s-operator/controllers/model"
 )
 
@@ -23,5 +23,5 @@ type BatchScheduler interface {
 	// Name gets the name of the scheduler
 	Name() string
 	// Schedule reconciles batch scheduling
-	Schedule(cluster *v1beta1.FlinkCluster, desired *model.DesiredClusterState) error
+	Schedule(cluster *v1beta2.FlinkCluster, desired *model.DesiredClusterState) error
 }

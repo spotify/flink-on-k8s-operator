@@ -72,7 +72,7 @@ The operator is still under active development, there is no Helm chart available
 
 ### API
 
-* [Custom Resource Definition (v1beta1)](docs/crd.md)
+* [Custom Resource Definition (v1beta2)](docs/crd.md)
 
 ### How to
 
