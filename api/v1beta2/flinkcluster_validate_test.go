@@ -37,16 +37,16 @@ func TestValidateCreate(t *testing.T) {
 	var dataPort int32 = 8005
 	var parallelism int32 = 2
 	var restartPolicy = JobRestartPolicyFromSavepointOnFailure
-	var memoryOffHeapRatio int32 = 25
-	var memoryOffHeapMin = resource.MustParse("600M")
+	var processMemoryRatio int32 = 25
 	var cluster = FlinkCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster",
 			Namespace: "default",
 		},
 		Spec: FlinkClusterSpec{
+			FlinkVersion: "1.12",
 			Image: ImageSpec{
-				Name:       "flink:1.8.1",
+				Name:       "flink:1.12.1",
 				PullPolicy: corev1.PullPolicy("Always"),
 			},
 			JobManager: JobManagerSpec{
@@ -58,8 +58,7 @@ func TestValidateCreate(t *testing.T) {
 					Query: &queryPort,
 					UI:    &uiPort,
 				},
-				MemoryOffHeapRatio: &memoryOffHeapRatio,
-				MemoryOffHeapMin:   memoryOffHeapMin,
+				ProcessMemoryRatio: &processMemoryRatio,
 			},
 			TaskManager: TaskManagerSpec{
 				Replicas: 3,
@@ -68,8 +67,7 @@ func TestValidateCreate(t *testing.T) {
 					Data:  &dataPort,
 					Query: &queryPort,
 				},
-				MemoryOffHeapRatio: &memoryOffHeapRatio,
-				MemoryOffHeapMin:   memoryOffHeapMin,
+				ProcessMemoryRatio: &processMemoryRatio,
 			},
 			Job: &JobSpec{
 				JarFile:       "gs://my-bucket/myjob.jar",
@@ -106,7 +104,9 @@ func TestInvalidImageSpec(t *testing.T) {
 			Name:      "mycluster",
 			Namespace: "default",
 		},
-		Spec: FlinkClusterSpec{},
+		Spec: FlinkClusterSpec{
+			FlinkVersion: "1.8",
+		},
 	}
 	var err = validator.ValidateCreate(&cluster)
 	var expectedErr = "image name is unspecified"
@@ -118,6 +118,7 @@ func TestInvalidImageSpec(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: FlinkClusterSpec{
+			FlinkVersion: "1.8",
 			Image: ImageSpec{
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("XXX"),
@@ -143,6 +144,7 @@ func TestInvalidJobManagerSpec(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: FlinkClusterSpec{
+			FlinkVersion: "1.8",
 			Image: ImageSpec{
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("Always"),
@@ -169,6 +171,7 @@ func TestInvalidJobManagerSpec(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: FlinkClusterSpec{
+			FlinkVersion: "1.8",
 			Image: ImageSpec{
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("Always"),
@@ -195,6 +198,7 @@ func TestInvalidJobManagerSpec(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: FlinkClusterSpec{
+			FlinkVersion: "1.8",
 			Image: ImageSpec{
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("Always"),
@@ -232,6 +236,7 @@ func TestInvalidTaskManagerSpec(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: FlinkClusterSpec{
+			FlinkVersion: "1.8",
 			Image: ImageSpec{
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("Always"),
@@ -270,6 +275,7 @@ func TestInvalidTaskManagerSpec(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: FlinkClusterSpec{
+			FlinkVersion: "1.8",
 			Image: ImageSpec{
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("Always"),
@@ -308,6 +314,7 @@ func TestInvalidTaskManagerSpec(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: FlinkClusterSpec{
+			FlinkVersion: "1.8",
 			Image: ImageSpec{
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("Always"),
@@ -366,6 +373,7 @@ func TestInvalidJobSpec(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: FlinkClusterSpec{
+			FlinkVersion: "1.8",
 			Image: ImageSpec{
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("Always"),
@@ -408,6 +416,7 @@ func TestInvalidJobSpec(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: FlinkClusterSpec{
+			FlinkVersion: "1.8",
 			Image: ImageSpec{
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("Always"),
@@ -450,6 +459,7 @@ func TestInvalidJobSpec(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: FlinkClusterSpec{
+			FlinkVersion: "1.8",
 			Image: ImageSpec{
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("Always"),
@@ -493,6 +503,7 @@ func TestInvalidJobSpec(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: FlinkClusterSpec{
+			FlinkVersion: "1.8",
 			Image: ImageSpec{
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("Always"),
@@ -927,7 +938,7 @@ func TestDupPort(t *testing.T) {
 	var jm = JobManagerSpec{Replicas: &jmReplicas, AccessScope: AccessScopeVPC, Ports: flinkPorts,
 		ExtraPorts: []NamedPort{
 			{Name: "rpc", ContainerPort: 9001}}}
-	var err = validator.validateJobManager(&jm)
+	var err = validator.validateJobManager(nil, &jm)
 	var expectedErr = "duplicate port name rpc in jobmanager, each port name of ports and extraPorts must be unique"
 	assert.Equal(t, err.Error(), expectedErr)
 
@@ -935,14 +946,14 @@ func TestDupPort(t *testing.T) {
 		ExtraPorts: []NamedPort{
 			{Name: "monitoring", ContainerPort: 9249},
 			{Name: "monitoring", ContainerPort: 9259}}}
-	err = validator.validateJobManager(&jm)
+	err = validator.validateJobManager(nil, &jm)
 	expectedErr = "duplicate port name monitoring in jobmanager, each port name of ports and extraPorts must be unique"
 	assert.Equal(t, err.Error(), expectedErr)
 
 	jm = JobManagerSpec{Replicas: &jmReplicas, AccessScope: AccessScopeVPC, Ports: flinkPorts,
 		ExtraPorts: []NamedPort{
 			{Name: "rpc2", ContainerPort: 8001}}}
-	err = validator.validateJobManager(&jm)
+	err = validator.validateJobManager(nil, &jm)
 	expectedErr = "duplicate containerPort 8001 in jobmanager, each port number of ports and extraPorts must be unique"
 	assert.Equal(t, err.Error(), expectedErr)
 
@@ -950,7 +961,7 @@ func TestDupPort(t *testing.T) {
 		ExtraPorts: []NamedPort{
 			{Name: "monitoring", ContainerPort: 9249},
 			{Name: "prometheus", ContainerPort: 9249}}}
-	err = validator.validateJobManager(&jm)
+	err = validator.validateJobManager(nil, &jm)
 	expectedErr = "duplicate containerPort 9249 in jobmanager, each port number of ports and extraPorts must be unique"
 	assert.Equal(t, err.Error(), expectedErr)
 }
@@ -973,6 +984,7 @@ func getSimpleFlinkCluster() FlinkCluster {
 			Namespace: "default",
 		},
 		Spec: FlinkClusterSpec{
+			FlinkVersion: "1.8",
 			Image: ImageSpec{
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("Always"),
