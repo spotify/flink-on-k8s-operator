@@ -36,6 +36,8 @@ import (
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+
+	"github.com/hashicorp/go-version"
 )
 
 // Converter which converts the FlinkCluster spec to the desired
@@ -537,6 +539,9 @@ func getDesiredTaskManagerStatefulSet(
 func getDesiredConfigMap(
 	flinkCluster *v1beta2.FlinkCluster) *corev1.ConfigMap {
 
+	appVersion, _ := version.NewVersion(flinkCluster.Spec.FlinkVersion)
+	v11, _ := version.NewVersion("1.11")
+
 	if shouldCleanup(flinkCluster, "ConfigMap") {
 		return nil
 	}
@@ -560,20 +565,22 @@ func getDesiredConfigMap(
 		"taskmanager.rpc.port":   strconv.FormatInt(int64(*tmPorts.RPC), 10),
 	}
 
-	var flinkHeapSize = calFlinkHeapSize(flinkCluster)
-	if flinkHeapSize["jobmanager.heap.size"] != "" {
-		flinkProps["jobmanager.heap.size"] = flinkHeapSize["jobmanager.heap.size"]
-	}
-	if flinkHeapSize["taskmanager.heap.size"] != "" {
-		flinkProps["taskmanager.heap.size"] = flinkHeapSize["taskmanager.heap.size"]
-	}
-
-	var flinkProcessMemorySize = calFlinkProcessMemorySize(flinkCluster)
-	if flinkProcessMemorySize["jobmanager.process.memory.size"] != "" {
-		flinkProps["jobmanager.process.memory.size"] = flinkProcessMemorySize["jobmanager.process.memory.size"]
-	}
-	if flinkProcessMemorySize["taskmanager.process.memory.size"] != "" {
-		flinkProps["taskmanager.process.memory.size"] = flinkProcessMemorySize["taskmanager.process.memory.size"]
+	if appVersion == nil || appVersion.LessThan(v11) {
+		var flinkHeapSize = calFlinkHeapSize(flinkCluster)
+		if flinkHeapSize["jobmanager.heap.size"] != "" {
+			flinkProps["jobmanager.heap.size"] = flinkHeapSize["jobmanager.heap.size"]
+		}
+		if flinkHeapSize["taskmanager.heap.size"] != "" {
+			flinkProps["taskmanager.heap.size"] = flinkHeapSize["taskmanager.heap.size"]
+		}
+	} else {
+		var flinkProcessMemorySize = calFlinkProcessMemorySize(flinkCluster)
+		if flinkProcessMemorySize["jobmanager.process.memory.size"] != "" {
+			flinkProps["jobmanager.process.memory.size"] = flinkProcessMemorySize["jobmanager.process.memory.size"]
+		}
+		if flinkProcessMemorySize["taskmanager.process.memory.size"] != "" {
+			flinkProps["taskmanager.process.memory.size"] = flinkProcessMemorySize["taskmanager.process.memory.size"]
+		}
 	}
 
 	// Add custom Flink properties.

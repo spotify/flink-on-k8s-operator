@@ -17,8 +17,13 @@ limitations under the License.
 package v1beta2
 
 import (
+	"github.com/hashicorp/go-version"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+)
+
+var (
+	v11, _ = version.NewVersion("1.11")
 )
 
 // Sets default values for unspecified FlinkCluster properties.
@@ -28,8 +33,9 @@ func _SetDefault(cluster *FlinkCluster) {
 		*cluster.Spec.RecreateOnUpdate = true
 	}
 	_SetImageDefault(&cluster.Spec.Image)
-	_SetJobManagerDefault(&cluster.Spec.JobManager)
-	_SetTaskManagerDefault(&cluster.Spec.TaskManager)
+	flinkVersion, _ := version.NewVersion(cluster.Spec.FlinkVersion)
+	_SetJobManagerDefault(&cluster.Spec.JobManager, flinkVersion)
+	_SetTaskManagerDefault(&cluster.Spec.TaskManager, flinkVersion)
 	_SetJobDefault(cluster.Spec.Job)
 	_SetHadoopConfigDefault(cluster.Spec.HadoopConfig)
 }
@@ -40,7 +46,7 @@ func _SetImageDefault(imageSpec *ImageSpec) {
 	}
 }
 
-func _SetJobManagerDefault(jmSpec *JobManagerSpec) {
+func _SetJobManagerDefault(jmSpec *JobManagerSpec, flinkVersion *version.Version) {
 	if jmSpec.Replicas == nil {
 		jmSpec.Replicas = new(int32)
 		*jmSpec.Replicas = 1
@@ -70,20 +76,24 @@ func _SetJobManagerDefault(jmSpec *JobManagerSpec) {
 		jmSpec.Ports.UI = new(int32)
 		*jmSpec.Ports.UI = 8081
 	}
-	if jmSpec.MemoryOffHeapMin.Format == "" {
-		jmSpec.MemoryOffHeapMin = *resource.NewScaledQuantity(600, 6) // 600MB
-	}
-	if jmSpec.MemoryOffHeapRatio == nil {
-		jmSpec.MemoryOffHeapRatio = new(int32)
-		*jmSpec.MemoryOffHeapRatio = 25
-	}
-	if jmSpec.ProcessMemoryRatio == nil {
-		jmSpec.ProcessMemoryRatio = new(int32)
-		*jmSpec.ProcessMemoryRatio = 20
+
+	if flinkVersion == nil || flinkVersion.LessThan(v11) {
+		if jmSpec.MemoryOffHeapMin.Format == "" {
+			jmSpec.MemoryOffHeapMin = *resource.NewScaledQuantity(600, 6) // 600MB
+		}
+		if jmSpec.MemoryOffHeapRatio == nil {
+			jmSpec.MemoryOffHeapRatio = new(int32)
+			*jmSpec.MemoryOffHeapRatio = 25
+		}
+	} else {
+		if jmSpec.ProcessMemoryRatio == nil {
+			jmSpec.ProcessMemoryRatio = new(int32)
+			*jmSpec.ProcessMemoryRatio = 20
+		}
 	}
 }
 
-func _SetTaskManagerDefault(tmSpec *TaskManagerSpec) {
+func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Version) {
 	if tmSpec.Ports.Data == nil {
 		tmSpec.Ports.Data = new(int32)
 		*tmSpec.Ports.Data = 6121
@@ -96,16 +106,19 @@ func _SetTaskManagerDefault(tmSpec *TaskManagerSpec) {
 		tmSpec.Ports.Query = new(int32)
 		*tmSpec.Ports.Query = 6125
 	}
-	if tmSpec.MemoryOffHeapMin.Format == "" {
-		tmSpec.MemoryOffHeapMin = *resource.NewScaledQuantity(600, 6) // 600MB
-	}
-	if tmSpec.MemoryOffHeapRatio == nil {
-		tmSpec.MemoryOffHeapRatio = new(int32)
-		*tmSpec.MemoryOffHeapRatio = 25
-	}
-	if tmSpec.ProcessMemoryRatio == nil {
-		tmSpec.ProcessMemoryRatio = new(int32)
-		*tmSpec.ProcessMemoryRatio = 20
+	if flinkVersion == nil || flinkVersion.LessThan(v11) {
+		if tmSpec.MemoryOffHeapMin.Format == "" {
+			tmSpec.MemoryOffHeapMin = *resource.NewScaledQuantity(600, 6) // 600MB
+		}
+		if tmSpec.MemoryOffHeapRatio == nil {
+			tmSpec.MemoryOffHeapRatio = new(int32)
+			*tmSpec.MemoryOffHeapRatio = 25
+		}
+	} else {
+		if tmSpec.ProcessMemoryRatio == nil {
+			tmSpec.ProcessMemoryRatio = new(int32)
+			*tmSpec.ProcessMemoryRatio = 20
+		}
 	}
 }
 
