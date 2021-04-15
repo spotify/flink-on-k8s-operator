@@ -336,8 +336,8 @@ func (v *Validator) validateJobManager(flinkVersion *version.Version, jmSpec *Jo
 	}
 
 	if flinkVersion == nil || flinkVersion.LessThan(v10) {
-		if jmSpec.ProcessMemoryRatio != nil {
-			return fmt.Errorf("ProcessMemoryRatio config cannot be used with flinkVersion < 1.11', use " +
+		if jmSpec.MemoryProcessRatio != nil {
+			return fmt.Errorf("MemoryProcessRatio config cannot be used with flinkVersion < 1.11', use " +
 				"memoryOffHeapRatio instead")
 		}
 
@@ -355,10 +355,10 @@ func (v *Validator) validateJobManager(flinkVersion *version.Version, jmSpec *Jo
 	} else {
 		if jmSpec.MemoryOffHeapRatio != nil || !jmSpec.MemoryOffHeapMin.IsZero() {
 			return fmt.Errorf("MemoryOffHeapRatio or MemoryOffHeapMin config cannot be used with flinkVersion >= 1.11'; " +
-				"use processMemoryRatio istead")
+				"use memoryProcessRatio istead")
 		}
-		// ProcessMemoryRatio
-		err = v.validateRatio(jmSpec.ProcessMemoryRatio, "jobmanager", "processMemoryRatio")
+		// MemoryProcessRatio
+		err = v.validateRatio(jmSpec.MemoryProcessRatio, "jobmanager", "memoryProcessRatio")
 		if err != nil {
 			return err
 		}
@@ -399,8 +399,8 @@ func (v *Validator) validateTaskManager(flinkVersion *version.Version, tmSpec *T
 	}
 
 	if flinkVersion == nil || flinkVersion.LessThan(v10) {
-		if tmSpec.ProcessMemoryRatio != nil {
-			return fmt.Errorf("ProcessMemoryRatio config cannot be used with flinkVersion < 1.11', use " +
+		if tmSpec.MemoryProcessRatio != nil {
+			return fmt.Errorf("MemoryProcessRatio config cannot be used with flinkVersion < 1.11', use " +
 				"memoryOffHeapRatio instead")
 		}
 
@@ -418,10 +418,10 @@ func (v *Validator) validateTaskManager(flinkVersion *version.Version, tmSpec *T
 	} else {
 		if tmSpec.MemoryOffHeapRatio != nil || !tmSpec.MemoryOffHeapMin.IsZero() {
 			return fmt.Errorf("MemoryOffHeapRatio or MemoryOffHeapMin config cannot be used with flinkVersion >= 1.11'; " +
-				"use processMemoryRatio istead")
+				"use memoryProcessRatio istead")
 		}
-		// ProcessMemoryRatio
-		err = v.validateRatio(tmSpec.ProcessMemoryRatio, "taskmanager", "processMemoryRatio")
+		// MemoryProcessRatio
+		err = v.validateRatio(tmSpec.MemoryProcessRatio, "taskmanager", "memoryProcessRatio")
 		if err != nil {
 			return err
 		}
