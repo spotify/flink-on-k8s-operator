@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	v11, _ = version.NewVersion("1.11")
+	v10, _ = version.NewVersion("1.10")
 )
 
 // Sets default values for unspecified FlinkCluster properties.
@@ -77,7 +77,7 @@ func _SetJobManagerDefault(jmSpec *JobManagerSpec, flinkVersion *version.Version
 		*jmSpec.Ports.UI = 8081
 	}
 
-	if flinkVersion == nil || flinkVersion.LessThan(v11) {
+	if flinkVersion == nil || flinkVersion.LessThan(v10) {
 		if jmSpec.MemoryOffHeapMin.Format == "" {
 			jmSpec.MemoryOffHeapMin = *resource.NewScaledQuantity(600, 6) // 600MB
 		}
@@ -106,7 +106,7 @@ func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Versi
 		tmSpec.Ports.Query = new(int32)
 		*tmSpec.Ports.Query = 6125
 	}
-	if flinkVersion == nil || flinkVersion.LessThan(v11) {
+	if flinkVersion == nil || flinkVersion.LessThan(v10) {
 		if tmSpec.MemoryOffHeapMin.Format == "" {
 			tmSpec.MemoryOffHeapMin = *resource.NewScaledQuantity(600, 6) // 600MB
 		}

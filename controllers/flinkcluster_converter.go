@@ -51,13 +51,16 @@ const (
 	hadoopConfigVolume              = "hadoop-config-volume"
 )
 
-var flinkSysProps = map[string]struct{}{
-	"jobmanager.rpc.address": {},
-	"jobmanager.rpc.port":    {},
-	"blob.server.port":       {},
-	"query.server.port":      {},
-	"rest.port":              {},
-}
+var (
+	flinkSysProps = map[string]struct{}{
+		"jobmanager.rpc.address": {},
+		"jobmanager.rpc.port":    {},
+		"blob.server.port":       {},
+		"query.server.port":      {},
+		"rest.port":              {},
+	}
+	v10, _ = version.NewVersion("1.10")
+)
 
 // Gets the desired state of a cluster.
 func getDesiredClusterState(
@@ -538,9 +541,7 @@ func getDesiredTaskManagerStatefulSet(
 // Gets the desired configMap.
 func getDesiredConfigMap(
 	flinkCluster *v1beta2.FlinkCluster) *corev1.ConfigMap {
-
 	appVersion, _ := version.NewVersion(flinkCluster.Spec.FlinkVersion)
-	v11, _ := version.NewVersion("1.11")
 
 	if shouldCleanup(flinkCluster, "ConfigMap") {
 		return nil
@@ -565,7 +566,7 @@ func getDesiredConfigMap(
 		"taskmanager.rpc.port":   strconv.FormatInt(int64(*tmPorts.RPC), 10),
 	}
 
-	if appVersion == nil || appVersion.LessThan(v11) {
+	if appVersion == nil || appVersion.LessThan(v10) {
 		var flinkHeapSize = calFlinkHeapSize(flinkCluster)
 		if flinkHeapSize["jobmanager.heap.size"] != "" {
 			flinkProps["jobmanager.heap.size"] = flinkHeapSize["jobmanager.heap.size"]

@@ -335,7 +335,7 @@ func (v *Validator) validateJobManager(flinkVersion *version.Version, jmSpec *Jo
 		return err
 	}
 
-	if flinkVersion == nil || flinkVersion.LessThan(v11) {
+	if flinkVersion == nil || flinkVersion.LessThan(v10) {
 		if jmSpec.ProcessMemoryRatio != nil {
 			return fmt.Errorf("ProcessMemoryRatio config cannot be used with flinkVersion < 1.11', use " +
 				"memoryOffHeapRatio instead")
@@ -398,7 +398,7 @@ func (v *Validator) validateTaskManager(flinkVersion *version.Version, tmSpec *T
 		return err
 	}
 
-	if flinkVersion == nil || flinkVersion.LessThan(v11) {
+	if flinkVersion == nil || flinkVersion.LessThan(v10) {
 		if tmSpec.ProcessMemoryRatio != nil {
 			return fmt.Errorf("ProcessMemoryRatio config cannot be used with flinkVersion < 1.11', use " +
 				"memoryOffHeapRatio instead")
