@@ -20,7 +20,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	v1beta1 "github.com/spotify/flink-on-k8s-operator/api/v1beta1"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
+	v1beta2 "github.com/spotify/flink-on-k8s-operator/api/v1beta2"
 	"github.com/spotify/flink-on-k8s-operator/controllers/history"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
@@ -30,10 +35,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"os"
-	"strconv"
-	"strings"
-	"time"
 )
 
 const (
@@ -68,7 +69,7 @@ type objectMetaForPatch struct {
 	Annotations map[string]interface{} `json:"annotations"`
 }
 
-func getFlinkAPIBaseURL(cluster *v1beta1.FlinkCluster) string {
+func getFlinkAPIBaseURL(cluster *v1beta2.FlinkCluster) string {
 	clusterDomain := os.Getenv("CLUSTER_DOMAIN")
 	if clusterDomain == "" {
 		clusterDomain = "cluster.local"
@@ -138,23 +139,23 @@ func setTimestamp(target *string) {
 }
 
 // Checks whether it is possible to take savepoint.
-func canTakeSavepoint(cluster v1beta1.FlinkCluster) bool {
+func canTakeSavepoint(cluster v1beta2.FlinkCluster) bool {
 	var jobSpec = cluster.Spec.Job
 	var savepointStatus = cluster.Status.Savepoint
 	var jobStatus = cluster.Status.Components.Job
 	return jobSpec != nil && jobSpec.SavepointsDir != nil &&
 		!isJobStopped(jobStatus) &&
-		(savepointStatus == nil || savepointStatus.State != v1beta1.SavepointStateInProgress)
+		(savepointStatus == nil || savepointStatus.State != v1beta2.SavepointStateInProgress)
 }
 
 // shouldRestartJob returns true if the controller should restart failed or lost job.
 func shouldRestartJob(
-	restartPolicy *v1beta1.JobRestartPolicy,
-	jobStatus *v1beta1.JobStatus) bool {
+	restartPolicy *v1beta2.JobRestartPolicy,
+	jobStatus *v1beta2.JobStatus) bool {
 	return restartPolicy != nil &&
-		*restartPolicy == v1beta1.JobRestartPolicyFromSavepointOnFailure &&
+		*restartPolicy == v1beta2.JobRestartPolicyFromSavepointOnFailure &&
 		jobStatus != nil &&
-		(jobStatus.State == v1beta1.JobStateFailed || jobStatus.State == v1beta1.JobStateLost) &&
+		(jobStatus.State == v1beta2.JobStateFailed || jobStatus.State == v1beta2.JobStateLost) &&
 		len(jobStatus.SavepointLocation) > 0
 }
 
@@ -175,7 +176,7 @@ func getFromSavepoint(jobSpec batchv1.JobSpec) string {
 }
 
 // newRevision generates FlinkClusterSpec patch and makes new child ControllerRevision resource with it.
-func newRevision(cluster *v1beta1.FlinkCluster, revision int64, collisionCount *int32) (*appsv1.ControllerRevision, error) {
+func newRevision(cluster *v1beta2.FlinkCluster, revision int64, collisionCount *int32) (*appsv1.ControllerRevision, error) {
 	var patch []byte
 	var err error
 
@@ -213,7 +214,7 @@ func newRevision(cluster *v1beta1.FlinkCluster, revision int64, collisionCount *
 	return cr, nil
 }
 
-func getPatch(cluster *v1beta1.FlinkCluster) ([]byte, error) {
+func getPatch(cluster *v1beta2.FlinkCluster) ([]byte, error) {
 	str := &bytes.Buffer{}
 	err := unstructured.UnstructuredJSONScheme.Encode(cluster, str)
 
@@ -238,11 +239,11 @@ func getNextRevisionNumber(revisions []*appsv1.ControllerRevision) int64 {
 	return revisions[count-1].Revision + 1
 }
 
-func getCurrentRevisionName(status v1beta1.FlinkClusterStatus) string {
+func getCurrentRevisionName(status v1beta2.FlinkClusterStatus) string {
 	return status.CurrentRevision[:strings.LastIndex(status.CurrentRevision, "-")]
 }
 
-func getNextRevisionName(status v1beta1.FlinkClusterStatus) string {
+func getNextRevisionName(status v1beta2.FlinkClusterStatus) string {
 	return status.NextRevision[:strings.LastIndex(status.NextRevision, "-")]
 }
 
@@ -266,16 +267,16 @@ func getRetryCount(data map[string]string) (string, error) {
 	return retries, err
 }
 
-func getNewUserControlStatus(controlName string) *v1beta1.FlinkClusterControlStatus {
-	var controlStatus = new(v1beta1.FlinkClusterControlStatus)
+func getNewUserControlStatus(controlName string) *v1beta2.FlinkClusterControlStatus {
+	var controlStatus = new(v1beta2.FlinkClusterControlStatus)
 	controlStatus.Name = controlName
-	controlStatus.State = v1beta1.ControlStateProgressing
+	controlStatus.State = v1beta2.ControlStateProgressing
 	setTimestamp(&controlStatus.UpdateTime)
 	return controlStatus
 }
 
-func getTriggeredSavepointStatus(jobID string, triggerID string, triggerReason string, message string, triggerSuccess bool) v1beta1.SavepointStatus {
-	var savepointStatus = v1beta1.SavepointStatus{}
+func getTriggeredSavepointStatus(jobID string, triggerID string, triggerReason string, message string, triggerSuccess bool) v1beta2.SavepointStatus {
+	var savepointStatus = v1beta2.SavepointStatus{}
 	var now string
 	setTimestamp(&now)
 	savepointStatus.JobID = jobID
@@ -285,24 +286,24 @@ func getTriggeredSavepointStatus(jobID string, triggerID string, triggerReason s
 	savepointStatus.RequestTime = now
 	savepointStatus.Message = message
 	if triggerSuccess {
-		savepointStatus.State = v1beta1.SavepointStateInProgress
+		savepointStatus.State = v1beta2.SavepointStateInProgress
 	} else {
-		savepointStatus.State = v1beta1.SavepointStateTriggerFailed
+		savepointStatus.State = v1beta2.SavepointStateTriggerFailed
 	}
 	return savepointStatus
 }
 
-func getRequestedSavepointStatus(triggerReason string) *v1beta1.SavepointStatus {
+func getRequestedSavepointStatus(triggerReason string) *v1beta2.SavepointStatus {
 	var now string
 	setTimestamp(&now)
-	return &v1beta1.SavepointStatus{
-		State:         v1beta1.SavepointStateNotTriggered,
+	return &v1beta2.SavepointStatus{
+		State:         v1beta2.SavepointStateNotTriggered,
 		TriggerReason: triggerReason,
 		RequestTime:   now,
 	}
 }
 
-func savepointTimeout(s *v1beta1.SavepointStatus) bool {
+func savepointTimeout(s *v1beta2.SavepointStatus) bool {
 	if s.TriggerTime == "" {
 		return false
 	}
@@ -312,21 +313,21 @@ func savepointTimeout(s *v1beta1.SavepointStatus) bool {
 	return time.Now().After(validTime)
 }
 
-func getControlEvent(status v1beta1.FlinkClusterControlStatus) (eventType string, eventReason string, eventMessage string) {
+func getControlEvent(status v1beta2.FlinkClusterControlStatus) (eventType string, eventReason string, eventMessage string) {
 	var msg = status.Message
 	if len(msg) > 100 {
 		msg = msg[:100] + "..."
 	}
 	switch status.State {
-	case v1beta1.ControlStateProgressing:
+	case v1beta2.ControlStateProgressing:
 		eventType = corev1.EventTypeNormal
 		eventReason = "ControlRequested"
 		eventMessage = fmt.Sprintf("Requested new user control %v", status.Name)
-	case v1beta1.ControlStateSucceeded:
+	case v1beta2.ControlStateSucceeded:
 		eventType = corev1.EventTypeNormal
 		eventReason = "ControlSucceeded"
 		eventMessage = fmt.Sprintf("Succesfully completed user control %v", status.Name)
-	case v1beta1.ControlStateFailed:
+	case v1beta2.ControlStateFailed:
 		eventType = corev1.EventTypeWarning
 		eventReason = "ControlFailed"
 		if status.Message != "" {
@@ -338,29 +339,29 @@ func getControlEvent(status v1beta1.FlinkClusterControlStatus) (eventType string
 	return
 }
 
-func getSavepointEvent(status v1beta1.SavepointStatus) (eventType string, eventReason string, eventMessage string) {
+func getSavepointEvent(status v1beta2.SavepointStatus) (eventType string, eventReason string, eventMessage string) {
 	var msg = status.Message
 	if len(msg) > 100 {
 		msg = msg[:100] + "..."
 	}
 	var triggerReason = status.TriggerReason
-	if triggerReason == v1beta1.SavepointTriggerReasonJobCancel || triggerReason == v1beta1.SavepointTriggerReasonUpdate {
+	if triggerReason == v1beta2.SavepointTriggerReasonJobCancel || triggerReason == v1beta2.SavepointTriggerReasonUpdate {
 		triggerReason = "for " + triggerReason
 	}
 	switch status.State {
-	case v1beta1.SavepointStateTriggerFailed:
+	case v1beta2.SavepointStateTriggerFailed:
 		eventType = corev1.EventTypeWarning
 		eventReason = "SavepointFailed"
 		eventMessage = fmt.Sprintf("Failed to trigger savepoint %v: %v", triggerReason, msg)
-	case v1beta1.SavepointStateInProgress:
+	case v1beta2.SavepointStateInProgress:
 		eventType = corev1.EventTypeNormal
 		eventReason = "SavepointTriggered"
 		eventMessage = fmt.Sprintf("Triggered savepoint %v: triggerID %v.", triggerReason, status.TriggerID)
-	case v1beta1.SavepointStateSucceeded:
+	case v1beta2.SavepointStateSucceeded:
 		eventType = corev1.EventTypeNormal
 		eventReason = "SavepointCreated"
 		eventMessage = fmt.Sprintf("Successfully savepoint created")
-	case v1beta1.SavepointStateFailed:
+	case v1beta2.SavepointStateFailed:
 		eventType = corev1.EventTypeWarning
 		eventReason = "SavepointFailed"
 		eventMessage = fmt.Sprintf("Savepoint creation failed: %v", msg)
@@ -368,42 +369,42 @@ func getSavepointEvent(status v1beta1.SavepointStatus) (eventType string, eventR
 	return
 }
 
-func isJobActive(status *v1beta1.JobStatus) bool {
+func isJobActive(status *v1beta2.JobStatus) bool {
 	return status != nil &&
-		(status.State == v1beta1.JobStateRunning || status.State == v1beta1.JobStatePending)
+		(status.State == v1beta2.JobStateRunning || status.State == v1beta2.JobStatePending)
 }
 
-func isJobStopped(status *v1beta1.JobStatus) bool {
+func isJobStopped(status *v1beta2.JobStatus) bool {
 	return status != nil &&
-		(status.State == v1beta1.JobStateSucceeded ||
-			status.State == v1beta1.JobStateFailed ||
-			status.State == v1beta1.JobStateCancelled ||
-			status.State == v1beta1.JobStateSuspended ||
-			status.State == v1beta1.JobStateLost)
+		(status.State == v1beta2.JobStateSucceeded ||
+			status.State == v1beta2.JobStateFailed ||
+			status.State == v1beta2.JobStateCancelled ||
+			status.State == v1beta2.JobStateSuspended ||
+			status.State == v1beta2.JobStateLost)
 }
 
-func isJobCancelRequested(cluster v1beta1.FlinkCluster) bool {
-	var userControl = cluster.Annotations[v1beta1.ControlAnnotation]
+func isJobCancelRequested(cluster v1beta2.FlinkCluster) bool {
+	var userControl = cluster.Annotations[v1beta2.ControlAnnotation]
 	var cancelRequested = cluster.Spec.Job.CancelRequested
-	return userControl == v1beta1.ControlNameJobCancel ||
+	return userControl == v1beta2.ControlNameJobCancel ||
 		(cancelRequested != nil && *cancelRequested)
 }
 
-func isJobTerminated(restartPolicy *v1beta1.JobRestartPolicy, jobStatus *v1beta1.JobStatus) bool {
+func isJobTerminated(restartPolicy *v1beta2.JobRestartPolicy, jobStatus *v1beta2.JobStatus) bool {
 	return isJobStopped(jobStatus) && !shouldRestartJob(restartPolicy, jobStatus)
 }
 
-func isUpdateTriggered(status v1beta1.FlinkClusterStatus) bool {
+func isUpdateTriggered(status v1beta2.FlinkClusterStatus) bool {
 	return status.CurrentRevision != status.NextRevision
 }
 
-func isUserControlFinished(controlStatus *v1beta1.FlinkClusterControlStatus) bool {
-	return controlStatus.State == v1beta1.ControlStateSucceeded ||
-		controlStatus.State == v1beta1.ControlStateFailed
+func isUserControlFinished(controlStatus *v1beta2.FlinkClusterControlStatus) bool {
+	return controlStatus.State == v1beta2.ControlStateSucceeded ||
+		controlStatus.State == v1beta2.ControlStateFailed
 }
 
 // Check if the savepoint has been created recently.
-func isSavepointUpToDate(now time.Time, jobStatus v1beta1.JobStatus) bool {
+func isSavepointUpToDate(now time.Time, jobStatus v1beta2.JobStatus) bool {
 	if jobStatus.SavepointLocation != "" && jobStatus.LastSavepointTime != "" {
 		if !hasTimeElapsed(jobStatus.LastSavepointTime, now, SavepointAgeForJobUpdateSec) {
 			return true
@@ -427,7 +428,7 @@ func hasTimeElapsed(timeToCheckStr string, now time.Time, intervalSec int) bool 
 // If the component is observed as well as the next revision name in status.nextRevision and component's label `flinkoperator.k8s.io/hash` are equal, then it is updated already.
 // If the component is not observed and it is required, then it is not updated yet.
 // If the component is not observed and it is optional, but it is specified in the spec, then it is not updated yet.
-func isComponentUpdated(component runtime.Object, cluster v1beta1.FlinkCluster) bool {
+func isComponentUpdated(component runtime.Object, cluster v1beta2.FlinkCluster) bool {
 	if !isUpdateTriggered(cluster.Status) {
 		return true
 	}
@@ -472,7 +473,7 @@ func isComponentUpdated(component runtime.Object, cluster v1beta1.FlinkCluster) 
 	return labels[RevisionNameLabel] == nextRevisionName
 }
 
-func areComponentsUpdated(components []runtime.Object, cluster v1beta1.FlinkCluster) bool {
+func areComponentsUpdated(components []runtime.Object, cluster v1beta2.FlinkCluster) bool {
 	for _, c := range components {
 		if !isComponentUpdated(c, cluster) {
 			return false
@@ -546,15 +547,15 @@ func getNonLiveHistory(revisions []*appsv1.ControllerRevision, historyLimit int)
 func getFlinkJobDeploymentState(flinkJobState string) string {
 	switch flinkJobState {
 	case "INITIALIZING", "CREATED", "RUNNING", "FAILING", "CANCELLING", "RESTARTING", "RECONCILING":
-		return v1beta1.JobStateRunning
+		return v1beta2.JobStateRunning
 	case "FINISHED":
-		return v1beta1.JobStateSucceeded
+		return v1beta2.JobStateSucceeded
 	case "CANCELED":
-		return v1beta1.JobStateCancelled
+		return v1beta2.JobStateCancelled
 	case "FAILED":
-		return v1beta1.JobStateFailed
+		return v1beta2.JobStateFailed
 	case "SUSPENDED":
-		return v1beta1.JobStateSuspended
+		return v1beta2.JobStateSuspended
 	default:
 		return ""
 	}

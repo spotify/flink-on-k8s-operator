@@ -5,7 +5,7 @@ named `FlinkCluster` for specifying a Flink job cluster ([sample](../config/samp
 or Flink session cluster ([sample](../config/samples/flinkoperator_v1beta1_flinksessioncluster.yaml)), depending on
 whether the job spec is specified. Similarly to other kinds of Kubernetes resources, the custom resource consists of a
 resource `Metadata`, a specification in a `Spec` field and a `Status` field. The definitions are organized in the
-following structure. The v1beta1 version of the API definition is implemented [here](../api/v1beta1/flinkcluster_types.go).
+following structure. The v1beta2 version of the API definition is implemented [here](../api/v1beta2/flinkcluster_types.go).
 
 ```
 FlinkCluster
