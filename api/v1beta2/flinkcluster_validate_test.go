@@ -37,7 +37,7 @@ func TestValidateCreate(t *testing.T) {
 	var dataPort int32 = 8005
 	var parallelism int32 = 2
 	var restartPolicy = JobRestartPolicyFromSavepointOnFailure
-	var processMemoryRatio int32 = 25
+	var memoryProcessRatio int32 = 25
 	var cluster = FlinkCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster",
@@ -58,7 +58,7 @@ func TestValidateCreate(t *testing.T) {
 					Query: &queryPort,
 					UI:    &uiPort,
 				},
-				ProcessMemoryRatio: &processMemoryRatio,
+				MemoryProcessRatio: &memoryProcessRatio,
 			},
 			TaskManager: TaskManagerSpec{
 				Replicas: 3,
@@ -67,7 +67,7 @@ func TestValidateCreate(t *testing.T) {
 					Data:  &dataPort,
 					Query: &queryPort,
 				},
-				ProcessMemoryRatio: &processMemoryRatio,
+				MemoryProcessRatio: &memoryProcessRatio,
 			},
 			Job: &JobSpec{
 				JarFile:       "gs://my-bucket/myjob.jar",

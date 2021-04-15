@@ -142,7 +142,7 @@ func TestSetNonDefault(t *testing.T) {
 	var jobNoLoggingToStdout = true
 	var jobRestartPolicy = JobRestartPolicyFromSavepointOnFailure
 	var jobManagerIngressTLSUse = true
-	var processMemoryRatio = int32(20)
+	var memoryProcessRatio = int32(80)
 	var securityContextUserGroup = int64(9999)
 	var securityContext = corev1.PodSecurityContext{
 		RunAsUser:  &securityContextUserGroup,
@@ -234,7 +234,7 @@ func TestSetNonDefault(t *testing.T) {
 					UI:    &jmUIPort,
 				},
 				Resources:          corev1.ResourceRequirements{},
-				ProcessMemoryRatio: &processMemoryRatio,
+				MemoryProcessRatio: &memoryProcessRatio,
 				Volumes:            nil,
 				VolumeMounts:       nil,
 				SecurityContext:    &securityContext,
@@ -247,7 +247,7 @@ func TestSetNonDefault(t *testing.T) {
 					Query: &tmQueryPort,
 				},
 				Resources:          corev1.ResourceRequirements{},
-				ProcessMemoryRatio: &processMemoryRatio,
+				MemoryProcessRatio: &memoryProcessRatio,
 				Volumes:            nil,
 				SecurityContext:    &securityContext,
 			},
