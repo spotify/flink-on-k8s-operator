@@ -86,9 +86,9 @@ func _SetJobManagerDefault(jmSpec *JobManagerSpec, flinkVersion *version.Version
 			*jmSpec.MemoryOffHeapRatio = 25
 		}
 	} else {
-		if jmSpec.ProcessMemoryRatio == nil {
-			jmSpec.ProcessMemoryRatio = new(int32)
-			*jmSpec.ProcessMemoryRatio = 20
+		if jmSpec.MemoryProcessRatio == nil {
+			jmSpec.MemoryProcessRatio = new(int32)
+			*jmSpec.MemoryProcessRatio = 80
 		}
 	}
 }
@@ -115,9 +115,9 @@ func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Versi
 			*tmSpec.MemoryOffHeapRatio = 25
 		}
 	} else {
-		if tmSpec.ProcessMemoryRatio == nil {
-			tmSpec.ProcessMemoryRatio = new(int32)
-			*tmSpec.ProcessMemoryRatio = 20
+		if tmSpec.MemoryProcessRatio == nil {
+			tmSpec.MemoryProcessRatio = new(int32)
+			*tmSpec.MemoryProcessRatio = 80
 		}
 	}
 }

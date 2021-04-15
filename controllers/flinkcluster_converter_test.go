@@ -54,7 +54,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 	var hostFormat = "{{$clusterName}}.example.com"
 	var memoryOffHeapRatio int32 = 25
 	var memoryOffHeapMin = resource.MustParse("600M")
-	var processMemoryRatio int32 = 20
+	var memoryProcessRatio int32 = 80
 	var jobBackoffLimit int32 = 0
 	var jmReadinessProbe = corev1.Probe{
 		Handler: corev1.Handler{
@@ -209,7 +209,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 					Tolerations:        tolerations,
 					MemoryOffHeapRatio: &memoryOffHeapRatio,
 					MemoryOffHeapMin:   memoryOffHeapMin,
-					ProcessMemoryRatio: &processMemoryRatio,
+					MemoryProcessRatio: &memoryProcessRatio,
 					PodAnnotations: map[string]string{
 						"example.com": "example",
 					},
@@ -234,7 +234,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 					},
 					MemoryOffHeapRatio: &memoryOffHeapRatio,
 					MemoryOffHeapMin:   memoryOffHeapMin,
-					ProcessMemoryRatio: &processMemoryRatio,
+					MemoryProcessRatio: &memoryProcessRatio,
 					Sidecars:           []corev1.Container{{Name: "sidecar", Image: "alpine"}},
 					Volumes: []corev1.Volume{
 						{
@@ -1138,6 +1138,71 @@ func TestCalFlinkHeapSize(t *testing.T) {
 
 	flinkHeapSize = calFlinkHeapSize(cluster)
 	assert.Assert(t, len(flinkHeapSize) == 0)
+}
+
+func TestCalFlinkMemoryProcessSize(t *testing.T) {
+	var memoryProcessRatio int32 = 80
+
+	// Case 1: memory size is computed from memoryProcessRatio
+	cluster := &v1beta2.FlinkCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mycluster",
+			Namespace: "default",
+		},
+		Spec: v1beta2.FlinkClusterSpec{
+			JobManager: v1beta2.JobManagerSpec{
+				Resources: corev1.ResourceRequirements{
+					Limits: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceMemory: resource.MustParse("1Gi"),
+					},
+				},
+				MemoryProcessRatio: &memoryProcessRatio,
+			},
+			TaskManager: v1beta2.TaskManagerSpec{
+				Resources: corev1.ResourceRequirements{
+					Limits: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceMemory: resource.MustParse("4Gi"),
+					},
+				},
+				MemoryProcessRatio: &memoryProcessRatio,
+			},
+		},
+	}
+
+	flinkHeapSize := calFlinkMemoryProcessSize(cluster)
+	expectedFlinkHeapSize := map[string]string{
+		"jobmanager.memory.process.size":  "859m",
+		"taskmanager.memory.process.size": "3436m",
+	}
+	assert.Assert(t, len(flinkHeapSize) == 2)
+	assert.DeepEqual(
+		t,
+		flinkHeapSize,
+		expectedFlinkHeapSize)
+
+	// Case 2: No values when memory limits are missing or insufficient
+	cluster = &v1beta2.FlinkCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mycluster",
+			Namespace: "default",
+		},
+		Spec: v1beta2.FlinkClusterSpec{
+			JobManager: v1beta2.JobManagerSpec{
+				Resources: corev1.ResourceRequirements{
+					Limits: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceMemory: resource.MustParse("500Mi"),
+					},
+				},
+				MemoryProcessRatio: &memoryProcessRatio,
+			},
+			TaskManager: v1beta2.TaskManagerSpec{
+				MemoryProcessRatio: &memoryProcessRatio,
+			},
+		},
+	}
+
+	flinkHeapSize = calFlinkMemoryProcessSize(cluster)
+	assert.Assert(t, len(flinkHeapSize) == 1)
 }
 
 func Test_getLogConf(t *testing.T) {

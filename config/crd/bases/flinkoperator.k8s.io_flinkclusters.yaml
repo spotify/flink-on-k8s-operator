@@ -2131,6 +2131,9 @@ spec:
                   memoryOffHeapRatio:
                     format: int32
                     type: integer
+                  memoryProcessRatio:
+                    format: int32
+                    type: integer
                   nodeSelector:
                     additionalProperties:
                       type: string
@@ -2158,9 +2161,6 @@ spec:
                         format: int32
                         type: integer
                     type: object
-                  processMemoryRatio:
-                    format: int32
-                    type: integer
                   replicas:
                     format: int32
                     type: integer
@@ -4239,6 +4239,9 @@ spec:
                   memoryOffHeapRatio:
                     format: int32
                     type: integer
+                  memoryProcessRatio:
+                    format: int32
+                    type: integer
                   nodeSelector:
                     additionalProperties:
                       type: string
@@ -4263,9 +4266,6 @@ spec:
                         format: int32
                         type: integer
                     type: object
-                  processMemoryRatio:
-                    format: int32
-                    type: integer
                   replicas:
                     format: int32
                     type: integer
