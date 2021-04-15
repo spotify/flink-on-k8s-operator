@@ -16,7 +16,7 @@ A typical Helm chart will usually include all of the manifests which you would m
 ## Prerequisites
 
 
-- Fink Operator Image Version:  ```gcr.io/flink-operator/flink-operator:v1beta1-6``` follow these [instructions](https://github.com/GoogleCloudPlatform/flink-on-k8s-operator/tree/master/helm-chart/flink-operator) to deploy the Operator
+- Fink Operator Image Version:  ```gcr.io/flink-operator/flink-operator:v1beta2-6``` follow these [instructions](https://github.com/GoogleCloudPlatform/flink-on-k8s-operator/tree/master/helm-chart/flink-operator) to deploy the Operator
 - Flink Image Version: ```flink:1.9.3``` or ```flink:latest```
 - [Helm](https://helm.sh/docs/helm/helm_install/) version 2.x or 3.x
 

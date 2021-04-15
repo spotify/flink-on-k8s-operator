@@ -6,6 +6,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-logr/logr v0.3.0
 	github.com/google/go-cmp v0.5.2
+	github.com/hashicorp/go-version v1.3.0 // indirect
 	github.com/onsi/ginkgo v1.14.1
 	github.com/onsi/gomega v1.10.2
 	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b

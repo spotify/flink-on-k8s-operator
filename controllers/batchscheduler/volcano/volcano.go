@@ -27,7 +27,7 @@ import (
 	scheduling "volcano.sh/volcano/pkg/apis/scheduling/v1beta1"
 	volcanoclient "volcano.sh/volcano/pkg/client/clientset/versioned"
 
-	"github.com/spotify/flink-on-k8s-operator/api/v1beta1"
+	"github.com/spotify/flink-on-k8s-operator/api/v1beta2"
 	schedulerinterface "github.com/spotify/flink-on-k8s-operator/controllers/batchscheduler/interface"
 	"github.com/spotify/flink-on-k8s-operator/controllers/model"
 )
@@ -63,7 +63,7 @@ func (v *VolcanoBatchScheduler) Name() string {
 }
 
 // Schedule reconciles batch scheduling
-func (v *VolcanoBatchScheduler) Schedule(cluster *v1beta1.FlinkCluster, state *model.DesiredClusterState) error {
+func (v *VolcanoBatchScheduler) Schedule(cluster *v1beta2.FlinkCluster, state *model.DesiredClusterState) error {
 	res, size := getClusterResource(state)
 	if err := v.syncPodGroup(cluster, size, res); err != nil {
 		return err
@@ -72,7 +72,7 @@ func (v *VolcanoBatchScheduler) Schedule(cluster *v1beta1.FlinkCluster, state *m
 	return nil
 }
 
-func (v *VolcanoBatchScheduler) setSchedulerMeta(cluster *v1beta1.FlinkCluster, state *model.DesiredClusterState) {
+func (v *VolcanoBatchScheduler) setSchedulerMeta(cluster *v1beta2.FlinkCluster, state *model.DesiredClusterState) {
 	podgroupName := v.getPodGroupName(cluster)
 	if state.TmStatefulSet != nil {
 		state.TmStatefulSet.Spec.Template.Spec.SchedulerName = v.Name()
@@ -93,12 +93,12 @@ func (v *VolcanoBatchScheduler) setSchedulerMeta(cluster *v1beta1.FlinkCluster, 
 	}
 }
 
-func (v *VolcanoBatchScheduler) getPodGroupName(cluster *v1beta1.FlinkCluster) string {
+func (v *VolcanoBatchScheduler) getPodGroupName(cluster *v1beta2.FlinkCluster) string {
 	return fmt.Sprintf("flink-%s", cluster.Name)
 }
 
 // Converts the FlinkCluster as owner reference for its child resources.
-func newOwnerReference(flinkCluster *v1beta1.FlinkCluster) metav1.OwnerReference {
+func newOwnerReference(flinkCluster *v1beta2.FlinkCluster) metav1.OwnerReference {
 	return metav1.OwnerReference{
 		APIVersion:         flinkCluster.APIVersion,
 		Kind:               flinkCluster.Kind,
@@ -109,7 +109,7 @@ func newOwnerReference(flinkCluster *v1beta1.FlinkCluster) metav1.OwnerReference
 	}
 }
 
-func (v *VolcanoBatchScheduler) syncPodGroup(cluster *v1beta1.FlinkCluster, size int32, minResource corev1.ResourceList) error {
+func (v *VolcanoBatchScheduler) syncPodGroup(cluster *v1beta2.FlinkCluster, size int32, minResource corev1.ResourceList) error {
 	var err error
 	podGroupName := v.getPodGroupName(cluster)
 	if pg, err := v.volcanoClient.SchedulingV1beta1().PodGroups(cluster.Namespace).Get(context.TODO(), podGroupName, metav1.GetOptions{}); err != nil {
