@@ -15,7 +15,7 @@ spec:
     singular: flinkcluster
   scope: Namespaced
   versions:
-  - name: v1beta2
+  - name: v1beta1
     schema:
       openAPIV3Schema:
         properties:

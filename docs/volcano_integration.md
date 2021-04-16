@@ -68,7 +68,7 @@ $ kubectl get podgroup flink-flinkjobcluster-sample -oyaml
     name: flink-flinkjobcluster-sample
     namespace: default
     ownerReferences:
-    - apiVersion: flinkoperator.k8s.io/v1beta2
+    - apiVersion: flinkoperator.k8s.io/v1beta1
       blockOwnerDeletion: false
       controller: true
       kind: FlinkCluster
