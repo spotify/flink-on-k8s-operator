@@ -1,6 +1,6 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= gcr.io/flink-operator/flink-operator:latest
+IMG ?= ghcr.io/spotify/flink-operator:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:maxDescLen=0,trivialVersions=true,generateEmbeddedObjectMeta=true"
 # The Kubernetes namespace in which the operator will be deployed.

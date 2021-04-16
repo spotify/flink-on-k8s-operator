@@ -25,7 +25,7 @@ a Kubernetes cluster and running a sample Flink job.
 
 * (Optional) Choose a Flink Operator image.
 
-  By default, the deployment uses the image `gcr.io/flink-operator/flink-operator:latest`,
+  By default, the deployment uses the image `ghcr.io/spotify/flink-operator:latest`,
   but you can find and choose other released images by running the following command:
 
   ```bash
@@ -60,7 +60,7 @@ following 2 ways:
       [WATCH_NAMESPACE=<namespace-to-watch>]
   ```
 
-  * `IMG`: The Flink Operator image. The default value is `gcr.io/flink-operator/flink-operator:latest`.
+  * `IMG`: The Flink Operator image. The default value is `ghcr.io/spotify/flink-operator:latest`.
   * `FLINK_OPERATOR_NAMESPACE`: the namespace of the operator. The default value is
     `flink-operator-system`.
   * `RESOURCE_PREFIX`: the prefix to avoid conflict of cluster-scoped resources.

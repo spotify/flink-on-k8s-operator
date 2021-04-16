@@ -37,8 +37,8 @@ function main() {
   make operator-image push-operator-image IMG=${image}
 
   # Update latest
-  docker tag ${image} gcr.io/flink-operator/flink-operator:latest
-  docker push gcr.io/flink-operator/flink-operator:latest
+  docker tag ${image} ghcr.io/spotify/flink-operator:latest
+  docker push ghcr.io/spotify/flink-operator:latest
 
   # Tag commit with the version
   git tag -a "${version}" -m "" "${commit}"
