@@ -6,14 +6,15 @@ jobs:
   push_to_registry:
     name: Push Docker image to GitHub Packages
     runs-on: ubuntu-latest
+    env:
+      DOCKER_REPO: ghcr.io/spotify/flink-operator
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
       - name: Prepare
         id: prep
         run: |
-          DOCKER_IMAGE=ghcr.io/spotify/flink-operator:${GITHUB_SHA::8}
-          echo ::set-output name=image::${DOCKER_IMAGE}
+          echo ::set-output name=image::${DOCKER_REPO}:${GITHUB_REF/refs\/tags\//}
       - name: Login to Github container registry
         uses: docker/login-action@v1.1.1
         with:
@@ -24,3 +25,7 @@ jobs:
         run: make operator-image push-operator-image
         env:
           IMG: ${{ steps.prep.outputs.image }}
+      - name: Tag latest
+        run: docker tag ${{ steps.prep.outputs.image }} ${DOCKER_REPO}:latest
+      - name: Push latest
+        run: docker push ${DOCKER_REPO}:latest
