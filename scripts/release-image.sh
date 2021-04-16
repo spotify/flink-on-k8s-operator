@@ -2,12 +2,12 @@
 
 # This script is supposed to be used by project administrators to release
 # a new Flink Operator image from a Git commit. It tags the commit with the
-# version number (e.g., v1beta2-5), builds and pushes the image to
+# version number (e.g., v1beta1-5), builds and pushes the image to
 # gcr.io/flink-operator/flink-operator:<version>.
 #
 # Usage: run this script from the root of the repo with
 #
-# scripts/release-image.sh <version e.g., v1beta2-5> <git-commit>
+# scripts/release-image.sh <version e.g., v1beta1-5> <git-commit>
 
 set -euxo pipefail
 

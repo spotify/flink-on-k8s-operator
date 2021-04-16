@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta2
+package v1beta1
 
 import (
 	"encoding/json"
@@ -104,9 +104,7 @@ func TestInvalidImageSpec(t *testing.T) {
 			Name:      "mycluster",
 			Namespace: "default",
 		},
-		Spec: FlinkClusterSpec{
-			FlinkVersion: "1.8",
-		},
+		Spec: FlinkClusterSpec{},
 	}
 	var err = validator.ValidateCreate(&cluster)
 	var expectedErr = "image name is unspecified"
@@ -118,7 +116,6 @@ func TestInvalidImageSpec(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: FlinkClusterSpec{
-			FlinkVersion: "1.8",
 			Image: ImageSpec{
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("XXX"),

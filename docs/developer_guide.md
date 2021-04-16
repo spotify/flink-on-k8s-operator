@@ -8,7 +8,7 @@ library. The project structure and boilerplate files are generated with
 [Kubebuilder](https://github.com/kubernetes-sigs/kubebuilder). Knowledge of
 controller-runtime and Kubebuilder is required to understand this project.
 
-The Flink custom resource is defined in Go struct [FlinkCluster](../api/v1beta2/flinkcluster_types.go),
+The Flink custom resource is defined in Go struct [FlinkCluster](../api/v1beta1/flinkcluster_types.go),
 then Kubebuild generates related Go files and YAML files, e.g.
 [flinkclusters.yaml](../config/crd/bases/flinkoperator.k8s.io_flinkclusters.yaml).
 The custom logic for reconciling a Flink custom resource is inside of the

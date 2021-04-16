@@ -38,7 +38,7 @@ run: generate fmt vet
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./api/v1beta2/..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./api/v1beta1/..." output:crd:artifacts:config=config/crd/bases
 	kubectl kustomize config/crd > config/crd/bases/patched_crd.yaml
 	mv config/crd/bases/patched_crd.yaml config/crd/bases/flinkoperator.k8s.io_flinkclusters.yaml
 	go mod tidy
@@ -53,7 +53,7 @@ vet:
 
 # Generate code
 generate: controller-gen
-	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./api/v1beta2/...
+	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./api/v1beta1/...
 
 # find or download controller-gen
 # download controller-gen if necessary
