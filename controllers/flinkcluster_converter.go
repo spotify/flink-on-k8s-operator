@@ -214,6 +214,15 @@ func getDesiredJobManagerStatefulSet(
 		ServiceAccountName: getServiceAccountName(serviceAccount),
 	}
 
+	var pvcs []corev1.PersistentVolumeClaim
+	if jobManagerSpec.VolumeClaimTemplates != nil {
+		pvcs = make([]corev1.PersistentVolumeClaim, len(jobManagerSpec.VolumeClaimTemplates))
+		for i, pvc := range jobManagerSpec.VolumeClaimTemplates {
+			pvc.ObjectMeta.OwnerReferences = []metav1.OwnerReference{ToOwnerReference(flinkCluster)}
+			pvcs[i] = pvc
+		}
+	}
+
 	var jobManagerStatefulSet = &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       clusterNamespace,
@@ -225,7 +234,7 @@ func getDesiredJobManagerStatefulSet(
 			Replicas:             jobManagerSpec.Replicas,
 			Selector:             &metav1.LabelSelector{MatchLabels: podLabels},
 			ServiceName:          jobManagerStatefulSetName,
-			VolumeClaimTemplates: jobManagerSpec.VolumeClaimTemplates,
+			VolumeClaimTemplates: pvcs,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      podLabels,
@@ -512,6 +521,16 @@ func getDesiredTaskManagerStatefulSet(
 		SecurityContext:    securityContext,
 		ServiceAccountName: getServiceAccountName(serviceAccount),
 	}
+
+	var pvcs []corev1.PersistentVolumeClaim
+	if taskManagerSpec.VolumeClaimTemplates != nil {
+		pvcs = make([]corev1.PersistentVolumeClaim, len(taskManagerSpec.VolumeClaimTemplates))
+		for i, pvc := range taskManagerSpec.VolumeClaimTemplates {
+			pvc.ObjectMeta.OwnerReferences = []metav1.OwnerReference{ToOwnerReference(flinkCluster)}
+			pvcs[i] = pvc
+		}
+	}
+
 	var taskManagerStatefulSet = &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: clusterNamespace,
@@ -524,7 +543,7 @@ func getDesiredTaskManagerStatefulSet(
 			Replicas:             &taskManagerSpec.Replicas,
 			Selector:             &metav1.LabelSelector{MatchLabels: podLabels},
 			ServiceName:          taskManagerStatefulSetName,
-			VolumeClaimTemplates: taskManagerSpec.VolumeClaimTemplates,
+			VolumeClaimTemplates: pvcs,
 			PodManagementPolicy:  "Parallel",
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
