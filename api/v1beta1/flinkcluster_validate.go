@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/hashicorp/go-version"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	corev1 "k8s.io/api/core/v1"
@@ -47,6 +48,15 @@ func (v *Validator) ValidateCreate(cluster *FlinkCluster) error {
 	if err != nil {
 		return err
 	}
+
+	var flinkVersion *version.Version
+	if len(cluster.Spec.FlinkVersion) != 0 {
+		flinkVersion, err = version.NewVersion(cluster.Spec.FlinkVersion)
+		if err != nil {
+			return err
+		}
+	}
+
 	err = v.validateHadoopConfig(cluster.Spec.HadoopConfig)
 	if err != nil {
 		return err
@@ -59,11 +69,11 @@ func (v *Validator) ValidateCreate(cluster *FlinkCluster) error {
 	if err != nil {
 		return err
 	}
-	err = v.validateJobManager(&cluster.Spec.JobManager)
+	err = v.validateJobManager(flinkVersion, &cluster.Spec.JobManager)
 	if err != nil {
 		return err
 	}
-	err = v.validateTaskManager(&cluster.Spec.TaskManager)
+	err = v.validateTaskManager(flinkVersion, &cluster.Spec.TaskManager)
 	if err != nil {
 		return err
 	}
@@ -282,7 +292,7 @@ func (v *Validator) validateImage(imageSpec *ImageSpec) error {
 	return nil
 }
 
-func (v *Validator) validateJobManager(jmSpec *JobManagerSpec) error {
+func (v *Validator) validateJobManager(flinkVersion *version.Version, jmSpec *JobManagerSpec) error {
 	var err error
 
 	// Replicas.
@@ -330,22 +340,39 @@ func (v *Validator) validateJobManager(jmSpec *JobManagerSpec) error {
 		return err
 	}
 
-	// MemoryOffHeapRatio
-	err = v.validateMemoryOffHeapRatio(jmSpec.MemoryOffHeapRatio, "jobmanager")
-	if err != nil {
-		return err
-	}
+	if flinkVersion == nil || flinkVersion.LessThan(v10) {
+		if jmSpec.MemoryProcessRatio != nil {
+			return fmt.Errorf("MemoryProcessRatio config cannot be used with flinkVersion < 1.11', use " +
+				"memoryOffHeapRatio instead")
+		}
 
-	// MemoryOffHeapMin
-	err = v.validateMemoryOffHeapMin(&jmSpec.MemoryOffHeapMin, jmSpec.Resources.Limits.Memory(), "jobmanager")
-	if err != nil {
-		return err
+		// MemoryOffHeapRatio
+		err = v.validateRatio(jmSpec.MemoryOffHeapRatio, "jobmanager", "memoryOffHeapRatio")
+		if err != nil {
+			return err
+		}
+
+		// MemoryOffHeapMin
+		err = v.validateMemoryOffHeapMin(&jmSpec.MemoryOffHeapMin, jmSpec.Resources.Limits.Memory(), "jobmanager")
+		if err != nil {
+			return err
+		}
+	} else {
+		if jmSpec.MemoryOffHeapRatio != nil || !jmSpec.MemoryOffHeapMin.IsZero() {
+			return fmt.Errorf("MemoryOffHeapRatio or MemoryOffHeapMin config cannot be used with flinkVersion >= 1.11'; " +
+				"use memoryProcessRatio istead")
+		}
+		// MemoryProcessRatio
+		err = v.validateRatio(jmSpec.MemoryProcessRatio, "jobmanager", "memoryProcessRatio")
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func (v *Validator) validateTaskManager(tmSpec *TaskManagerSpec) error {
+func (v *Validator) validateTaskManager(flinkVersion *version.Version, tmSpec *TaskManagerSpec) error {
 	// Replicas.
 	if tmSpec.Replicas < 1 {
 		return fmt.Errorf("invalid TaskManager replicas, it must >= 1")
@@ -376,16 +403,33 @@ func (v *Validator) validateTaskManager(tmSpec *TaskManagerSpec) error {
 		return err
 	}
 
-	// MemoryOffHeapRatio
-	err = v.validateMemoryOffHeapRatio(tmSpec.MemoryOffHeapRatio, "taskmanager")
-	if err != nil {
-		return err
-	}
+	if flinkVersion == nil || flinkVersion.LessThan(v10) {
+		if tmSpec.MemoryProcessRatio != nil {
+			return fmt.Errorf("MemoryProcessRatio config cannot be used with flinkVersion < 1.11', use " +
+				"memoryOffHeapRatio instead")
+		}
 
-	// MemoryOffHeapMin
-	err = v.validateMemoryOffHeapMin(&tmSpec.MemoryOffHeapMin, tmSpec.Resources.Limits.Memory(), "taskmanager")
-	if err != nil {
-		return err
+		// MemoryOffHeapRatio
+		err = v.validateRatio(tmSpec.MemoryOffHeapRatio, "taskmanager", "memoryOffHeapRatio")
+		if err != nil {
+			return err
+		}
+
+		// MemoryOffHeapMin
+		err = v.validateMemoryOffHeapMin(&tmSpec.MemoryOffHeapMin, tmSpec.Resources.Limits.Memory(), "taskmanager")
+		if err != nil {
+			return err
+		}
+	} else {
+		if tmSpec.MemoryOffHeapRatio != nil || !tmSpec.MemoryOffHeapMin.IsZero() {
+			return fmt.Errorf("MemoryOffHeapRatio or MemoryOffHeapMin config cannot be used with flinkVersion >= 1.11'; " +
+				"use memoryProcessRatio istead")
+		}
+		// MemoryProcessRatio
+		err = v.validateRatio(tmSpec.MemoryProcessRatio, "taskmanager", "memoryProcessRatio")
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -487,10 +531,9 @@ func (v *Validator) validateCleanupAction(
 	return nil
 }
 
-func (v *Validator) validateMemoryOffHeapRatio(
-	offHeapRatio *int32, component string) error {
-	if offHeapRatio == nil || *offHeapRatio > 100 || *offHeapRatio < 0 {
-		return fmt.Errorf("invalid %v memoryOffHeapRatio, it must be between 0 and 100", component)
+func (v *Validator) validateRatio(ratio *int32, component, property string) error {
+	if ratio == nil || *ratio > 100 || *ratio < 0 {
+		return fmt.Errorf("invalid %v %v, it must be between 0 and 100", component, property)
 	}
 	return nil
 }

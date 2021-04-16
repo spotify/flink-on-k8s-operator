@@ -29,7 +29,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/spotify/flink-on-k8s-operator/api/v1beta2"
+	"github.com/spotify/flink-on-k8s-operator/api/v1beta1"
 	"github.com/spotify/flink-on-k8s-operator/controllers"
 	// +kubebuilder:scaffold:imports
 )
@@ -43,7 +43,7 @@ func init() {
 	appsv1.AddToScheme(scheme)
 	batchv1.AddToScheme(scheme)
 	corev1.AddToScheme(scheme)
-	v1beta2.AddToScheme(scheme)
+	v1beta1.AddToScheme(scheme)
 	extensionsv1beta1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
@@ -87,7 +87,7 @@ func main() {
 	// Set up webhooks for the custom resource.
 	// Disable it with `FLINK_OPERATOR_ENABLE_WEBHOOKS=false` when we run locally.
 	if os.Getenv("FLINK_OPERATOR_ENABLE_WEBHOOKS") != "false" {
-		err = (&v1beta2.FlinkCluster{}).SetupWebhookWithManager(mgr)
+		err = (&v1beta1.FlinkCluster{}).SetupWebhookWithManager(mgr)
 		if err != nil {
 			setupLog.Error(err, "Unable to setup webhooks", "webhook", "FlinkCluster")
 			os.Exit(1)

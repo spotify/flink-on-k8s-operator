@@ -23,7 +23,7 @@ import (
 	"github.com/spotify/flink-on-k8s-operator/controllers/history"
 
 	"github.com/go-logr/logr"
-	v1beta2 "github.com/spotify/flink-on-k8s-operator/api/v1beta2"
+	v1beta1 "github.com/spotify/flink-on-k8s-operator/api/v1beta1"
 	"github.com/spotify/flink-on-k8s-operator/controllers/flinkclient"
 	"github.com/spotify/flink-on-k8s-operator/controllers/model"
 
@@ -36,7 +36,7 @@ import (
 )
 
 // controllerKind contains the schema.GroupVersionKind for this controller type.
-var controllerKind = v1beta2.GroupVersion.WithKind("FlinkCluster")
+var controllerKind = v1beta1.GroupVersion.WithKind("FlinkCluster")
 
 // FlinkClusterReconciler reconciles a FlinkCluster object
 type FlinkClusterReconciler struct {
@@ -89,7 +89,7 @@ func (reconciler *FlinkClusterReconciler) SetupWithManager(
 	mgr ctrl.Manager) error {
 	reconciler.Mgr = mgr
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1beta2.FlinkCluster{}).
+		For(&v1beta1.FlinkCluster{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&appsv1.StatefulSet{}).
 		Owns(&corev1.Service{}).
