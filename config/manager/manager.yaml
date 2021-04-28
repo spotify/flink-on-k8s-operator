@@ -40,17 +40,17 @@ spec:
         app: flink-operator
     spec:
       containers:
-      - name: flink-operator
-        image: flink-operator:latest
-        command:      
-        - /flink-operator
-        args:
-        - --enable-leader-election
-        resources:
-          limits:
-            cpu: 100m
-            memory: 30Mi
-          requests:
-            cpu: 100m
-            memory: 20Mi
+        - name: flink-operator
+          image: flink-operator:latest
+          command:
+            - /flink-operator
+          args:
+            - --enable-leader-election
+          resources:
+            limits:
+              cpu: 1
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 50Mi
       terminationGracePeriodSeconds: 10
