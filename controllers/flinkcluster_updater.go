@@ -404,7 +404,11 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 	switch recorded.State {
 	case "", v1beta1.ClusterStateCreating:
 		if runningComponents < totalComponents {
-			status.State = v1beta1.ClusterStateCreating
+			if runningComponents == 0 {
+				status.State = v1beta1.ClusterStateStopped
+			} else {
+				status.State = v1beta1.ClusterStateCreating
+			}
 		} else {
 			status.State = v1beta1.ClusterStateRunning
 		}
