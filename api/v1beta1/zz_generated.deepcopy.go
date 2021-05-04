@@ -480,6 +480,11 @@ func (in *JobManagerSpec) DeepCopyInto(out *JobManagerSpec) {
 		**out = **in
 	}
 	out.MemoryOffHeapMin = in.MemoryOffHeapMin.DeepCopy()
+	if in.MemoryProcessRatio != nil {
+		in, out := &in.MemoryProcessRatio, &out.MemoryProcessRatio
+		*out = new(int32)
+		**out = **in
+	}
 	if in.Volumes != nil {
 		in, out := &in.Volumes, &out.Volumes
 		*out = make([]v1.Volume, len(*in))
@@ -767,6 +772,11 @@ func (in *TaskManagerSpec) DeepCopyInto(out *TaskManagerSpec) {
 		**out = **in
 	}
 	out.MemoryOffHeapMin = in.MemoryOffHeapMin.DeepCopy()
+	if in.MemoryProcessRatio != nil {
+		in, out := &in.MemoryProcessRatio, &out.MemoryProcessRatio
+		*out = new(int32)
+		**out = **in
+	}
 	if in.Volumes != nil {
 		in, out := &in.Volumes, &out.Volumes
 		*out = make([]v1.Volume, len(*in))
