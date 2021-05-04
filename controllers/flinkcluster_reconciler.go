@@ -109,7 +109,15 @@ func (reconciler *ClusterReconciler) reconcile() (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
+	err = reconciler.reconcilePersistentVolumeClaims()
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	result, err := reconciler.reconcileJob()
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
 	return result, nil
 }
@@ -441,6 +449,51 @@ func (reconciler *ClusterReconciler) deleteConfigMap(
 	} else {
 		log.Info("ConfigMap deleted")
 	}
+	return err
+}
+
+func (reconciler *ClusterReconciler) reconcilePersistentVolumeClaims() error {
+	observed := reconciler.observed
+	pvcs := observed.persistentVolumeClaims
+	jm := observed.jmStatefulSet
+	tm := observed.tmStatefulSet
+
+	for _, pvc := range pvcs.Items {
+		if c, ok := pvc.Labels["component"]; ok && c == "jobmanager" && jm != nil {
+			reconciler.reconcilePersistentVolumeClaim(&pvc, jm)
+		}
+		if c, ok := pvc.Labels["component"]; ok && c == "taskmanager" && tm != nil {
+			reconciler.reconcilePersistentVolumeClaim(&pvc, tm)
+		}
+	}
+
+	return nil
+}
+
+func (reconciler *ClusterReconciler) reconcilePersistentVolumeClaim(pvc *corev1.PersistentVolumeClaim, sset *appsv1.StatefulSet) error {
+	var log = reconciler.log
+	ctx := reconciler.context
+	k8sClient := reconciler.k8sClient
+
+	if len(pvc.GetOwnerReferences()) != 0 {
+		return nil
+	}
+
+	patch := fmt.Sprintf(
+		`{"metadata":{"ownerReferences":[{"apiVersion":"%s","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":false}],"uid":"%s"}}`,
+		sset.APIVersion,
+		sset.Kind,
+		sset.GetName(),
+		sset.GetUID(),
+		pvc.GetUID(),
+	)
+	err := k8sClient.Patch(ctx, pvc, client.RawPatch(types.MergePatchType, []byte(patch)))
+	if err != nil {
+		log.Error(err, "Failed to update PersistentVolumeClaim")
+	} else {
+		log.Info("PersistentVolumeClaim patched")
+	}
+
 	return err
 }
 
