@@ -49,21 +49,22 @@ type ClusterStateObserver struct {
 
 // ObservedClusterState holds observed state of a cluster.
 type ObservedClusterState struct {
-	cluster           *v1beta1.FlinkCluster
-	revisions         []*appsv1.ControllerRevision
-	configMap         *corev1.ConfigMap
-	jmStatefulSet     *appsv1.StatefulSet
-	jmService         *corev1.Service
-	jmIngress         *extensionsv1beta1.Ingress
-	tmStatefulSet     *appsv1.StatefulSet
-	job               *batchv1.Job
-	jobPod            *corev1.Pod
-	flinkJobStatus    FlinkJobStatus
-	flinkJobSubmitLog *FlinkJobSubmitLog
-	savepoint         *flinkclient.SavepointStatus
-	revisionStatus    *RevisionStatus
-	savepointErr      error
-	observeTime       time.Time
+	cluster                *v1beta1.FlinkCluster
+	revisions              []*appsv1.ControllerRevision
+	configMap              *corev1.ConfigMap
+	jmStatefulSet          *appsv1.StatefulSet
+	jmService              *corev1.Service
+	jmIngress              *extensionsv1beta1.Ingress
+	tmStatefulSet          *appsv1.StatefulSet
+	persistentVolumeClaims *corev1.PersistentVolumeClaimList
+	job                    *batchv1.Job
+	jobPod                 *corev1.Pod
+	flinkJobStatus         FlinkJobStatus
+	flinkJobSubmitLog      *FlinkJobSubmitLog
+	savepoint              *flinkclient.SavepointStatus
+	revisionStatus         *RevisionStatus
+	savepointErr           error
+	observeTime            time.Time
 }
 
 type FlinkJobStatus struct {
@@ -195,6 +196,10 @@ func (observer *ClusterStateObserver) observe(
 	// (Optional) Savepoint.
 	// Savepoint observe error do not affect deploy reconciliation loop.
 	observer.observeSavepoint(observed)
+
+	var pvcs = new(corev1.PersistentVolumeClaimList)
+	observer.observePersistentVolumeClaims(pvcs)
+	observed.persistentVolumeClaims = pvcs
 
 	// (Optional) job.
 	err = observer.observeJob(observed)
@@ -521,6 +526,31 @@ func (observer *ClusterStateObserver) observeJobPod(
 	if podList != nil && len(podList.Items) > 0 {
 		podList.Items[0].DeepCopyInto(observedPod)
 	}
+	return nil
+}
+
+func (observer *ClusterStateObserver) observePersistentVolumeClaims(
+	observedClaims *corev1.PersistentVolumeClaimList) error {
+	var log = observer.log
+	var clusterNamespace = observer.request.Namespace
+	var clusterName = observer.request.Name
+	var selector = labels.SelectorFromSet(map[string]string{"cluster": clusterName})
+
+	var err = observer.k8sClient.List(
+		observer.context,
+		observedClaims,
+		client.InNamespace(clusterNamespace),
+		client.MatchingLabelsSelector{Selector: selector})
+	if err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			log.Error(err, "Failed to get persistent volume claim list")
+			return err
+		}
+		log.Info("Observed persistent volume claim list", "state", "nil")
+	} else {
+		log.Info("Observed persistent volume claim list", "state", *observedClaims)
+	}
+
 	return nil
 }
 
