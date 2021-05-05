@@ -130,10 +130,6 @@ func _SetJobDefault(jobSpec *JobSpec) {
 		jobSpec.AllowNonRestoredState = new(bool)
 		*jobSpec.AllowNonRestoredState = false
 	}
-	if jobSpec.Parallelism == nil {
-		jobSpec.Parallelism = new(int32)
-		*jobSpec.Parallelism = 1
-	}
 	if jobSpec.NoLoggingToStdout == nil {
 		jobSpec.NoLoggingToStdout = new(bool)
 		*jobSpec.NoLoggingToStdout = false

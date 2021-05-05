@@ -585,6 +585,10 @@ func getDesiredConfigMap(
 		}
 	}
 
+	if taskSlots := calTaskManagerTaskSlots(flinkCluster); taskSlots != nil {
+		flinkProps["taskmanager.numberOfTaskSlots"] = strconv.Itoa(*taskSlots)
+	}
+
 	// Add custom Flink properties.
 	for k, v := range flinkProperties {
 		// Do not allow to override properties from real deployment.
@@ -656,10 +660,11 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 		*jobSpec.AllowNonRestoredState == true {
 		jobArgs = append(jobArgs, "--allowNonRestoredState")
 	}
-	if jobSpec.Parallelism != nil {
-		jobArgs = append(
-			jobArgs, "--parallelism", fmt.Sprint(*jobSpec.Parallelism))
+
+	if parallelism := calJobParallelism(flinkCluster); parallelism != nil {
+		jobArgs = append(jobArgs, "--parallelism", fmt.Sprint(*parallelism))
 	}
+
 	if jobSpec.NoLoggingToStdout != nil &&
 		*jobSpec.NoLoggingToStdout == true {
 		jobArgs = append(jobArgs, "--sysoutLogging")
@@ -915,6 +920,46 @@ func shouldCleanup(
 	}
 
 	return false
+}
+
+func calJobParallelism(cluster *v1beta1.FlinkCluster) *int32 {
+	if cluster.Spec.Job.Parallelism != nil {
+		return cluster.Spec.Job.Parallelism
+	}
+
+	tmReplicas := cluster.Spec.TaskManager.Replicas
+	ts, ok := cluster.Spec.FlinkProperties["taskmanager.numberOfTaskSlots"]
+	if !ok {
+		return nil
+	}
+	value, err := strconv.Atoi(ts)
+	if err != nil {
+		return nil
+	}
+
+	parallelism := tmReplicas * int32(value)
+	return &parallelism
+}
+
+func calTaskManagerTaskSlots(cluster *v1beta1.FlinkCluster) *int {
+	if ts, ok := cluster.Spec.FlinkProperties["taskmanager.numberOfTaskSlots"]; ok {
+		value, err := strconv.Atoi(ts)
+		if err != nil {
+			return nil
+		}
+		return &value
+	}
+
+	quantity := cluster.Spec.TaskManager.Resources.Limits.Cpu()
+	if quantity == nil {
+		return nil
+	}
+
+	s := 1
+	if slots := int(quantity.ToDec().AsApproximateFloat64()); slots != 0 {
+		s = slots / 2
+	}
+	return &s
 }
 
 func calFlinkHeapSize(cluster *v1beta1.FlinkCluster) map[string]string {
