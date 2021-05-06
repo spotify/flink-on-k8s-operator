@@ -49,7 +49,6 @@ func TestSetDefault(t *testing.T) {
 	var defaultTmRPCPort = int32(6122)
 	var defaultTmQueryPort = int32(6125)
 	var defaultJobAllowNonRestoredState = false
-	var defaultJobParallelism = int32(1)
 	var defaultJobNoLoggingToStdout = false
 	var defaultJobRestartPolicy = JobRestartPolicyNever
 	var defatulJobManagerIngressTLSUse = false
@@ -100,7 +99,6 @@ func TestSetDefault(t *testing.T) {
 			},
 			Job: &JobSpec{
 				AllowNonRestoredState: &defaultJobAllowNonRestoredState,
-				Parallelism:           &defaultJobParallelism,
 				NoLoggingToStdout:     &defaultJobNoLoggingToStdout,
 				RestartPolicy:         &defaultJobRestartPolicy,
 				CleanupPolicy: &CleanupPolicy{
