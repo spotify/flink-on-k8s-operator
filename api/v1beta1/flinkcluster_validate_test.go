@@ -442,49 +442,6 @@ func TestInvalidJobSpec(t *testing.T) {
 			},
 			Job: &JobSpec{
 				JarFile:       "gs://my-bucket/myjob.jar",
-				RestartPolicy: &restartPolicy,
-			},
-		},
-	}
-	err = validator.ValidateCreate(&cluster)
-	expectedErr = "job parallelism is unspecified"
-	assert.Equal(t, err.Error(), expectedErr)
-
-	cluster = FlinkCluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster",
-			Namespace: "default",
-		},
-		Spec: FlinkClusterSpec{
-			FlinkVersion: "1.8",
-			Image: ImageSpec{
-				Name:       "flink:1.8.1",
-				PullPolicy: corev1.PullPolicy("Always"),
-			},
-			JobManager: JobManagerSpec{
-				Replicas:    &jmReplicas,
-				AccessScope: AccessScopeVPC,
-				Ports: JobManagerPorts{
-					RPC:   &rpcPort,
-					Blob:  &blobPort,
-					Query: &queryPort,
-					UI:    &uiPort,
-				},
-				MemoryOffHeapRatio: &memoryOffHeapRatio,
-				MemoryOffHeapMin:   memoryOffHeapMin,
-			},
-			TaskManager: TaskManagerSpec{
-				Replicas: 3,
-				Ports: TaskManagerPorts{
-					RPC:   &rpcPort,
-					Data:  &dataPort,
-					Query: &queryPort,
-				},
-				MemoryOffHeapRatio: &memoryOffHeapRatio,
-				MemoryOffHeapMin:   memoryOffHeapMin,
-			},
-			Job: &JobSpec{
-				JarFile:       "gs://my-bucket/myjob.jar",
 				Parallelism:   &parallelism,
 				RestartPolicy: &invalidRestartPolicy,
 			},
