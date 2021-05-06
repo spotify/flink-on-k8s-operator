@@ -444,10 +444,7 @@ func (v *Validator) validateJob(jobSpec *JobSpec) error {
 		return fmt.Errorf("job jarFile is unspecified")
 	}
 
-	if jobSpec.Parallelism == nil {
-		return fmt.Errorf("job parallelism is unspecified")
-	}
-	if *jobSpec.Parallelism < 1 {
+	if jobSpec.Parallelism != nil && *jobSpec.Parallelism < 1 {
 		return fmt.Errorf("job parallelism must be >= 1")
 	}
 
