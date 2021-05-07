@@ -122,7 +122,7 @@ func (v *Validator) ValidateUpdate(old *FlinkCluster, new *FlinkCluster) error {
 }
 
 func (v *Validator) checkControlAnnotations(old *FlinkCluster, new *FlinkCluster) error {
-	oldUserControl, _ := old.Annotations[ControlAnnotation]
+	oldUserControl := old.Annotations[ControlAnnotation]
 	newUserControl, ok := new.Annotations[ControlAnnotation]
 	if ok {
 		if oldUserControl != newUserControl && old.Status.Control != nil && old.Status.Control.State == ControlStateProgressing {
@@ -248,10 +248,10 @@ func (v *Validator) validateHadoopConfig(hadoopConfig *HadoopConfig) error {
 		return nil
 	}
 	if len(hadoopConfig.ConfigMapName) == 0 {
-		return fmt.Errorf("Hadoop ConfigMap name is unspecified")
+		return fmt.Errorf("hadoop ConfigMap name is unspecified")
 	}
 	if len(hadoopConfig.MountPath) == 0 {
-		return fmt.Errorf("Hadoop config volume mount path is unspecified")
+		return fmt.Errorf("hadoop config volume mount path is unspecified")
 	}
 	return nil
 }

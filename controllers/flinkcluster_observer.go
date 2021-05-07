@@ -250,10 +250,8 @@ func (observer *ClusterStateObserver) observeJob(
 	var jobInPendingState = recordedJobStatus != nil && recordedJobStatus.State == v1beta1.JobStatePending
 	var flinkJobID string
 	if jobSubmitCompleted && jobInPendingState {
-		var observedJobPod *corev1.Pod
-
 		// Get job submitter pod resource.
-		observedJobPod = new(corev1.Pod)
+		var observedJobPod *corev1.Pod = new(corev1.Pod)
 		err = observer.observeJobPod(observedJobPod)
 		if err != nil {
 			log.Error(err, "Failed to get job pod")
@@ -350,7 +348,6 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(
 		log.Info("Observed Flink job", "flink job", *flinkJob)
 	}
 
-	return
 }
 
 func (observer *ClusterStateObserver) observeSavepoint(observed *ObservedClusterState) error {

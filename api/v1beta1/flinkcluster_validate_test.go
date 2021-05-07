@@ -750,7 +750,7 @@ func TestInvalidHadoopConfig(t *testing.T) {
 		MountPath:     "/etc/hadoop/conf",
 	}
 	var err1 = validator.validateHadoopConfig(&hadoopConfig1)
-	var expectedErr1 = "Hadoop ConfigMap name is unspecified"
+	var expectedErr1 = "hadoop ConfigMap name is unspecified"
 	assert.Assert(t, err1 != nil, "err is not expected to be nil")
 	assert.Equal(t, err1.Error(), expectedErr1)
 
@@ -759,7 +759,7 @@ func TestInvalidHadoopConfig(t *testing.T) {
 		MountPath:     "",
 	}
 	var err2 = validator.validateHadoopConfig(&hadoopConfig2)
-	var expectedErr2 = "Hadoop config volume mount path is unspecified"
+	var expectedErr2 = "hadoop config volume mount path is unspecified"
 	assert.Assert(t, err2 != nil, "err is not expected to be nil")
 	assert.Equal(t, err2.Error(), expectedErr2)
 }
