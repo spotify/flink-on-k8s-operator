@@ -807,6 +807,17 @@ func TestGetDesiredClusterState(t *testing.T) {
 							},
 							VolumeMounts: []v1.VolumeMount{
 								{Name: "cache-volume", MountPath: "/cache"},
+								{
+									Name:      "gcp-service-account-volume",
+									MountPath: "/etc/gcp_service_account/",
+									ReadOnly:  true,
+								},
+							},
+							Env: []v1.EnvVar{
+								{
+									Name:  "GOOGLE_APPLICATION_CREDENTIALS",
+									Value: "/etc/gcp_service_account/gcp_service_account_key.json",
+								},
 							},
 						},
 					},
