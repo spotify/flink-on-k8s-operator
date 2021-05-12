@@ -27,7 +27,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -247,16 +246,16 @@ func TestGetDesiredClusterState(t *testing.T) {
 					VolumeMounts: []corev1.VolumeMount{
 						{Name: "cache-volume", MountPath: "/cache"},
 					},
-					VolumeClaimTemplates: []v1.PersistentVolumeClaim{
+					VolumeClaimTemplates: []corev1.PersistentVolumeClaim{
 						{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "pvc-test",
 							},
-							Spec: v1.PersistentVolumeClaimSpec{
-								AccessModes: []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
-								Resources: v1.ResourceRequirements{
-									Requests: map[v1.ResourceName]resource.Quantity{
-										v1.ResourceStorage: resource.MustParse("100Gi"),
+							Spec: corev1.PersistentVolumeClaimSpec{
+								AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+								Resources: corev1.ResourceRequirements{
+									Requests: map[corev1.ResourceName]resource.Quantity{
+										corev1.ResourceStorage: resource.MustParse("100Gi"),
 									},
 								},
 								StorageClassName: &storageClassName,
@@ -499,14 +498,14 @@ func TestGetDesiredClusterState(t *testing.T) {
 				},
 			},
 		},
-		Spec: v1.ServiceSpec{
+		Spec: corev1.ServiceSpec{
 			Type: "LoadBalancer",
 			Selector: map[string]string{
 				"app":       "flink",
 				"cluster":   "flinkjobcluster-sample",
 				"component": "jobmanager",
 			},
-			Ports: []v1.ServicePort{
+			Ports: []corev1.ServicePort{
 				{Name: "rpc", Port: 6123, TargetPort: intstr.FromString("rpc")},
 				{Name: "blob", Port: 6124, TargetPort: intstr.FromString("blob")},
 				{Name: "query", Port: 6125, TargetPort: intstr.FromString("query")},
@@ -604,16 +603,16 @@ func TestGetDesiredClusterState(t *testing.T) {
 					"component": "taskmanager",
 				},
 			},
-			VolumeClaimTemplates: []v1.PersistentVolumeClaim{
+			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "pvc-test",
 					},
-					Spec: v1.PersistentVolumeClaimSpec{
-						AccessModes: []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
-						Resources: v1.ResourceRequirements{
-							Requests: map[v1.ResourceName]resource.Quantity{
-								v1.ResourceStorage: resource.MustParse("100Gi"),
+					Spec: corev1.PersistentVolumeClaimSpec{
+						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						Resources: corev1.ResourceRequirements{
+							Requests: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceStorage: resource.MustParse("100Gi"),
 							},
 						},
 						StorageClassName: &storageClassName,
@@ -634,7 +633,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 				Spec: corev1.PodSpec{
 					InitContainers: make([]corev1.Container, 0),
 					Containers: []corev1.Container{
-						corev1.Container{
+						{
 							Name:  "taskmanager",
 							Image: "flink:1.8.1",
 							Args:  []string{"taskmanager"},
@@ -695,7 +694,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 									corev1.ResourceMemory: resource.MustParse("1Gi"),
 								},
 							},
-							VolumeMounts: []v1.VolumeMount{
+							VolumeMounts: []corev1.VolumeMount{
 								{Name: "cache-volume", MountPath: "/cache"},
 								{Name: "flink-config-volume", MountPath: "/opt/flink/conf"},
 								{
@@ -710,7 +709,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 								},
 							},
 						},
-						corev1.Container{Name: "sidecar", Image: "alpine"},
+						{Name: "sidecar", Image: "alpine"},
 					},
 					Volumes: []corev1.Volume{
 						{
@@ -786,7 +785,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 			},
 		},
 		Spec: batchv1.JobSpec{
-			Template: v1.PodTemplateSpec{
+			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"app":     "flink",
@@ -796,8 +795,8 @@ func TestGetDesiredClusterState(t *testing.T) {
 						"example.com": "example",
 					},
 				},
-				Spec: v1.PodSpec{
-					InitContainers: []v1.Container{
+				Spec: corev1.PodSpec{
+					InitContainers: []corev1.Container{
 						{
 							Name:    "gcs-downloader",
 							Image:   "google/cloud-sdk",
@@ -805,7 +804,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 							Args: []string{
 								"cp", "gs://my-bucket/my-job.jar", "/cache/my-job.jar",
 							},
-							VolumeMounts: []v1.VolumeMount{
+							VolumeMounts: []corev1.VolumeMount{
 								{Name: "cache-volume", MountPath: "/cache"},
 								{
 									Name:      "gcp-service-account-volume",
@@ -821,7 +820,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 							},
 						},
 					},
-					Containers: []v1.Container{
+					Containers: []corev1.Container{
 						{
 							Name:  "main",
 							Image: "flink:1.8.1",
@@ -839,7 +838,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 								"--input",
 								"./README.txt",
 							},
-							Env: []v1.EnvVar{
+							Env: []corev1.EnvVar{
 								{Name: "FLINK_JM_ADDR", Value: "flinkjobcluster-sample-jobmanager:8081"},
 								{Name: "HADOOP_CONF_DIR", Value: "/etc/hadoop/conf"},
 								{
@@ -867,7 +866,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 									corev1.ResourceMemory: resource.MustParse("512Mi"),
 								},
 							},
-							VolumeMounts: []v1.VolumeMount{
+							VolumeMounts: []corev1.VolumeMount{
 								{Name: "cache-volume", MountPath: "/cache"},
 								{
 									Name:      "flink-config-volume",

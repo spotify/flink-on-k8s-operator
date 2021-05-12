@@ -187,7 +187,7 @@ func getDesiredJobManagerStatefulSet(
 	}
 
 	envVars = append(envVars, flinkCluster.Spec.EnvVars...)
-	var containers = []corev1.Container{corev1.Container{
+	var containers = []corev1.Container{{
 		Name:            "jobmanager",
 		Image:           imageSpec.Name,
 		ImagePullPolicy: imageSpec.PullPolicy,
@@ -334,7 +334,7 @@ func getDesiredJobManagerIngress(
 	if jobManagerIngressSpec.HostFormat != nil {
 		ingressHost = getJobManagerIngressHost(*jobManagerIngressSpec.HostFormat, clusterName)
 	}
-	if jobManagerIngressSpec.UseTLS != nil && *jobManagerIngressSpec.UseTLS == true {
+	if jobManagerIngressSpec.UseTLS != nil && *jobManagerIngressSpec.UseTLS {
 		var secretName string
 		var hosts []string
 		if ingressHost != "" {
@@ -488,7 +488,7 @@ func getDesiredTaskManagerStatefulSet(
 	}
 	envVars = append(envVars, flinkCluster.Spec.EnvVars...)
 
-	var containers = []corev1.Container{corev1.Container{
+	var containers = []corev1.Container{{
 		Name:            "taskmanager",
 		Image:           imageSpec.Name,
 		ImagePullPolicy: imageSpec.PullPolicy,
@@ -657,7 +657,7 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 	}
 
 	if jobSpec.AllowNonRestoredState != nil &&
-		*jobSpec.AllowNonRestoredState == true {
+		*jobSpec.AllowNonRestoredState {
 		jobArgs = append(jobArgs, "--allowNonRestoredState")
 	}
 
@@ -666,7 +666,7 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 	}
 
 	if jobSpec.NoLoggingToStdout != nil &&
-		*jobSpec.NoLoggingToStdout == true {
+		*jobSpec.NoLoggingToStdout {
 		jobArgs = append(jobArgs, "--sysoutLogging")
 	}
 	jobArgs = append(jobArgs, "--detached")
@@ -737,7 +737,7 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 	var podSpec = corev1.PodSpec{
 		InitContainers: convertJobInitContainers(jobSpec, saMount, saEnv),
 		Containers: []corev1.Container{
-			corev1.Container{
+			{
 				Name:            "main",
 				Image:           imageSpec.Name,
 				ImagePullPolicy: imageSpec.PullPolicy,

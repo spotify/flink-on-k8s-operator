@@ -360,7 +360,7 @@ func getSavepointEvent(status v1beta1.SavepointStatus) (eventType string, eventR
 	case v1beta1.SavepointStateSucceeded:
 		eventType = corev1.EventTypeNormal
 		eventReason = "SavepointCreated"
-		eventMessage = fmt.Sprintf("Successfully savepoint created")
+		eventMessage = "Successfully savepoint created"
 	case v1beta1.SavepointStateFailed:
 		eventType = corev1.EventTypeWarning
 		eventReason = "SavepointFailed"
@@ -418,10 +418,7 @@ func hasTimeElapsed(timeToCheckStr string, now time.Time, intervalSec int) bool 
 	tc := &TimeConverter{}
 	timeToCheck := tc.FromString(timeToCheckStr)
 	intervalPassedTime := timeToCheck.Add(time.Duration(int64(intervalSec) * int64(time.Second)))
-	if now.After(intervalPassedTime) {
-		return true
-	}
-	return false
+	return now.After(intervalPassedTime)
 }
 
 // isComponentUpdated checks whether the component updated.
@@ -451,17 +448,11 @@ func isComponentUpdated(component runtime.Object, cluster v1beta1.FlinkCluster) 
 		}
 	case *batchv1.Job:
 		if o == nil {
-			if cluster.Spec.Job != nil {
-				return false
-			}
-			return true
+			return cluster.Spec.Job == nil
 		}
 	case *extensionsv1beta1.Ingress:
 		if o == nil {
-			if cluster.Spec.JobManager.Ingress != nil {
-				return false
-			}
-			return true
+			return cluster.Spec.JobManager.Ingress == nil
 		}
 	}
 

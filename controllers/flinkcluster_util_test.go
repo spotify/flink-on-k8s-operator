@@ -279,7 +279,6 @@ func TestShouldUpdateJob(t *testing.T) {
 	assert.Equal(t, update, false)
 
 	// cannot update without savepointLocation
-	tc = &TimeConverter{}
 	savepointTime = time.Now()
 	observeTime = savepointTime.Add(time.Second * 500)
 	observed = ObservedClusterState{
@@ -581,10 +580,9 @@ func TestGetFlinkJobDeploymentState(t *testing.T) {
 	var pod corev1.Pod
 	var submit, expected *FlinkJobSubmitLog
 	var err error
-	var termMsg string
 
 	// success
-	termMsg = `
+	termMsg := `
 jobID: ec74209eb4e3db8ae72db00bd7a830aa
 message: |
   Successfully submitted!
@@ -613,7 +611,7 @@ Job has been submitted with JobID ec74209eb4e3db8ae72db00bd7a830aa
 	assert.DeepEqual(t, *submit, *expected)
 
 	// failed: pod not found
-	submit, err = getFlinkJobSubmitLog(nil)
+	_, err = getFlinkJobSubmitLog(nil)
 	assert.Error(t, err, "no job pod found, even though submission completed")
 
 	// failed: message not found
@@ -624,6 +622,6 @@ Job has been submitted with JobID ec74209eb4e3db8ae72db00bd7a830aa
 					Terminated: &corev1.ContainerStateTerminated{
 						Message: "",
 					}}}}}}
-	submit, err = getFlinkJobSubmitLog(&pod)
+	_, err = getFlinkJobSubmitLog(&pod)
 	assert.Error(t, err, "job pod found, but no termination log found even though submission completed")
 }
