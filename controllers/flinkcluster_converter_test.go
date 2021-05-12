@@ -812,7 +812,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 									ReadOnly:  true,
 								},
 							},
-							Env: []v1.EnvVar{
+							Env: []corev1.EnvVar{
 								{
 									Name:  "GOOGLE_APPLICATION_CREDENTIALS",
 									Value: "/etc/gcp_service_account/gcp_service_account_key.json",
