@@ -268,8 +268,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 					},
 					SecurityContext: &securityContext,
 				},
-				FlinkProperties: map[string]string{"taskmanager.numberOfTaskSlots": "1"},
-				EnvVars:         []corev1.EnvVar{{Name: "FOO", Value: "abc"}},
+				EnvVars: []corev1.EnvVar{{Name: "FOO", Value: "abc"}},
 				EnvFrom: []corev1.EnvFromSource{{ConfigMapRef: &corev1.ConfigMapEnvSource{
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: "FOOMAP",

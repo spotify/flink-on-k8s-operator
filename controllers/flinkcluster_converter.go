@@ -944,17 +944,22 @@ func calJobParallelism(cluster *v1beta1.FlinkCluster) *int32 {
 		return cluster.Spec.Job.Parallelism
 	}
 
-	tmReplicas := cluster.Spec.TaskManager.Replicas
-	ts, ok := cluster.Spec.FlinkProperties["taskmanager.numberOfTaskSlots"]
-	if !ok {
-		return nil
+	var value *int
+	if ts, ok := cluster.Spec.FlinkProperties["taskmanager.numberOfTaskSlots"]; ok {
+		parsed, err := strconv.Atoi(ts)
+		if err != nil {
+			return nil
+		}
+		value = &parsed
+	} else {
+		value = calTaskManagerTaskSlots(cluster)
 	}
-	value, err := strconv.Atoi(ts)
-	if err != nil {
+
+	if value == nil {
 		return nil
 	}
 
-	parallelism := tmReplicas * int32(value)
+	parallelism := cluster.Spec.TaskManager.Replicas * int32(*value)
 	return &parallelism
 }
 
