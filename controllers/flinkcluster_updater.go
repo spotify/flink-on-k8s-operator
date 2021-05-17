@@ -404,10 +404,19 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 	switch recorded.State {
 	case "", v1beta1.ClusterStateCreating:
 		if runningComponents < totalComponents {
-			if runningComponents == 0 {
-				status.State = v1beta1.ClusterStateStopped
-			} else {
-				status.State = v1beta1.ClusterStateCreating
+			status.State = v1beta1.ClusterStateCreating
+			if jobStopped {
+				var policy = observed.cluster.Spec.Job.CleanupPolicy
+				if jobStatus.State == v1beta1.JobStateSucceeded &&
+					policy.AfterJobSucceeds != v1beta1.CleanupActionKeepCluster {
+					status.State = v1beta1.ClusterStateStopping
+				} else if jobStatus.State == v1beta1.JobStateFailed &&
+					policy.AfterJobFails != v1beta1.CleanupActionKeepCluster {
+					status.State = v1beta1.ClusterStateStopping
+				} else if jobStatus.State == v1beta1.JobStateCancelled &&
+					policy.AfterJobCancelled != v1beta1.CleanupActionKeepCluster {
+					status.State = v1beta1.ClusterStateStopping
+				}
 			}
 		} else {
 			status.State = v1beta1.ClusterStateRunning
