@@ -389,23 +389,15 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 	}
 
 	// (Optional) Job.
-	var jobStopped = false
 	var jobStatus = updater.getJobStatus()
 	status.Components.Job = jobStatus
-	if jobStatus != nil &&
-		(jobStatus.State == v1beta1.JobStateSucceeded ||
-			jobStatus.State == v1beta1.JobStateFailed ||
-			jobStatus.State == v1beta1.JobStateCancelled ||
-			jobStatus.State == v1beta1.JobStateSuspended) {
-		jobStopped = true
-	}
 
 	// Derive the new cluster state.
 	switch recorded.State {
 	case "", v1beta1.ClusterStateCreating:
 		if runningComponents < totalComponents {
 			status.State = v1beta1.ClusterStateCreating
-			if jobStopped {
+			if isJobStopped(jobStatus) {
 				var policy = observed.cluster.Spec.Job.CleanupPolicy
 				if jobStatus.State == v1beta1.JobStateSucceeded &&
 					policy.AfterJobSucceeds != v1beta1.CleanupActionKeepCluster {
@@ -437,7 +429,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 		v1beta1.ClusterStateReconciling:
 		if isClusterUpdating {
 			status.State = v1beta1.ClusterStateUpdating
-		} else if jobStopped {
+		} else if isJobStopped(jobStatus) {
 			var policy = observed.cluster.Spec.Job.CleanupPolicy
 			if jobStatus.State == v1beta1.JobStateSucceeded &&
 				policy.AfterJobSucceeds != v1beta1.CleanupActionKeepCluster {
