@@ -238,22 +238,19 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 		recorded.Components.JobManagerService.DeepCopyInto(&status.Components.JobManagerService)
 		status.Components.JobManagerService.State = v1beta1.ComponentStateUpdating
 	} else if observedJmService != nil {
-		var state string
 		var nodePort int32
+		state := v1beta1.ComponentStateNotReady
+
 		switch observedJmService.Spec.Type {
 		case corev1.ServiceTypeClusterIP:
 			if observedJmService.Spec.ClusterIP != "" {
 				state = v1beta1.ComponentStateReady
 				runningComponents++
-			} else {
-				state = v1beta1.ComponentStateNotReady
 			}
 		case corev1.ServiceTypeLoadBalancer:
 			if len(observedJmService.Status.LoadBalancer.Ingress) > 0 {
 				state = v1beta1.ComponentStateReady
 				runningComponents++
-			} else {
-				state = v1beta1.ComponentStateNotReady
 			}
 		case corev1.ServiceTypeNodePort:
 			if len(observedJmService.Spec.Ports) > 0 {
@@ -264,8 +261,6 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 						nodePort = port.NodePort
 					}
 				}
-			} else {
-				state = v1beta1.ComponentStateNotReady
 			}
 		}
 
