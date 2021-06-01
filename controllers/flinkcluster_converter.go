@@ -292,6 +292,13 @@ func getDesiredJobManagerService(
 		jobManagerService.Spec.Type = corev1.ServiceTypeLoadBalancer
 		jobManagerService.Annotations =
 			map[string]string{"cloud.google.com/load-balancer-type": "Internal"}
+	case v1beta1.AccessScopeSharedVPC:
+		jobManagerService.Spec.Type = corev1.ServiceTypeLoadBalancer
+		jobManagerService.Annotations =
+			map[string]string{
+				"cloud.google.com/load-balancer-type":           "Internal",
+				"networking.gke.io/suppress-firewall-xpn-error": "true",
+			}
 	case v1beta1.AccessScopeExternal:
 		jobManagerService.Spec.Type = corev1.ServiceTypeLoadBalancer
 	case v1beta1.AccessScopeNodePort:

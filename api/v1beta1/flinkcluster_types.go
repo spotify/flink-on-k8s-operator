@@ -56,11 +56,12 @@ const (
 
 // AccessScope defines the access scope of JobManager service.
 const (
-	AccessScopeCluster  = "Cluster"
-	AccessScopeVPC      = "VPC"
-	AccessScopeExternal = "External"
-	AccessScopeNodePort = "NodePort"
-	AccessScopeHeadless = "Headless"
+	AccessScopeCluster   = "Cluster"
+	AccessScopeVPC       = "VPC"
+	AccessScopeSharedVPC = "SharedVPC"
+	AccessScopeExternal  = "External"
+	AccessScopeNodePort  = "NodePort"
+	AccessScopeHeadless  = "Headless"
 )
 
 // JobRestartPolicy defines the restart policy when a job fails.

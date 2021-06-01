@@ -304,6 +304,7 @@ func (v *Validator) validateJobManager(flinkVersion *version.Version, jmSpec *Jo
 	switch jmSpec.AccessScope {
 	case AccessScopeCluster:
 	case AccessScopeVPC:
+	case AccessScopeSharedVPC:
 	case AccessScopeExternal:
 	case AccessScopeNodePort:
 	case AccessScopeHeadless:
