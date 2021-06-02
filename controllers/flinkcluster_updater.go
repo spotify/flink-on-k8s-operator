@@ -239,6 +239,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 		status.Components.JobManagerService.State = v1beta1.ComponentStateUpdating
 	} else if observedJmService != nil {
 		var nodePort int32
+		var loadBalancerIngress []corev1.LoadBalancerIngress
 		state := v1beta1.ComponentStateNotReady
 
 		switch observedJmService.Spec.Type {
@@ -251,6 +252,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 			if len(observedJmService.Status.LoadBalancer.Ingress) > 0 {
 				state = v1beta1.ComponentStateReady
 				runningComponents++
+				loadBalancerIngress = observedJmService.Status.LoadBalancer.Ingress
 			}
 		case corev1.ServiceTypeNodePort:
 			if len(observedJmService.Spec.Ports) > 0 {
@@ -266,9 +268,10 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 
 		status.Components.JobManagerService =
 			v1beta1.JobManagerServiceStatus{
-				Name:     observedJmService.ObjectMeta.Name,
-				State:    state,
-				NodePort: nodePort,
+				Name:                observedJmService.ObjectMeta.Name,
+				State:               state,
+				NodePort:            nodePort,
+				LoadBalancerIngress: loadBalancerIngress,
 			}
 	} else if recorded.Components.JobManagerService.Name != "" {
 		status.Components.JobManagerService =
@@ -815,8 +818,8 @@ func (updater *ClusterStatusUpdater) isStatusChanged(
 			newStatus.Components.JobManagerStatefulSet)
 		changed = true
 	}
-	if newStatus.Components.JobManagerService !=
-		currentStatus.Components.JobManagerService {
+	if newStatus.Components.JobManagerService.State !=
+		currentStatus.Components.JobManagerService.State {
 		updater.log.Info(
 			"JobManager service status changed",
 			"current",

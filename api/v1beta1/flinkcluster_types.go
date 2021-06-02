@@ -638,6 +638,9 @@ type JobManagerServiceStatus struct {
 
 	// (Optional) The node port, present when `accessScope` is `NodePort`.
 	NodePort int32 `json:"nodePort,omitempty"`
+
+	// (Optional) The external ip, persent when `accessScope` is `VPC` or `External`
+	LoadBalancerIngress []corev1.LoadBalancerIngress `json:"loadBalancerIngress,omitempty"`
 }
 
 // FlinkClusterStatus defines the observed state of FlinkCluster
