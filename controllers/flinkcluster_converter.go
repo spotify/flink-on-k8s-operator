@@ -291,7 +291,7 @@ func getDesiredJobManagerService(
 	case v1beta1.AccessScopeVPC:
 		jobManagerService.Spec.Type = corev1.ServiceTypeLoadBalancer
 		jobManagerService.Annotations =
-			map[string]string{"cloud.google.com/load-balancer-type": "Internal"}
+			map[string]string{"networking.gke.io/load-balancer-type": "Internal"}
 	case v1beta1.AccessScopeExternal:
 		jobManagerService.Spec.Type = corev1.ServiceTypeLoadBalancer
 	case v1beta1.AccessScopeNodePort:
