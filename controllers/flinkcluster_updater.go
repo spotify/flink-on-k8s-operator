@@ -818,8 +818,7 @@ func (updater *ClusterStatusUpdater) isStatusChanged(
 			newStatus.Components.JobManagerStatefulSet)
 		changed = true
 	}
-	if newStatus.Components.JobManagerService.State !=
-		currentStatus.Components.JobManagerService.State {
+	if !reflect.DeepEqual(newStatus.Components.JobManagerService, currentStatus.Components.JobManagerService) {
 		updater.log.Info(
 			"JobManager service status changed",
 			"current",
