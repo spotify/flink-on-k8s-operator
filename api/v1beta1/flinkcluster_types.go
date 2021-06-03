@@ -639,7 +639,7 @@ type JobManagerServiceStatus struct {
 	// (Optional) The node port, present when `accessScope` is `NodePort`.
 	NodePort int32 `json:"nodePort,omitempty"`
 
-	// (Optional) The load balancer ingress, persent when `accessScope` is `VPC` or `External`
+	// (Optional) The load balancer ingress, present when `accessScope` is `VPC` or `External`
 	LoadBalancerIngress []corev1.LoadBalancerIngress `json:"loadBalancerIngress,omitempty"`
 }
 
