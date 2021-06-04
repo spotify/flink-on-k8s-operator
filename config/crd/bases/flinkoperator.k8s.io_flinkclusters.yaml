@@ -5822,6 +5822,34 @@ spec:
                     type: object
                   jobManagerService:
                     properties:
+                      loadBalancerIps:
+                        items:
+                          properties:
+                            hostname:
+                              type: string
+                            ip:
+                              type: string
+                            ports:
+                              items:
+                                properties:
+                                  error:
+                                    maxLength: 316
+                                    pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                                    type: string
+                                  port:
+                                    format: int32
+                                    type: integer
+                                  protocol:
+                                    default: TCP
+                                    type: string
+                                required:
+                                - port
+                                - protocol
+                                type: object
+                              type: array
+                              x-kubernetes-list-type: atomic
+                          type: object
+                        type: array
                       name:
                         type: string
                       nodePort:
