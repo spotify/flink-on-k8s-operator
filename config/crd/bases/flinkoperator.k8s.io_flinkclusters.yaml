@@ -5822,7 +5822,7 @@ spec:
                     type: object
                   jobManagerService:
                     properties:
-                      loadBalancerIps:
+                      loadBalancerIngress:
                         items:
                           properties:
                             hostname:
