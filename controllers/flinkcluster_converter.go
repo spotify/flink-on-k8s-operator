@@ -44,15 +44,16 @@ import (
 // underlying Kubernetes resource specs.
 
 const (
-	delayDeleteClusterMinutes int32 = 5
-	flinkConfigMapPath              = "/opt/flink/conf"
-	flinkConfigMapVolume            = "flink-config-volume"
-	gcpServiceAccountVolume         = "gcp-service-account-volume"
-	hadoopConfigVolume              = "hadoop-config-volume"
+	preStopSleepSeconds     = 30
+	flinkConfigMapPath      = "/opt/flink/conf"
+	flinkConfigMapVolume    = "flink-config-volume"
+	gcpServiceAccountVolume = "gcp-service-account-volume"
+	hadoopConfigVolume      = "hadoop-config-volume"
 )
 
 var (
-	flinkSysProps = map[string]struct{}{
+	terminationGracePeriodSeconds int64 = 60
+	flinkSysProps                       = map[string]struct{}{
 		"jobmanager.rpc.address": {},
 		"jobmanager.rpc.port":    {},
 		"blob.server.port":       {},
@@ -199,19 +200,27 @@ func getDesiredJobManagerStatefulSet(
 		Env:             envVars,
 		EnvFrom:         flinkCluster.Spec.EnvFrom,
 		VolumeMounts:    volumeMounts,
+		Lifecycle: &corev1.Lifecycle{
+			PreStop: &corev1.Handler{
+				Exec: &corev1.ExecAction{
+					Command: []string{"sleep", strconv.Itoa(preStopSleepSeconds)},
+				},
+			},
+		},
 	}}
 
 	containers = append(containers, jobManagerSpec.Sidecars...)
 
 	var podSpec = corev1.PodSpec{
-		InitContainers:     convertJobManagerInitContainers(&jobManagerSpec, saMount, saEnv),
-		Containers:         containers,
-		Volumes:            volumes,
-		NodeSelector:       jobManagerSpec.NodeSelector,
-		Tolerations:        jobManagerSpec.Tolerations,
-		ImagePullSecrets:   imageSpec.PullSecrets,
-		SecurityContext:    securityContext,
-		ServiceAccountName: getServiceAccountName(serviceAccount),
+		InitContainers:                convertJobManagerInitContainers(&jobManagerSpec, saMount, saEnv),
+		Containers:                    containers,
+		Volumes:                       volumes,
+		NodeSelector:                  jobManagerSpec.NodeSelector,
+		Tolerations:                   jobManagerSpec.Tolerations,
+		ImagePullSecrets:              imageSpec.PullSecrets,
+		SecurityContext:               securityContext,
+		ServiceAccountName:            getServiceAccountName(serviceAccount),
+		TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 	}
 
 	var jobManagerStatefulSet = &appsv1.StatefulSet{
@@ -500,17 +509,25 @@ func getDesiredTaskManagerStatefulSet(
 		Env:             envVars,
 		EnvFrom:         flinkCluster.Spec.EnvFrom,
 		VolumeMounts:    volumeMounts,
+		Lifecycle: &corev1.Lifecycle{
+			PreStop: &corev1.Handler{
+				Exec: &corev1.ExecAction{
+					Command: []string{"sleep", strconv.Itoa(preStopSleepSeconds)},
+				},
+			},
+		},
 	}}
 	containers = append(containers, taskManagerSpec.Sidecars...)
 	var podSpec = corev1.PodSpec{
-		InitContainers:     convertTaskManagerInitContainers(&taskManagerSpec, saMount, saEnv),
-		Containers:         containers,
-		Volumes:            volumes,
-		NodeSelector:       taskManagerSpec.NodeSelector,
-		Tolerations:        taskManagerSpec.Tolerations,
-		ImagePullSecrets:   imageSpec.PullSecrets,
-		SecurityContext:    securityContext,
-		ServiceAccountName: getServiceAccountName(serviceAccount),
+		InitContainers:                convertTaskManagerInitContainers(&taskManagerSpec, saMount, saEnv),
+		Containers:                    containers,
+		Volumes:                       volumes,
+		NodeSelector:                  taskManagerSpec.NodeSelector,
+		Tolerations:                   taskManagerSpec.Tolerations,
+		ImagePullSecrets:              imageSpec.PullSecrets,
+		SecurityContext:               securityContext,
+		ServiceAccountName:            getServiceAccountName(serviceAccount),
+		TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 	}
 
 	var taskManagerStatefulSet = &appsv1.StatefulSet{

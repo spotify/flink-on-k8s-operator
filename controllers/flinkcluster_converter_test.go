@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
@@ -423,9 +424,17 @@ func TestGetDesiredClusterState(t *testing.T) {
 									ReadOnly:  true,
 								},
 							},
+							Lifecycle: &corev1.Lifecycle{
+								PreStop: &corev1.Handler{
+									Exec: &corev1.ExecAction{
+										Command: []string{"sleep", strconv.Itoa(preStopSleepSeconds)},
+									},
+								},
+							},
 						},
 					},
-					Tolerations: tolerations,
+					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+					Tolerations:                   tolerations,
 					SecurityContext: &corev1.PodSecurityContext{
 						RunAsUser:  &userAndGroupId,
 						RunAsGroup: &userAndGroupId,
@@ -707,6 +716,13 @@ func TestGetDesiredClusterState(t *testing.T) {
 									ReadOnly:  true,
 								},
 							},
+							Lifecycle: &corev1.Lifecycle{
+								PreStop: &corev1.Handler{
+									Exec: &corev1.ExecAction{
+										Command: []string{"sleep", strconv.Itoa(preStopSleepSeconds)},
+									},
+								},
+							},
 						},
 						{Name: "sidecar", Image: "alpine"},
 					},
@@ -746,7 +762,8 @@ func TestGetDesiredClusterState(t *testing.T) {
 							},
 						},
 					},
-					Tolerations: tolerations,
+					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+					Tolerations:                   tolerations,
 					SecurityContext: &corev1.PodSecurityContext{
 						RunAsUser:  &userAndGroupId,
 						RunAsGroup: &userAndGroupId,
