@@ -221,22 +221,6 @@ func (reconciler *ClusterReconciler) updateComponent(desired client.Object, comp
 	return nil
 }
 
-func (reconciler *ClusterReconciler) updateStatefulSet(
-	statefulSet *appsv1.StatefulSet, component string) error {
-	var context = reconciler.context
-	var log = reconciler.log.WithValues("component", component)
-	var k8sClient = reconciler.k8sClient
-
-	log.Info("Updating StatefulSet", "StatefulSet", statefulSet)
-	var err = k8sClient.Update(context, statefulSet)
-	if err != nil {
-		log.Error(err, "Failed to update StatefulSet")
-	} else {
-		log.Info("StatefulSet updated")
-	}
-	return err
-}
-
 func (reconciler *ClusterReconciler) deleteStatefulSet(
 	statefulSet *appsv1.StatefulSet, component string) error {
 	var context = reconciler.context
