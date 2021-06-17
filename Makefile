@@ -23,7 +23,7 @@ build: generate fmt vet
 
 # Run tests.
 test: generate fmt vet manifests
-	# go test ./... -coverprofile cover.out
+	go test ./... -coverprofile cover.out
 	go mod tidy
 	echo $(FLINK_OPERATOR_NAMESPACE)
 
