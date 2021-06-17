@@ -494,7 +494,8 @@ func TestGetDesiredClusterState(t *testing.T) {
 				RevisionNameLabel: "flinkjobcluster-sample-85dc8f749",
 			},
 			Annotations: map[string]string{
-				"networking.gke.io/load-balancer-type": "Internal",
+				"networking.gke.io/load-balancer-type":                         "Internal",
+				"networking.gke.io/internal-load-balancer-allow-global-access": "true",
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
