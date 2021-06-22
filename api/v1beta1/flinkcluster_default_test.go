@@ -40,7 +40,7 @@ func TestSetDefault(t *testing.T) {
 	}
 	_SetDefault(&cluster)
 
-	var defaultJobMode = JobMode(JobModeDetached)
+	var defaultJobMode JobMode = JobModeDetached
 	var defaultJmReplicas = int32(1)
 	var defaultJmRPCPort = int32(6123)
 	var defaultJmBlobPort = int32(6124)
