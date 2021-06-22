@@ -850,7 +850,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 								"org.apache.flink.examples.java.wordcount.WordCount",
 								"--parallelism",
 								"2",
-								// "--detached",
+								"--detached",
 								"/cache/my-job.jar",
 								"--input",
 								"./README.txt",
