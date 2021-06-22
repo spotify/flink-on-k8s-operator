@@ -9,14 +9,9 @@
 # docker run flink-operator-builder
 
 
-FROM ubuntu:18.04
+FROM golang:1.16.5-alpine
 
-RUN apt update && apt install -yqq curl git make gcc
-
-# Install Go
-RUN curl -s https://dl.google.com/go/go1.16.3.linux-amd64.tar.gz | tar -xz -C /usr/local/
-ENV GOROOT=/usr/local/go
-ENV PATH=${PATH}:${GOROOT}/bin
+RUN apk update && apk add curl git make gcc libc-dev
 
 # Install Kubebuilder
 RUN curl -sL https://go.kubebuilder.io/dl/2.3.2/linux/amd64 | tar -xz -C /usr/local/ \
