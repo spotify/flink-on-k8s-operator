@@ -55,6 +55,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 	var memoryOffHeapRatio int32 = 25
 	var memoryOffHeapMin = resource.MustParse("600M")
 	var memoryProcessRatio int32 = 80
+	var jobMode v1beta1.JobMode = v1beta1.JobModeDetached
 	var jobBackoffLimit int32 = 0
 	var jmReadinessProbe = corev1.Probe{
 		Handler: corev1.Handler{
@@ -152,6 +153,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 							corev1.ResourceMemory: resource.MustParse("512Mi"),
 						},
 					},
+					Mode:          &jobMode,
 					RestartPolicy: &restartPolicy,
 					Volumes: []corev1.Volume{
 						{

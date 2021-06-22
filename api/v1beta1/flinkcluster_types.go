@@ -41,6 +41,14 @@ const (
 	ComponentStateDeleted  = "Deleted"
 )
 
+// JobMode
+const (
+	JobModeBlocking = "Blocking"
+	JobModeDetached = "Detached"
+)
+
+type JobMode string
+
 // JobState defines states for a Flink job deployment.
 const (
 	JobStatePending   = "Pending"
@@ -418,6 +426,9 @@ type JobSpec struct {
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
 
 	SecurityContext *corev1.PodSecurityContext `json:"securityContext,omitempty"`
+
+	// Job running mode
+	Mode *JobMode `json:"mode"`
 }
 
 // FlinkClusterSpec defines the desired state of FlinkCluster

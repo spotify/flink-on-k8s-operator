@@ -477,6 +477,13 @@ func (v *Validator) validateJob(jobSpec *JobSpec) error {
 			"property `cancelRequested` cannot be set to true for a new job")
 	}
 
+	if jobSpec.Mode == nil {
+		return fmt.Errorf("job mode is unspecified")
+	}
+	if err := v.validateJobMode("mode", *jobSpec.Mode); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -524,6 +531,15 @@ func (v *Validator) validateCleanupAction(
 		return fmt.Errorf(
 			"invalid %v: %v",
 			property, value)
+	}
+	return nil
+}
+
+func (v *Validator) validateJobMode(property string, value JobMode) error {
+	switch value {
+	case JobModeDetached:
+	default:
+		return fmt.Errorf("invalid %v: %v", property, value)
 	}
 	return nil
 }

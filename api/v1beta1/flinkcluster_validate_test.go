@@ -38,6 +38,7 @@ func TestValidateCreate(t *testing.T) {
 	var parallelism int32 = 2
 	var restartPolicy = JobRestartPolicyFromSavepointOnFailure
 	var memoryProcessRatio int32 = 25
+	var jobMode JobMode = JobModeDetached
 	var cluster = FlinkCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster",
@@ -77,6 +78,7 @@ func TestValidateCreate(t *testing.T) {
 					AfterJobSucceeds: CleanupActionKeepCluster,
 					AfterJobFails:    CleanupActionDeleteTaskManager,
 				},
+				Mode: &jobMode,
 			},
 			GCPConfig: &GCPConfig{
 				ServiceAccount: &GCPServiceAccount{
@@ -932,6 +934,7 @@ func getSimpleFlinkCluster() FlinkCluster {
 	var parallelism int32 = 2
 	var restartPolicy = JobRestartPolicyFromSavepointOnFailure
 	var savepointDir = "/savepoint_dir"
+	var jobMode JobMode = JobModeDetached
 	return FlinkCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster",
@@ -974,6 +977,7 @@ func getSimpleFlinkCluster() FlinkCluster {
 					AfterJobSucceeds: CleanupActionKeepCluster,
 					AfterJobFails:    CleanupActionDeleteTaskManager,
 				},
+				Mode: &jobMode,
 			},
 		},
 	}
