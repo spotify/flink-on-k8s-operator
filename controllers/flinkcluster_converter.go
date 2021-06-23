@@ -692,9 +692,8 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 
 	if jobSpec.Mode != nil {
 		switch *jobSpec.Mode {
+		case v1beta1.JobModeBlocking:
 		case v1beta1.JobModeDetached:
-			fallthrough
-		default:
 			jobArgs = append(jobArgs, "--detached")
 		}
 	}

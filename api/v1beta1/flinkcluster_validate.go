@@ -537,6 +537,7 @@ func (v *Validator) validateCleanupAction(
 
 func (v *Validator) validateJobMode(property string, value JobMode) error {
 	switch value {
+	case JobModeBlocking:
 	case JobModeDetached:
 	default:
 		return fmt.Errorf("invalid %v: %v", property, value)

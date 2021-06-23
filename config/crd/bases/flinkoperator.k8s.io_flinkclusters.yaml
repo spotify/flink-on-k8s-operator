@@ -724,6 +724,8 @@ spec:
                     type: array
                   jarFile:
                     type: string
+                  mode:
+                    type: string
                   noLoggingToStdout:
                     type: boolean
                   parallelism:

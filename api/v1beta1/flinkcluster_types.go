@@ -428,7 +428,7 @@ type JobSpec struct {
 	SecurityContext *corev1.PodSecurityContext `json:"securityContext,omitempty"`
 
 	// Job running mode
-	Mode *JobMode `json:"mode"`
+	Mode *JobMode `json:"mode,omitempty"`
 }
 
 // FlinkClusterSpec defines the desired state of FlinkCluster
