@@ -40,6 +40,7 @@ func TestSetDefault(t *testing.T) {
 	}
 	_SetDefault(&cluster)
 
+	var defaultJobMode JobMode = JobModeDetached
 	var defaultJmReplicas = int32(1)
 	var defaultJmRPCPort = int32(6123)
 	var defaultJmBlobPort = int32(6124)
@@ -107,6 +108,7 @@ func TestSetDefault(t *testing.T) {
 					AfterJobCancelled: "DeleteCluster",
 				},
 				SecurityContext: nil,
+				Mode:            &defaultJobMode,
 			},
 			FlinkProperties: nil,
 			HadoopConfig: &HadoopConfig{
@@ -127,6 +129,7 @@ func TestSetDefault(t *testing.T) {
 
 // Tests non-default values are not overwritten unexpectedly.
 func TestSetNonDefault(t *testing.T) {
+	var defaultJobMode = JobMode(JobModeDetached)
 	var jmReplicas = int32(2)
 	var jmRPCPort = int32(8123)
 	var jmBlobPort = int32(8124)
@@ -260,6 +263,7 @@ func TestSetNonDefault(t *testing.T) {
 					AfterJobFails:     "DeleteCluster",
 					AfterJobCancelled: "KeepCluster",
 				},
+				Mode: &defaultJobMode,
 			},
 			FlinkProperties: nil,
 			HadoopConfig: &HadoopConfig{

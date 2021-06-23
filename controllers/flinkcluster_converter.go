@@ -91,8 +91,8 @@ func getDesiredJobManagerStatefulSet(
 		return nil
 	}
 
-	var clusterNamespace = flinkCluster.ObjectMeta.Namespace
-	var clusterName = flinkCluster.ObjectMeta.Name
+	var clusterNamespace = flinkCluster.Namespace
+	var clusterName = flinkCluster.Name
 	var clusterSpec = flinkCluster.Spec
 	var imageSpec = clusterSpec.Image
 	var serviceAccount = clusterSpec.ServiceAccountName
@@ -255,8 +255,8 @@ func getDesiredJobManagerService(
 		return nil
 	}
 
-	var clusterNamespace = flinkCluster.ObjectMeta.Namespace
-	var clusterName = flinkCluster.ObjectMeta.Name
+	var clusterNamespace = flinkCluster.Namespace
+	var clusterName = flinkCluster.Name
 	var jobManagerSpec = flinkCluster.Spec.JobManager
 	var rpcPort = corev1.ServicePort{
 		Name:       "rpc",
@@ -689,7 +689,14 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 		*jobSpec.NoLoggingToStdout {
 		jobArgs = append(jobArgs, "--sysoutLogging")
 	}
-	jobArgs = append(jobArgs, "--detached")
+
+	if jobSpec.Mode != nil {
+		switch *jobSpec.Mode {
+		case v1beta1.JobModeBlocking:
+		case v1beta1.JobModeDetached:
+			jobArgs = append(jobArgs, "--detached")
+		}
+	}
 
 	var securityContext = jobSpec.SecurityContext
 

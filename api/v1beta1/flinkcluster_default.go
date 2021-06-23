@@ -145,6 +145,10 @@ func _SetJobDefault(jobSpec *JobSpec) {
 			AfterJobCancelled: CleanupActionDeleteCluster,
 		}
 	}
+	if jobSpec.Mode == nil {
+		jobSpec.Mode = new(JobMode)
+		*jobSpec.Mode = JobModeDetached
+	}
 }
 
 func _SetHadoopConfigDefault(hadoopConfig *HadoopConfig) {
