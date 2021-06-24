@@ -35,7 +35,7 @@ var submitJobScript = `
 #	Printing result to stdout. Use --output to specify output path.
 #	Job has been submitted with JobID ec74209eb4e3db8ae72db00bd7a830aa
 #
-# When failed (no jobID):
+# When submission fails (no jobID):
 #
 # message: |
 #   Aborted submit because JobManager is unavailable.
@@ -87,10 +87,9 @@ function submit_job() {
 
     # Submit job and extract the job ID
     echo "/opt/flink/bin/flink run $*" | tee -a submit_log
-    if /opt/flink/bin/flink run "$@" 2>&1 | tee -a submit_log; then
-        local -r job_id_indicator="Job has been submitted with JobID"
-        job_id=$(grep "${job_id_indicator}" submit_log | awk -F "${job_id_indicator}" '{printf $2}' | awk '{printf $1}')
-    fi
+    /opt/flink/bin/flink run "$@" 2>&1 | tee -a submit_log
+    local -r job_id_indicator="Job has been submitted with JobID"
+    job_id=$(grep "${job_id_indicator}" submit_log | awk -F "${job_id_indicator}" '{printf $2}' | awk '{printf $1}')
 
     # Write result as YAML format to pod termination-log.
     # On failure, write log only.
