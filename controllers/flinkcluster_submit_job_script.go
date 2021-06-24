@@ -35,7 +35,7 @@ var submitJobScript = `
 #	Printing result to stdout. Use --output to specify output path.
 #	Job has been submitted with JobID ec74209eb4e3db8ae72db00bd7a830aa
 #
-# When failed (no jobID if running detached mode):
+# When submission fails (no jobID):
 #
 # message: |
 #   Aborted submit because JobManager is unavailable.
