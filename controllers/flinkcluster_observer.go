@@ -276,7 +276,6 @@ func (observer *ClusterStateObserver) observeJob(
 	// Flink job status.
 	observer.observeFlinkJobStatus(observed, flinkJobID, &observedFlinkJobStatus)
 	observed.flinkJobStatus = observedFlinkJobStatus
-
 	return nil
 }
 
@@ -331,6 +330,7 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(
 			flinkJobsUnexpected = append(flinkJobsUnexpected, job.ID)
 		}
 	}
+
 	flinkJobStatus.flinkJob = flinkJob
 	flinkJobStatus.flinkJobsUnexpected = flinkJobsUnexpected
 

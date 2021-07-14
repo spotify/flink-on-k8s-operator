@@ -971,6 +971,7 @@ func (reconciler *ClusterReconciler) updateStatus(ss **v1beta1.SavepointStatus, 
 
 	var savepointStatus = *ss
 	var controlStatus = *cs
+
 	if savepointStatus == nil && controlStatus == nil {
 		return
 	}
@@ -996,7 +997,9 @@ func (reconciler *ClusterReconciler) updateStatus(ss **v1beta1.SavepointStatus, 
 		if controlStatus != nil {
 			newStatus.Control = controlStatus
 		}
+		updateCompletionTime(&clusterClone.Status)
 		setTimestamp(&newStatus.LastUpdateTime)
+		log.Info("Updating cluster status", "clusterClone", clusterClone, "newStatus", newStatus)
 		statusUpdateErr = reconciler.k8sClient.Status().Update(reconciler.context, clusterClone)
 		if statusUpdateErr == nil {
 			return nil

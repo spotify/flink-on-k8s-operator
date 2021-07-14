@@ -601,6 +601,8 @@ type JobStatus struct {
 
 	// The number of restarts.
 	RestartCount int32 `json:"restartCount,omitempty"`
+
+	CompletionTime *metav1.Time `json:"completionTime,omitempty"`
 }
 
 // SavepointStatus defines the status of savepoint progress

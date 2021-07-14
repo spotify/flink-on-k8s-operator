@@ -84,7 +84,6 @@ func (s *SavepointStatus) IsFailed() bool {
 	return s.Completed && s.FailureCause.StackTrace != ""
 }
 
-// GetJobStatusList gets Flink job status list.
 func (c *FlinkClient) GetJobStatusList(
 	apiBaseURL string, jobStatusList *JobStatusList) error {
 	return c.HTTPClient.Get(apiBaseURL+"/jobs", jobStatusList)
