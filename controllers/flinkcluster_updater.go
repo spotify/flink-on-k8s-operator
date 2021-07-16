@@ -909,7 +909,9 @@ func (updater *ClusterStatusUpdater) updateClusterStatus(
 	status v1beta1.FlinkClusterStatus) error {
 	var cluster = v1beta1.FlinkCluster{}
 	updater.observed.cluster.DeepCopyInto(&cluster)
+	updateCompletionTime(&status)
 	cluster.Status = status
+	updater.log.Info("(ClusterStatusUpdater) Updating cluster status", "clusterClone", cluster, "cluster.Status", cluster.Status)
 	err := updater.k8sClient.Status().Update(updater.context, &cluster)
 	// Clear control annotation after status update is complete.
 	updater.clearControlAnnotation(status.Control)
