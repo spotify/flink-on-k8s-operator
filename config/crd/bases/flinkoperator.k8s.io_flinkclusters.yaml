@@ -5785,6 +5785,10 @@ spec:
                       completionTime:
                         format: date-time
                         type: string
+                      failureReasons:
+                        items:
+                          type: string
+                        type: array
                       fromSavepoint:
                         type: string
                       id:

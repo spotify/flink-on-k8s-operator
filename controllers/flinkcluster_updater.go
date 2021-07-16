@@ -27,6 +27,7 @@ import (
 	"reflect"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/go-logr/logr"
@@ -764,11 +765,32 @@ func (updater *ClusterStatusUpdater) getJobStatus() *v1beta1.JobStatus {
 		newJobStatus.ID = observedFlinkJob.ID
 	}
 
-	// State
+	// Update State
 	newJobStatus.State = jobState
 
+	// Update Job Status info
+	if isJobStopped(newJobStatus) && newJobStatus.CompletionTime.IsZero() {
+		now := metav1.Now()
+		newJobStatus.CompletionTime = &now
+	}
+
+	if newJobStatus.State == v1beta1.JobStateFailed {
+		if len(newJobStatus.FailureReasons) == 0 {
+			newJobStatus.FailureReasons = []string{}
+			exceptions := updater.observed.flinkJobStatus.flinkJobExceptions
+			if exceptions != nil && len(exceptions.Exceptions) > 0 {
+				for _, e := range exceptions.Exceptions {
+					newJobStatus.FailureReasons = append(newJobStatus.FailureReasons, e.Exception)
+				}
+			}
+			if updater.observed.flinkJobSubmitLog != nil {
+				newJobStatus.FailureReasons = append(newJobStatus.FailureReasons, updater.observed.flinkJobSubmitLog.Message)
+			}
+		}
+	}
+
 	// Savepoint
-	if newJobStatus != nil && observedSavepoint != nil && observedSavepoint.IsSuccessful() {
+	if observedSavepoint != nil && observedSavepoint.IsSuccessful() {
 		newJobStatus.SavepointGeneration++
 		newJobStatus.LastSavepointTriggerID = observedSavepoint.TriggerID
 		newJobStatus.SavepointLocation = observedSavepoint.Location
@@ -909,7 +931,6 @@ func (updater *ClusterStatusUpdater) updateClusterStatus(
 	status v1beta1.FlinkClusterStatus) error {
 	var cluster = v1beta1.FlinkCluster{}
 	updater.observed.cluster.DeepCopyInto(&cluster)
-	updateCompletionTime(&status)
 	cluster.Status = status
 	updater.log.Info("(ClusterStatusUpdater) Updating cluster status", "clusterClone", cluster, "cluster.Status", cluster.Status)
 	err := updater.k8sClient.Status().Update(updater.context, &cluster)

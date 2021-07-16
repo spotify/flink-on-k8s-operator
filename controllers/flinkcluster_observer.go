@@ -70,6 +70,7 @@ type ObservedClusterState struct {
 type FlinkJobStatus struct {
 	flinkJob            *flinkclient.JobStatus
 	flinkJobList        *flinkclient.JobStatusList
+	flinkJobExceptions  *flinkclient.JobExceptions
 	flinkJobsUnexpected []string
 }
 
@@ -244,29 +245,26 @@ func (observer *ClusterStateObserver) observeJob(
 	}
 	observed.job = observedJob
 
+	// Get job submitter pod resource.
+	var observedJobPod *corev1.Pod = new(corev1.Pod)
+	err = observer.observeJobPod(observedJobPod)
+	if err != nil {
+		log.Error(err, "Failed to get job pod")
+	}
+	observed.jobPod = observedJobPod
+
+	// Extract submit result.
+	observedFlinkJobSubmitLog, err = getFlinkJobSubmitLog(observedJobPod)
+	if err != nil {
+		log.Error(err, "Failed to extract job submit result")
+	}
+	observed.flinkJobSubmitLog = observedFlinkJobSubmitLog
+
 	// Get Flink job ID.
 	// While job state is pending and job submitter is completed, extract the job ID from the pod termination log.
-	var jobSubmitCompleted = observedJob != nil && (observedJob.Status.Succeeded > 0 || observedJob.Status.Failed > 0)
-	var jobInPendingState = recordedJobStatus != nil && recordedJobStatus.State == v1beta1.JobStatePending
 	var flinkJobID string
-	if jobSubmitCompleted && jobInPendingState {
-		// Get job submitter pod resource.
-		var observedJobPod *corev1.Pod = new(corev1.Pod)
-		err = observer.observeJobPod(observedJobPod)
-		if err != nil {
-			log.Error(err, "Failed to get job pod")
-		}
-		observed.jobPod = observedJobPod
-
-		// Extract submit result.
-		observedFlinkJobSubmitLog, err = getFlinkJobSubmitLog(observedJobPod)
-		if err != nil {
-			log.Error(err, "Failed to extract job submit result")
-		}
-		if observedFlinkJobSubmitLog != nil && observedFlinkJobSubmitLog.JobID != "" {
-			flinkJobID = observedFlinkJobSubmitLog.JobID
-		}
-		observed.flinkJobSubmitLog = observedFlinkJobSubmitLog
+	if observedFlinkJobSubmitLog != nil && observedFlinkJobSubmitLog.JobID != "" {
+		flinkJobID = observedFlinkJobSubmitLog.JobID
 	}
 	// Or get the job ID from the recorded job status which is written previous iteration.
 	if flinkJobID == "" && recordedJobStatus != nil {
@@ -292,6 +290,7 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(
 
 	// Observe following
 	var flinkJob *flinkclient.JobStatus
+	var flinkJobExceptions *flinkclient.JobExceptions
 	var flinkJobList *flinkclient.JobStatusList
 	var flinkJobsUnexpected []string
 
@@ -306,8 +305,8 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(
 
 	// Get Flink job status list.
 	flinkJobList = &flinkclient.JobStatusList{}
-	var flinkAPIBaseURL = getFlinkAPIBaseURL(observed.cluster)
-	var err = observer.flinkClient.GetJobStatusList(flinkAPIBaseURL, flinkJobList)
+	flinkAPIBaseURL := getFlinkAPIBaseURL(observed.cluster)
+	err := observer.flinkClient.GetJobStatusList(flinkAPIBaseURL, flinkJobList)
 	if err != nil {
 		// It is normal in many cases, not an error.
 		log.Info("Failed to get Flink job status list.", "error", err)
@@ -322,6 +321,17 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(
 	if flinkJobID == "" {
 		return
 	}
+
+	flinkJobExceptions = &flinkclient.JobExceptions{}
+	err = observer.flinkClient.GetJobExceptions(flinkAPIBaseURL, flinkJobID, flinkJobExceptions)
+	if err != nil {
+		// It is normal in many cases, not an error.
+		log.Info("Failed to get Flink job exceptions.", "error", err)
+		return
+	}
+	log.Info("Observed Flink job exceptions", "jobs", flinkJobExceptions)
+	flinkJobStatus.flinkJobExceptions = flinkJobExceptions
+
 	for _, job := range flinkJobList.Jobs {
 		if flinkJobID == job.ID {
 			flinkJob = new(flinkclient.JobStatus)
