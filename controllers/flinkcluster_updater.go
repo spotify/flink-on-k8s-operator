@@ -204,7 +204,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 		recorded.Components.ConfigMap.DeepCopyInto(&status.Components.ConfigMap)
 		status.Components.ConfigMap.State = v1beta1.ComponentStateUpdating
 	} else if observedConfigMap != nil {
-		status.Components.ConfigMap.Name = observedConfigMap.ObjectMeta.Name
+		status.Components.ConfigMap.Name = observedConfigMap.Name
 		status.Components.ConfigMap.State = v1beta1.ComponentStateReady
 	} else if recorded.Components.ConfigMap.Name != "" {
 		status.Components.ConfigMap =
@@ -220,7 +220,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 		recorded.Components.JobManagerStatefulSet.DeepCopyInto(&status.Components.JobManagerStatefulSet)
 		status.Components.JobManagerStatefulSet.State = v1beta1.ComponentStateUpdating
 	} else if observedJmStatefulSet != nil {
-		status.Components.JobManagerStatefulSet.Name = observedJmStatefulSet.ObjectMeta.Name
+		status.Components.JobManagerStatefulSet.Name = observedJmStatefulSet.Name
 		status.Components.JobManagerStatefulSet.State = getStatefulSetState(observedJmStatefulSet)
 		if status.Components.JobManagerStatefulSet.State == v1beta1.ComponentStateReady {
 			runningComponents++
@@ -269,7 +269,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 
 		status.Components.JobManagerService =
 			v1beta1.JobManagerServiceStatus{
-				Name:                observedJmService.ObjectMeta.Name,
+				Name:                observedJmService.Name,
 				State:               state,
 				NodePort:            nodePort,
 				LoadBalancerIngress: loadBalancerIngress,
@@ -352,7 +352,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 
 		status.Components.JobManagerIngress =
 			&v1beta1.JobManagerIngressStatus{
-				Name:  observedJmIngress.ObjectMeta.Name,
+				Name:  observedJmIngress.Name,
 				State: state,
 				URLs:  urls,
 			}
@@ -372,7 +372,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 		status.Components.TaskManagerStatefulSet.State = v1beta1.ComponentStateUpdating
 	} else if observedTmStatefulSet != nil {
 		status.Components.TaskManagerStatefulSet.Name =
-			observedTmStatefulSet.ObjectMeta.Name
+			observedTmStatefulSet.Name
 		status.Components.TaskManagerStatefulSet.State =
 			getStatefulSetState(observedTmStatefulSet)
 		if status.Components.TaskManagerStatefulSet.State ==
@@ -388,7 +388,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 	}
 
 	// (Optional) Job.
-	var jobStatus = updater.getJobStatus()
+	var jobStatus = updater.deriveJobStatus()
 	status.Components.Job = jobStatus
 
 	// Derive the new cluster state.
@@ -695,7 +695,7 @@ func (updater *ClusterStatusUpdater) getFlinkJobID() *string {
 	return nil
 }
 
-func (updater *ClusterStatusUpdater) getJobStatus() *v1beta1.JobStatus {
+func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 	var observed = updater.observed
 	var observedJob = updater.observed.job
 	var observedFlinkJob = updater.observed.flinkJobStatus.flinkJob
