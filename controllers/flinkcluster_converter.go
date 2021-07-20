@@ -332,8 +332,8 @@ func getDesiredJobManagerIngress(
 		return nil
 	}
 
-	var clusterNamespace = flinkCluster.ObjectMeta.Namespace
-	var clusterName = flinkCluster.ObjectMeta.Name
+	var clusterNamespace = flinkCluster.Namespace
+	var clusterName = flinkCluster.Name
 	var jobManagerServiceName = getJobManagerServiceName(clusterName)
 	var jobManagerServiceUIPort = intstr.FromString("ui")
 	var ingressName = getJobManagerIngressName(clusterName)
@@ -401,8 +401,8 @@ func getDesiredTaskManagerStatefulSet(
 		return nil
 	}
 
-	var clusterNamespace = flinkCluster.ObjectMeta.Namespace
-	var clusterName = flinkCluster.ObjectMeta.Name
+	var clusterNamespace = flinkCluster.Namespace
+	var clusterName = flinkCluster.Name
 	var clusterSpec = flinkCluster.Spec
 	var imageSpec = flinkCluster.Spec.Image
 	var serviceAccount = clusterSpec.ServiceAccountName
@@ -568,8 +568,8 @@ func getDesiredConfigMap(
 		return nil
 	}
 
-	var clusterNamespace = flinkCluster.ObjectMeta.Namespace
-	var clusterName = flinkCluster.ObjectMeta.Name
+	var clusterNamespace = flinkCluster.Namespace
+	var clusterName = flinkCluster.Name
 	var flinkProperties = flinkCluster.Spec.FlinkProperties
 	var jmPorts = flinkCluster.Spec.JobManager.Ports
 	var tmPorts = flinkCluster.Spec.TaskManager.Ports
@@ -645,7 +645,7 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 	}
 
 	// Unless update has been triggered or the job needs to be restarted, keep the job to be stopped in that state.
-	if !(isUpdateTriggered(flinkCluster.Status) || shouldRestartJob(jobSpec.RestartPolicy, jobStatus)) {
+	if !isUpdateTriggered(flinkCluster.Status) && !shouldRestartJob(jobSpec.RestartPolicy, jobStatus) {
 		// Job cancel requested or stopped already
 		if isJobCancelRequested(*flinkCluster) || isJobStopped(jobStatus) {
 			return nil
@@ -656,8 +656,8 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 	var imageSpec = clusterSpec.Image
 	var serviceAccount = clusterSpec.ServiceAccountName
 	var jobManagerSpec = clusterSpec.JobManager
-	var clusterNamespace = flinkCluster.ObjectMeta.Namespace
-	var clusterName = flinkCluster.ObjectMeta.Name
+	var clusterNamespace = flinkCluster.Namespace
+	var clusterName = flinkCluster.Name
 	var jobName = getJobName(clusterName)
 	var jobManagerServiceName = clusterName + "-jobmanager"
 	var jobManagerAddress = fmt.Sprintf(
