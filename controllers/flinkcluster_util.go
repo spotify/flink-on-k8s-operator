@@ -33,7 +33,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -578,11 +577,4 @@ func getFlinkJobSubmitLog(observedPod *corev1.Pod) (*FlinkJobSubmitLog, error) {
 	}
 
 	return result, nil
-}
-
-func updateCompletionTime(status *v1beta1.FlinkClusterStatus) {
-	if isJobStopped(status.Components.Job) && status.Components.Job.CompletionTime.IsZero() {
-		now := metav1.Now()
-		status.Components.Job.CompletionTime = &now
-	}
 }

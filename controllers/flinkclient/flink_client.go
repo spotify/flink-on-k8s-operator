@@ -35,6 +35,15 @@ type FlinkClient struct {
 	HTTPClient HTTPClient
 }
 
+type JobException struct {
+	Exception string `json:"exception"`
+	Location  string `json:"location"`
+}
+
+type JobExceptions struct {
+	Exceptions []JobException `json:"all-exceptions"`
+}
+
 // JobStatus defines Flink job status.
 type JobStatus struct {
 	ID     string
@@ -215,4 +224,10 @@ func (c *FlinkClient) TakeSavepointAsync(
 	}
 
 	return triggerID.RequestID, err
+}
+
+func (c *FlinkClient) GetJobExceptions(
+	apiBaseURL string, jobId string, exceptions *JobExceptions) error {
+	url := fmt.Sprintf("%s/jobs/%s/exceptions", apiBaseURL, jobId)
+	return c.HTTPClient.Get(url, exceptions)
 }

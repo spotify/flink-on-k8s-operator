@@ -602,7 +602,11 @@ type JobStatus struct {
 	// The number of restarts.
 	RestartCount int32 `json:"restartCount,omitempty"`
 
+	// Job completion time. Present when job is terminated regardless of its state.
 	CompletionTime *metav1.Time `json:"completionTime,omitempty"`
+
+	// Reasons for the job failure. Present if job state is Failure
+	FailureReasons []string `json:"failureReasons,omitempty"`
 }
 
 // SavepointStatus defines the status of savepoint progress
