@@ -57,6 +57,8 @@ func TestSetDefault(t *testing.T) {
 	var defaultMemoryOffHeapMin = resource.MustParse("600M")
 	defaultRecreateOnUpdate := new(bool)
 	*defaultRecreateOnUpdate = true
+	resources := DefaultResources
+
 	var expectedCluster = FlinkCluster{
 		TypeMeta:   metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{},
@@ -78,7 +80,7 @@ func TestSetDefault(t *testing.T) {
 					Query: &defaultJmQueryPort,
 					UI:    &defaultJmUIPort,
 				},
-				Resources:          corev1.ResourceRequirements{},
+				Resources:          resources,
 				MemoryOffHeapRatio: &defaultMemoryOffHeapRatio,
 				MemoryOffHeapMin:   defaultMemoryOffHeapMin,
 				Volumes:            nil,
@@ -92,7 +94,7 @@ func TestSetDefault(t *testing.T) {
 					RPC:   &defaultTmRPCPort,
 					Query: &defaultTmQueryPort,
 				},
-				Resources:          corev1.ResourceRequirements{},
+				Resources:          resources,
 				MemoryOffHeapRatio: &defaultMemoryOffHeapRatio,
 				MemoryOffHeapMin:   defaultMemoryOffHeapMin,
 				Volumes:            nil,
@@ -151,6 +153,19 @@ func TestSetNonDefault(t *testing.T) {
 	}
 	defaultRecreateOnUpdate := new(bool)
 	*defaultRecreateOnUpdate = true
+	jmResources := corev1.ResourceRequirements{
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("4"),
+			corev1.ResourceMemory: resource.MustParse("2Gi"),
+		},
+	}
+	tmResources := corev1.ResourceRequirements{
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("2"),
+			corev1.ResourceMemory: resource.MustParse("2Gi"),
+		},
+	}
+
 	var cluster = FlinkCluster{
 		TypeMeta:   metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{},
@@ -173,7 +188,7 @@ func TestSetNonDefault(t *testing.T) {
 					Query: &jmQueryPort,
 					UI:    &jmUIPort,
 				},
-				Resources:       corev1.ResourceRequirements{},
+				Resources:       jmResources,
 				Volumes:         nil,
 				VolumeMounts:    nil,
 				SecurityContext: &securityContext,
@@ -185,7 +200,7 @@ func TestSetNonDefault(t *testing.T) {
 					RPC:   &tmRPCPort,
 					Query: &tmQueryPort,
 				},
-				Resources:       corev1.ResourceRequirements{},
+				Resources:       tmResources,
 				Volumes:         nil,
 				SecurityContext: &securityContext,
 			},
@@ -234,7 +249,7 @@ func TestSetNonDefault(t *testing.T) {
 					Query: &jmQueryPort,
 					UI:    &jmUIPort,
 				},
-				Resources:          corev1.ResourceRequirements{},
+				Resources:          jmResources,
 				MemoryProcessRatio: &memoryProcessRatio,
 				Volumes:            nil,
 				VolumeMounts:       nil,
@@ -247,7 +262,7 @@ func TestSetNonDefault(t *testing.T) {
 					RPC:   &tmRPCPort,
 					Query: &tmQueryPort,
 				},
-				Resources:          corev1.ResourceRequirements{},
+				Resources:          tmResources,
 				MemoryProcessRatio: &memoryProcessRatio,
 				Volumes:            nil,
 				SecurityContext:    &securityContext,

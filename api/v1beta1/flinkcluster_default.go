@@ -23,7 +23,13 @@ import (
 )
 
 var (
-	v10, _ = version.NewVersion("1.10")
+	v10, _           = version.NewVersion("1.10")
+	DefaultResources = corev1.ResourceRequirements{
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("2"),
+			corev1.ResourceMemory: resource.MustParse("2Gi"),
+		},
+	}
 )
 
 // Sets default values for unspecified FlinkCluster properties.
@@ -91,6 +97,9 @@ func _SetJobManagerDefault(jmSpec *JobManagerSpec, flinkVersion *version.Version
 			*jmSpec.MemoryProcessRatio = 80
 		}
 	}
+	if jmSpec.Resources.Size() == 0 {
+		jmSpec.Resources = DefaultResources
+	}
 }
 
 func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Version) {
@@ -119,6 +128,9 @@ func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Versi
 			tmSpec.MemoryProcessRatio = new(int32)
 			*tmSpec.MemoryProcessRatio = 80
 		}
+	}
+	if tmSpec.Resources.Size() == 0 {
+		tmSpec.Resources = DefaultResources
 	}
 }
 
