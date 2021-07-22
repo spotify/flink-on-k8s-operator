@@ -39,6 +39,7 @@ func TestValidateCreate(t *testing.T) {
 	var restartPolicy = JobRestartPolicyFromSavepointOnFailure
 	var memoryProcessRatio int32 = 25
 	var jobMode JobMode = JobModeDetached
+	var resources = DefaultResources
 	var cluster = FlinkCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster",
@@ -60,6 +61,7 @@ func TestValidateCreate(t *testing.T) {
 					UI:    &uiPort,
 				},
 				MemoryProcessRatio: &memoryProcessRatio,
+				Resources:          resources,
 			},
 			TaskManager: TaskManagerSpec{
 				Replicas: 3,
@@ -69,6 +71,7 @@ func TestValidateCreate(t *testing.T) {
 					Query: &queryPort,
 				},
 				MemoryProcessRatio: &memoryProcessRatio,
+				Resources:          resources,
 			},
 			Job: &JobSpec{
 				JarFile:       "gs://my-bucket/myjob.jar",
@@ -228,6 +231,7 @@ func TestInvalidTaskManagerSpec(t *testing.T) {
 	var dataPort int32 = 8005
 	var memoryOffHeapRatio int32 = 25
 	var memoryOffHeapMin = resource.MustParse("600M")
+	resources := DefaultResources
 
 	var cluster = FlinkCluster{
 		ObjectMeta: metav1.ObjectMeta{
@@ -251,6 +255,7 @@ func TestInvalidTaskManagerSpec(t *testing.T) {
 				},
 				MemoryOffHeapRatio: &memoryOffHeapRatio,
 				MemoryOffHeapMin:   memoryOffHeapMin,
+				Resources:          resources,
 			},
 			TaskManager: TaskManagerSpec{
 				Replicas: 0,
@@ -261,6 +266,7 @@ func TestInvalidTaskManagerSpec(t *testing.T) {
 				},
 				MemoryOffHeapRatio: &memoryOffHeapRatio,
 				MemoryOffHeapMin:   memoryOffHeapMin,
+				Resources:          resources,
 			},
 		},
 	}
@@ -290,6 +296,7 @@ func TestInvalidTaskManagerSpec(t *testing.T) {
 				},
 				MemoryOffHeapRatio: &memoryOffHeapRatio,
 				MemoryOffHeapMin:   memoryOffHeapMin,
+				Resources:          resources,
 			},
 			TaskManager: TaskManagerSpec{
 				Replicas: 1,
@@ -300,6 +307,7 @@ func TestInvalidTaskManagerSpec(t *testing.T) {
 				},
 				MemoryOffHeapRatio: &memoryOffHeapRatio,
 				MemoryOffHeapMin:   memoryOffHeapMin,
+				Resources:          resources,
 			},
 		},
 	}
@@ -329,6 +337,7 @@ func TestInvalidTaskManagerSpec(t *testing.T) {
 				},
 				MemoryOffHeapRatio: &memoryOffHeapRatio,
 				MemoryOffHeapMin:   memoryOffHeapMin,
+				Resources:          resources,
 			},
 			TaskManager: TaskManagerSpec{
 				Replicas: 1,
@@ -339,6 +348,7 @@ func TestInvalidTaskManagerSpec(t *testing.T) {
 				},
 				Resources: corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceCPU:    resource.MustParse("1"),
 						corev1.ResourceMemory: resource.MustParse("500M"),
 					},
 				},
@@ -365,6 +375,7 @@ func TestInvalidJobSpec(t *testing.T) {
 	var parallelism int32 = 2
 	var memoryOffHeapRatio int32 = 25
 	var memoryOffHeapMin = resource.MustParse("600M")
+	resources := DefaultResources
 
 	var cluster = FlinkCluster{
 		ObjectMeta: metav1.ObjectMeta{
@@ -388,6 +399,7 @@ func TestInvalidJobSpec(t *testing.T) {
 				},
 				MemoryOffHeapRatio: &memoryOffHeapRatio,
 				MemoryOffHeapMin:   memoryOffHeapMin,
+				Resources:          resources,
 			},
 			TaskManager: TaskManagerSpec{
 				Replicas: 3,
@@ -398,6 +410,7 @@ func TestInvalidJobSpec(t *testing.T) {
 				},
 				MemoryOffHeapRatio: &memoryOffHeapRatio,
 				MemoryOffHeapMin:   memoryOffHeapMin,
+				Resources:          resources,
 			},
 			Job: &JobSpec{
 				JarFile:       "",
@@ -431,6 +444,7 @@ func TestInvalidJobSpec(t *testing.T) {
 				},
 				MemoryOffHeapRatio: &memoryOffHeapRatio,
 				MemoryOffHeapMin:   memoryOffHeapMin,
+				Resources:          resources,
 			},
 			TaskManager: TaskManagerSpec{
 				Replicas: 3,
@@ -441,6 +455,7 @@ func TestInvalidJobSpec(t *testing.T) {
 				},
 				MemoryOffHeapRatio: &memoryOffHeapRatio,
 				MemoryOffHeapMin:   memoryOffHeapMin,
+				Resources:          resources,
 			},
 			Job: &JobSpec{
 				JarFile:       "gs://my-bucket/myjob.jar",
@@ -475,6 +490,7 @@ func TestInvalidJobSpec(t *testing.T) {
 				},
 				MemoryOffHeapRatio: &memoryOffHeapRatio,
 				MemoryOffHeapMin:   memoryOffHeapMin,
+				Resources:          resources,
 			},
 			TaskManager: TaskManagerSpec{
 				Replicas: 3,
@@ -485,6 +501,7 @@ func TestInvalidJobSpec(t *testing.T) {
 				},
 				MemoryOffHeapRatio: &memoryOffHeapRatio,
 				MemoryOffHeapMin:   memoryOffHeapMin,
+				Resources:          resources,
 			},
 			Job: &JobSpec{
 				JarFile:       "gs://my-bucket/myjob.jar",
@@ -669,6 +686,7 @@ func TestUpdateCluster(t *testing.T) {
 	var dataPort int32 = 8005
 	var memoryOffHeapRatio int32 = 25
 	var memoryOffHeapMin = resource.MustParse("600M")
+	resources := DefaultResources
 
 	oldCluster := getSimpleFlinkCluster()
 	oldCluster.Spec.Image = ImageSpec{
@@ -695,6 +713,7 @@ func TestUpdateCluster(t *testing.T) {
 		},
 		MemoryOffHeapRatio: &memoryOffHeapRatio,
 		MemoryOffHeapMin:   memoryOffHeapMin,
+		Resources:          resources,
 	}
 	var newMemoryOffHeapRatio int32 = 20
 	newCluster = getSimpleFlinkCluster()
@@ -709,6 +728,7 @@ func TestUpdateCluster(t *testing.T) {
 		},
 		MemoryOffHeapRatio: &newMemoryOffHeapRatio,
 		MemoryOffHeapMin:   memoryOffHeapMin,
+		Resources:          resources,
 	}
 	err = validator.ValidateUpdate(&oldCluster, &newCluster)
 	assert.NilError(t, err, "updating JobManger failed unexpectedly")
@@ -724,6 +744,7 @@ func TestUpdateCluster(t *testing.T) {
 		},
 		MemoryOffHeapRatio: &memoryOffHeapRatio,
 		MemoryOffHeapMin:   memoryOffHeapMin,
+		Resources:          resources,
 	}
 	err = validator.ValidateUpdate(&oldCluster, &newCluster)
 	assert.NilError(t, err, "updating TaskManger failed unexpectedly")
@@ -935,6 +956,7 @@ func getSimpleFlinkCluster() FlinkCluster {
 	var restartPolicy = JobRestartPolicyFromSavepointOnFailure
 	var savepointDir = "/savepoint_dir"
 	var jobMode JobMode = JobModeDetached
+	resources := DefaultResources
 	return FlinkCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster",
@@ -957,6 +979,7 @@ func getSimpleFlinkCluster() FlinkCluster {
 				},
 				MemoryOffHeapRatio: &memoryOffHeapRatio,
 				MemoryOffHeapMin:   memoryOffHeapMin,
+				Resources:          resources,
 			},
 			TaskManager: TaskManagerSpec{
 				Replicas: 3,
@@ -967,6 +990,7 @@ func getSimpleFlinkCluster() FlinkCluster {
 				},
 				MemoryOffHeapRatio: &memoryOffHeapRatio,
 				MemoryOffHeapMin:   memoryOffHeapMin,
+				Resources:          resources,
 			},
 			Job: &JobSpec{
 				JarFile:       "gs://my-bucket/myjob.jar",

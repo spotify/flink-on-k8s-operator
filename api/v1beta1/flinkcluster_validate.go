@@ -340,6 +340,10 @@ func (v *Validator) validateJobManager(flinkVersion *version.Version, jmSpec *Jo
 		return err
 	}
 
+	if err := v.validateResourceRequirements(jmSpec.Resources, "jobmanager"); err != nil {
+		return err
+	}
+
 	if flinkVersion == nil || flinkVersion.LessThan(v10) {
 		if jmSpec.MemoryProcessRatio != nil {
 			return fmt.Errorf("MemoryProcessRatio config cannot be used with flinkVersion < 1.11', use " +
@@ -400,6 +404,10 @@ func (v *Validator) validateTaskManager(flinkVersion *version.Version, tmSpec *T
 	ports = append(ports, tmSpec.ExtraPorts...)
 	err = v.checkDupPorts(ports, "taskmanager")
 	if err != nil {
+		return err
+	}
+
+	if err := v.validateResourceRequirements(tmSpec.Resources, "taskmanager"); err != nil {
 		return err
 	}
 
@@ -482,6 +490,14 @@ func (v *Validator) validateJob(jobSpec *JobSpec) error {
 	}
 	if err := v.validateJobMode("mode", *jobSpec.Mode); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (v *Validator) validateResourceRequirements(rr corev1.ResourceRequirements, component string) error {
+	if rr.Limits.Memory().IsZero() || rr.Limits.Cpu().IsZero() {
+		return fmt.Errorf("%s: cpu/memory resource limit requirements are not specified", component)
 	}
 
 	return nil

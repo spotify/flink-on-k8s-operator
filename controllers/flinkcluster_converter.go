@@ -1012,34 +1012,31 @@ func calTaskManagerTaskSlots(cluster *v1beta1.FlinkCluster) *int {
 }
 
 func calFlinkHeapSize(cluster *v1beta1.FlinkCluster) map[string]string {
-	if cluster.Spec.JobManager.MemoryOffHeapRatio == nil {
+	jm := cluster.Spec.JobManager
+	tm := cluster.Spec.TaskManager
+
+	if jm.MemoryOffHeapRatio == nil || tm.MemoryOffHeapRatio == nil {
 		return nil
 	}
+
 	var flinkHeapSize = make(map[string]string)
-	var jmMemoryLimitByte = cluster.Spec.JobManager.Resources.Limits.Memory().Value()
-	var tmMemLimitByte = cluster.Spec.TaskManager.Resources.Limits.Memory().Value()
-	if jmMemoryLimitByte > 0 {
-		jmMemoryOffHeapMinByte := cluster.Spec.JobManager.MemoryOffHeapMin.Value()
-		jmMemoryOffHeapRatio := int64(*cluster.Spec.JobManager.MemoryOffHeapRatio)
-		heapSizeMB := calHeapSize(
-			jmMemoryLimitByte,
-			jmMemoryOffHeapMinByte,
-			jmMemoryOffHeapRatio)
-		if heapSizeMB > 0 {
-			flinkHeapSize["jobmanager.heap.size"] = strconv.FormatInt(heapSizeMB, 10) + "m"
-		}
+
+	jmHeapSizeMB := calHeapSize(
+		jm.Resources.Limits.Memory().Value(),
+		jm.MemoryOffHeapMin.Value(),
+		int64(*jm.MemoryOffHeapRatio))
+	if jmHeapSizeMB > 0 {
+		flinkHeapSize["jobmanager.heap.size"] = strconv.FormatInt(jmHeapSizeMB, 10) + "m"
 	}
-	if tmMemLimitByte > 0 {
-		tmMemoryOffHeapMinByte := cluster.Spec.TaskManager.MemoryOffHeapMin.Value()
-		tmMemoryOffHeapRatio := int64(*cluster.Spec.TaskManager.MemoryOffHeapRatio)
-		heapSizeMB := calHeapSize(
-			tmMemLimitByte,
-			tmMemoryOffHeapMinByte,
-			tmMemoryOffHeapRatio)
-		if heapSizeMB > 0 {
-			flinkHeapSize["taskmanager.heap.size"] = strconv.FormatInt(heapSizeMB, 10) + "m"
-		}
+
+	tmHeapSizeMB := calHeapSize(
+		tm.Resources.Limits.Memory().Value(),
+		tm.MemoryOffHeapMin.Value(),
+		int64(*tm.MemoryOffHeapRatio))
+	if tmHeapSizeMB > 0 {
+		flinkHeapSize["taskmanager.heap.size"] = strconv.FormatInt(tmHeapSizeMB, 10) + "m"
 	}
+
 	return flinkHeapSize
 }
 
@@ -1074,23 +1071,21 @@ func calProcessMemorySize(memSize, ratio int64) int64 {
 // Calculate process memory size in MB
 func calFlinkMemoryProcessSize(cluster *v1beta1.FlinkCluster) map[string]string {
 	var flinkProcessMemory = make(map[string]string)
-	var jmMemoryLimitByte = cluster.Spec.JobManager.Resources.Limits.Memory().Value()
-	var tmMemLimitByte = cluster.Spec.TaskManager.Resources.Limits.Memory().Value()
+	jm := cluster.Spec.JobManager
+	tm := cluster.Spec.TaskManager
 
-	if jmMemoryLimitByte > 0 {
-		ratio := int64(*cluster.Spec.JobManager.MemoryProcessRatio)
-		sizeMB := calProcessMemorySize(jmMemoryLimitByte, ratio)
-		if sizeMB > 0 {
-			flinkProcessMemory["jobmanager.memory.process.size"] = strconv.FormatInt(sizeMB, 10) + "m"
-		}
+	jmMemoryLimitByte := jm.Resources.Limits.Memory().Value()
+	jmRatio := int64(*jm.MemoryProcessRatio)
+	jmSizeMB := calProcessMemorySize(jmMemoryLimitByte, jmRatio)
+	if jmSizeMB > 0 {
+		flinkProcessMemory["jobmanager.memory.process.size"] = strconv.FormatInt(jmSizeMB, 10) + "m"
 	}
 
-	if tmMemLimitByte > 0 {
-		ratio := int64(*cluster.Spec.TaskManager.MemoryProcessRatio)
-		sizeMB := calProcessMemorySize(tmMemLimitByte, ratio)
-		if sizeMB > 0 {
-			flinkProcessMemory["taskmanager.memory.process.size"] = strconv.FormatInt(sizeMB, 10) + "m"
-		}
+	tmMemLimitByte := tm.Resources.Limits.Memory().Value()
+	ratio := int64(*tm.MemoryProcessRatio)
+	sizeMB := calProcessMemorySize(tmMemLimitByte, ratio)
+	if sizeMB > 0 {
+		flinkProcessMemory["taskmanager.memory.process.size"] = strconv.FormatInt(sizeMB, 10) + "m"
 	}
 
 	return flinkProcessMemory
