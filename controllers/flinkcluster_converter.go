@@ -118,28 +118,7 @@ func getDesiredJobManagerStatefulSet(
 	confVol, confMount = convertFlinkConfig(clusterName)
 	volumes = append(jobManagerSpec.Volumes, *confVol)
 	volumeMounts = append(jobManagerSpec.VolumeMounts, *confMount)
-	var envVars = []corev1.EnvVar{
-		{
-			Name: "JOB_MANAGER_CPU_LIMIT",
-			ValueFrom: &corev1.EnvVarSource{
-				ResourceFieldRef: &corev1.ResourceFieldSelector{
-					ContainerName: "jobmanager",
-					Resource:      "limits.cpu",
-					Divisor:       resource.MustParse("1m"),
-				},
-			},
-		},
-		{
-			Name: "JOB_MANAGER_MEMORY_LIMIT",
-			ValueFrom: &corev1.EnvVarSource{
-				ResourceFieldRef: &corev1.ResourceFieldSelector{
-					ContainerName: "jobmanager",
-					Resource:      "limits.memory",
-					Divisor:       resource.MustParse("1Mi"),
-				},
-			},
-		},
-	}
+	var envVars []corev1.EnvVar
 	var readinessProbe = corev1.Probe{
 		Handler: corev1.Handler{
 			TCPSocket: &corev1.TCPSocketAction{
