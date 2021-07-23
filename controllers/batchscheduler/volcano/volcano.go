@@ -24,8 +24,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
-	scheduling "volcano.sh/volcano/pkg/apis/scheduling/v1beta1"
-	volcanoclient "volcano.sh/volcano/pkg/client/clientset/versioned"
+	scheduling "volcano.sh/apis/pkg/apis/scheduling/v1beta1"
+	volcanoclient "volcano.sh/apis/pkg/client/clientset/versioned"
 
 	"github.com/spotify/flink-on-k8s-operator/api/v1beta1"
 	schedulerinterface "github.com/spotify/flink-on-k8s-operator/controllers/batchscheduler/interface"
