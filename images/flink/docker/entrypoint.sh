@@ -22,19 +22,6 @@ echo "Flink entrypoint..."
 
 FLINK_CONF_FILE="${FLINK_HOME}/conf/flink-conf.yaml"
 
-# Derive the default jobmanager/taskmanager heap size based on the container's
-# memory limit. They could be overriden by FLINK_PROPERTIES.
-if [[ -n "${JOB_MANAGER_MEMORY_LIMIT}" ]]; then
-  echo "JobManager memory limit: ${JOB_MANAGER_MEMORY_LIMIT}Mi"
-  echo "# Derived from JOB_MANAGER_MEMORY_LIMIT" >>${FLINK_CONF_FILE}
-  echo "jobmanager.heap.size: ${JOB_MANAGER_MEMORY_LIMIT}m" >>${FLINK_CONF_FILE}
-fi
-if [[ -n "${TASK_MANAGER_MEMORY_LIMIT}" ]]; then
-  echo "TaskManager memory limit: ${TASK_MANAGER_MEMORY_LIMIT}Mi"
-  echo "# Derived from TASK_MANAGER_MEMORY_LIMIT" >>${FLINK_CONF_FILE}
-  echo "taskmanager.heap.size: ${TASK_MANAGER_MEMORY_LIMIT}m" >>${FLINK_CONF_FILE}
-fi
-
 # Add user-provided properties to Flink config.
 # FLINK_PROPERTIES is a multi-line string of "<key>: <value>".
 if [[ -n "${FLINK_PROPERTIES}" ]]; then
