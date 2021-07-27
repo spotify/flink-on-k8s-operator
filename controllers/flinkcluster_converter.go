@@ -19,6 +19,7 @@ package controllers
 import (
 	"fmt"
 	"math"
+	"path"
 	"regexp"
 	"sort"
 	"strconv"
@@ -47,6 +48,7 @@ const (
 	preStopSleepSeconds     = 30
 	flinkConfigMapPath      = "/opt/flink/conf"
 	flinkConfigMapVolume    = "flink-config-volume"
+	submitJobScriptPath     = "/opt/flink-operator/submit-job.sh"
 	gcpServiceAccountVolume = "gcp-service-account-volume"
 	hadoopConfigVolume      = "hadoop-config-volume"
 )
@@ -644,7 +646,7 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 	var podLabels = getClusterLabels(*flinkCluster)
 	podLabels = mergeLabels(podLabels, jobManagerSpec.PodLabels)
 	var jobLabels = mergeLabels(podLabels, getRevisionHashLabels(flinkCluster.Status))
-	var jobArgs = []string{"bash", "/opt/flink-operator/submit-job.sh"}
+	var jobArgs = []string{"bash", submitJobScript}
 	jobArgs = append(jobArgs, "--jobmanager", jobManagerAddress)
 	if jobSpec.ClassName != nil {
 		jobArgs = append(jobArgs, "--class", *jobSpec.ClassName)
@@ -687,7 +689,7 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 	var jarPath = jobSpec.JarFile
 	if strings.Contains(jobSpec.JarFile, "://") {
 		var parts = strings.Split(jobSpec.JarFile, "/")
-		jarPath = "/opt/flink/job/" + parts[len(parts)-1]
+		jarPath = path.Join("/opt/flink/job", parts[len(parts)-1])
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  "FLINK_JOB_JAR_URI",
 			Value: jobSpec.JarFile,
@@ -1101,12 +1103,12 @@ func convertSubmitJobScript(clusterName string) (*corev1.Volume, *corev1.VolumeM
 	}
 	scriptMount := &corev1.VolumeMount{
 		Name:      flinkConfigMapVolume,
-		MountPath: "/opt/flink-operator/submit-job.sh",
+		MountPath: submitJobScriptPath,
 		SubPath:   "submit-job.sh",
 	}
 	confMount := &corev1.VolumeMount{
 		Name:      flinkConfigMapVolume,
-		MountPath: flinkConfigMapPath + "/flink-conf.yaml",
+		MountPath: path.Join(flinkConfigMapPath, "flink-conf.yaml"),
 		SubPath:   "flink-conf.yaml",
 	}
 	return confVol, scriptMount, confMount
