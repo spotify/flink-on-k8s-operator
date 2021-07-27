@@ -47,6 +47,49 @@ var submitJobScript = `
 set -euo pipefail
 
 readonly TERM_LOG="/dev/termination-log"
+TERM_LOG_SIZE=0
+TERM_LOG_MAX_SIZE=4096
+
+function echo_log() {
+    local msg="$1"
+    local log_file="$2"
+    echo -e "${msg}" | tee -a "${log_file}"
+}
+
+function write_term_log() {
+    local msg=$1
+    local size=$(echo -e "${msg}" | wc -c)
+
+    if ((TERM_LOG_SIZE + size > TERM_LOG_MAX_SIZE)); then
+        return 0
+    fi
+
+    echo "${msg}" >>"${TERM_LOG}"
+    TERM_LOG_SIZE=$((TERM_LOG_SIZE + size))
+
+    return $((size))
+}
+
+# write message to termination log as YAML format.
+function write_term_log_msg() {
+    local result_msg="$1"
+    local log_file="$2"
+
+    # Write result message.
+    write_term_log "message: |"
+    write_term_log "  ${result_msg}"
+
+    # Append submit log to message.
+    # Two space indentation is required to write strings in the form of YAML literal block scalar.
+    IFS=''
+    while read -r line; do
+        # Insert indentation before printing line.
+        write_term_log "  ${line}"
+        if [ $? = 0 ]; then
+            break
+        fi
+    done <"${log_file}"
+}
 
 function check_jm_ready() {
     # Waiting for 5 mins.
@@ -77,7 +120,7 @@ function check_jm_ready() {
     echo_log "\nReached max retry count(${MAX_RETRY}) to check job manager status." "job_check_log"
     echo_log "Aborted to submit job." "job_check_log"
 
-    format_log_message "Aborted submit because JobManager is unavailable." "job_check_log" >>"${TERM_LOG}"
+    write_term_log_msg "Aborted submit because JobManager is unavailable." "job_check_log"
 
     return 1
 }
@@ -94,49 +137,15 @@ function submit_job() {
     # Write result as YAML format to pod termination-log.
     # On failure, write log only.
     if [[ -z ${job_id} ]]; then
-        format_log_message "Failed to submit." "submit_log" >>"${TERM_LOG}"
+        write_term_log_msg "Failed to submit." "submit_log"
         return 1
     fi
 
     # On success, write job ID and log.
-    echo "jobID: ${job_id}" >"${TERM_LOG}"
-    format_log_message "Successfully submitted!" "submit_log" >>"${TERM_LOG}"
+    write_term_log "jobID: ${job_id}"
+    write_term_log_msg "Successfully submitted!" "submit_log"
 
     return 0
-}
-
-function echo_log() {
-    local msg="$1"
-    local log_file="$2"
-    echo -e "${msg}" | tee -a "${log_file}"
-}
-
-# Format log as YAML format.
-function format_log_message() {
-    local result_msg="$1"
-    local log_file="$2"
-
-    # Write result message.
-    echo "message: |"
-    echo "  ${result_msg}"
-
-    # Append submit log to message.
-    # Two space indentation is required to write strings in the form of YAML literal block scalar.
-    IFS=''
-    while read -r line; do
-        local term_log_size
-        local line_size
-
-        # Termination log is limited to 4KiB, so calculate written size so far.
-        term_log_size=$(stat -c %s "${TERM_LOG}")
-        line_size=${#line}
-        if ((term_log_size + line_size > 4096)); then
-            break
-        fi
-
-        # Insert indentation before printing line.
-        printf "  %s\n" "${line}"
-    done <"${log_file}"
 }
 
 function main() {
