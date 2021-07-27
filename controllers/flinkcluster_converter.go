@@ -708,11 +708,9 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 	volumeMounts = append(volumeMounts, jobSpec.VolumeMounts...)
 
 	// Submit job script config.
-	var sbsVolume *corev1.Volume
-	var sbsMount *corev1.VolumeMount
-	sbsVolume, sbsMount = convertSubmitJobScript(clusterName)
+	sbsVolume, sbsMount, confMount := convertSubmitJobScript(clusterName)
 	volumes = append(volumes, *sbsVolume)
-	volumeMounts = append(volumeMounts, *sbsMount)
+	volumeMounts = append(volumeMounts, *sbsMount, *confMount)
 
 	// Hadoop config.
 	var hcVolume, hcMount, hcEnv = convertHadoopConfig(clusterSpec.HadoopConfig)
@@ -1090,10 +1088,8 @@ func convertFlinkConfig(clusterName string) (*corev1.Volume, *corev1.VolumeMount
 	return confVol, confMount
 }
 
-func convertSubmitJobScript(clusterName string) (*corev1.Volume, *corev1.VolumeMount) {
-	var confVol *corev1.Volume
-	var confMount *corev1.VolumeMount
-	confVol = &corev1.Volume{
+func convertSubmitJobScript(clusterName string) (*corev1.Volume, *corev1.VolumeMount, *corev1.VolumeMount) {
+	confVol := &corev1.Volume{
 		Name: flinkConfigMapVolume,
 		VolumeSource: corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -1103,12 +1099,17 @@ func convertSubmitJobScript(clusterName string) (*corev1.Volume, *corev1.VolumeM
 			},
 		},
 	}
-	confMount = &corev1.VolumeMount{
+	scriptMount := &corev1.VolumeMount{
 		Name:      flinkConfigMapVolume,
 		MountPath: "/opt/flink-operator/submit-job.sh",
 		SubPath:   "submit-job.sh",
 	}
-	return confVol, confMount
+	confMount := &corev1.VolumeMount{
+		Name:      flinkConfigMapVolume,
+		MountPath: flinkConfigMapPath + "/flink-conf.yaml",
+		SubPath:   "flink-conf.yaml",
+	}
+	return confVol, scriptMount, confMount
 }
 
 func convertHadoopConfig(hadoopConfig *v1beta1.HadoopConfig) (

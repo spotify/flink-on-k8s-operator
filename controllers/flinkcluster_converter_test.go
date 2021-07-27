@@ -873,6 +873,11 @@ func TestGetDesiredClusterState(t *testing.T) {
 									SubPath:   "submit-job.sh",
 								},
 								{
+									Name:      "flink-config-volume",
+									MountPath: "/opt/flink/conf/flink-conf.yaml",
+									SubPath:   "flink-conf.yaml",
+								},
+								{
 									Name:      "hadoop-config-volume",
 									MountPath: "/etc/hadoop/conf",
 									ReadOnly:  true,
