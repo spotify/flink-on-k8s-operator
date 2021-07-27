@@ -646,7 +646,7 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 	var podLabels = getClusterLabels(*flinkCluster)
 	podLabels = mergeLabels(podLabels, jobManagerSpec.PodLabels)
 	var jobLabels = mergeLabels(podLabels, getRevisionHashLabels(flinkCluster.Status))
-	var jobArgs = []string{"bash", submitJobScript}
+	var jobArgs = []string{"bash", submitJobScriptPath}
 	jobArgs = append(jobArgs, "--jobmanager", jobManagerAddress)
 	if jobSpec.ClassName != nil {
 		jobArgs = append(jobArgs, "--class", *jobSpec.ClassName)
