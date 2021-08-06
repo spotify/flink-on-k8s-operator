@@ -92,8 +92,8 @@ function write_term_log_msg() {
 }
 
 function check_jm_ready() {
-    # Waiting for 5 mins.
-    local -r MAX_RETRY=60
+    # Waiting for 10 mins.
+    local -r MAX_RETRY=120
     local -r RETRY_INTERVAL=5s
     local -r REQUIRED_SUCCESS_NUMBER=2
     local success_count=0
