@@ -950,7 +950,7 @@ jobmanager.rpc.address: flinkjobcluster-sample-jobmanager
 jobmanager.rpc.port: 6123
 query.server.port: 6125
 rest.port: 8081
-taskmanager.heap.size: 474m
+taskmanager.heap.size: 452m
 taskmanager.numberOfTaskSlots: 1
 taskmanager.rpc.port: 6122
 `
@@ -1118,8 +1118,8 @@ func TestCalFlinkHeapSize(t *testing.T) {
 
 	flinkHeapSize := calFlinkHeapSize(cluster)
 	expectedFlinkHeapSize := map[string]string{
-		"jobmanager.heap.size":  "474m",  // get values calculated with limit - memoryOffHeapMin
-		"taskmanager.heap.size": "3222m", // get values calculated with limit - limit * memoryOffHeapRatio / 100
+		"jobmanager.heap.size":  "452m",  // get values calculated with limit - memoryOffHeapMin
+		"taskmanager.heap.size": "3072m", // get values calculated with limit - limit * memoryOffHeapRatio / 100
 	}
 	assert.Assert(t, len(flinkHeapSize) == 2)
 	assert.DeepEqual(
@@ -1185,8 +1185,8 @@ func TestCalFlinkMemoryProcessSize(t *testing.T) {
 
 	flinkHeapSize := calFlinkMemoryProcessSize(cluster)
 	expectedFlinkHeapSize := map[string]string{
-		"jobmanager.memory.process.size":  "859m",
-		"taskmanager.memory.process.size": "3436m",
+		"jobmanager.memory.process.size":  "820m",
+		"taskmanager.memory.process.size": "3277m",
 	}
 	assert.Assert(t, len(flinkHeapSize) == 2)
 	assert.DeepEqual(
