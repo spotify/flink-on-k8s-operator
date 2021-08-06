@@ -1119,7 +1119,7 @@ func TestCalFlinkHeapSize(t *testing.T) {
 	flinkHeapSize := calFlinkHeapSize(cluster)
 	expectedFlinkHeapSize := map[string]string{
 		"jobmanager.heap.size":  "452m",  // get values calculated with limit - memoryOffHeapMin
-		"taskmanager.heap.size": "3222m", // get values calculated with limit - limit * memoryOffHeapRatio / 100
+		"taskmanager.heap.size": "3072m", // get values calculated with limit - limit * memoryOffHeapRatio / 100
 	}
 	assert.Assert(t, len(flinkHeapSize) == 2)
 	assert.DeepEqual(
