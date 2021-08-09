@@ -556,10 +556,11 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 			}
 		case v1beta1.ControlNameSavepoint:
 			if savepointStatus != nil {
-				if savepointStatus.State == v1beta1.SavepointStateSucceeded {
+				switch savepointStatus.State {
+				case v1beta1.SavepointStateSucceeded:
 					controlStatus.State = v1beta1.ControlStateSucceeded
 					setTimestamp(&controlStatus.UpdateTime)
-				} else if savepointStatus.State == v1beta1.SavepointStateFailed || savepointStatus.State == v1beta1.SavepointStateTriggerFailed {
+				case v1beta1.SavepointStateFailed, v1beta1.SavepointStateTriggerFailed:
 					controlStatus.State = v1beta1.ControlStateFailed
 					setTimestamp(&controlStatus.UpdateTime)
 				}
