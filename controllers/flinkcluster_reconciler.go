@@ -31,7 +31,7 @@ import (
 	"github.com/go-logr/logr"
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/api/v1beta1"
 	"github.com/spotify/flink-on-k8s-operator/controllers/batchscheduler"
-	"github.com/spotify/flink-on-k8s-operator/controllers/flinkclient"
+	"github.com/spotify/flink-on-k8s-operator/controllers/flink"
 	"github.com/spotify/flink-on-k8s-operator/controllers/model"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -46,7 +46,7 @@ import (
 // desired state.
 type ClusterReconciler struct {
 	k8sClient   client.Client
-	flinkClient flinkclient.FlinkClient
+	flinkClient *flink.Client
 	context     context.Context
 	log         logr.Logger
 	observed    ObservedClusterState
@@ -877,16 +877,13 @@ func (reconciler *ClusterReconciler) takeSavepointAsync(jobID string, triggerRea
 // Takes savepoint for a job then update job status with the info.
 func (reconciler *ClusterReconciler) takeSavepoint(
 	jobID string) error {
-	var log = reconciler.log
-	var apiBaseURL = getFlinkAPIBaseURL(reconciler.observed.cluster)
+	log := reconciler.log
+	apiBaseURL := getFlinkAPIBaseURL(reconciler.observed.cluster)
 
 	log.Info("Taking savepoint.", "jobID", jobID)
-	var status, err = reconciler.flinkClient.TakeSavepoint(
-		apiBaseURL, jobID, *reconciler.observed.cluster.Spec.Job.SavepointsDir)
-	log.Info(
-		"Savepoint status.",
-		"status", status,
-		"error", err)
+	status, err := reconciler.flinkClient.TakeSavepoint(apiBaseURL, jobID, *reconciler.observed.cluster.Spec.Job.SavepointsDir)
+	log.Info("Savepoint status.", "status", status, "error", err)
+
 	if err == nil && len(status.FailureCause.StackTrace) > 0 {
 		err = fmt.Errorf("%s", status.FailureCause.StackTrace)
 	}
@@ -895,7 +892,7 @@ func (reconciler *ClusterReconciler) takeSavepoint(
 		log.Info("Failed to take savepoint.", "jobID", jobID)
 	}
 
-	statusUpdateErr := reconciler.updateSavepointStatus(status)
+	statusUpdateErr := reconciler.updateSavepointStatus(*status)
 	if statusUpdateErr != nil {
 		log.Error(
 			statusUpdateErr, "Failed to update savepoint status.", "error", statusUpdateErr)
@@ -913,7 +910,7 @@ func (reconciler *ClusterReconciler) updateSavepointTriggerTimeStatus() error {
 }
 
 func (reconciler *ClusterReconciler) updateSavepointStatus(
-	savepointStatus flinkclient.SavepointStatus) error {
+	savepointStatus flink.SavepointStatus) error {
 	var cluster = v1beta1.FlinkCluster{}
 	reconciler.observed.cluster.DeepCopyInto(&cluster)
 	if savepointStatus.IsSuccessful() {
