@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -84,16 +85,26 @@ type JobExceptions struct {
 	Exceptions []JobException `json:"all-exceptions"`
 }
 
-// JobStatus defines Flink job status.
-type JobStatus struct {
-	ID     string
-	Status string
+// Job defines Flink job status.
+type Job struct {
+	Id        string `json:"jid"`
+	State     string `json:"state"`
+	Name      string `json:"name"`
+	StartTime int64  `json:"start-time"`
+	EndTime   int64  `json:"end-time"`
+	Duration  int64  `json:"duration"`
 }
 
-// JobStatusList defines Flink job status list.
-type JobStatusList struct {
-	Jobs []JobStatus
+// JobsOverview defines Flink job overview list.
+type JobsOverview struct {
+	Jobs []Job
 }
+
+type JobByStartTime []Job
+
+func (jst JobByStartTime) Len() int           { return len(jst) }
+func (jst JobByStartTime) Swap(i, j int)      { jst[i], jst[j] = jst[j], jst[i] }
+func (jst JobByStartTime) Less(i, j int) bool { return jst[i].StartTime > jst[j].StartTime }
 
 // SavepointTriggerID defines trigger ID of an async savepoint operation.
 type SavepointTriggerID struct {
@@ -133,18 +144,20 @@ func (s *SavepointStatus) IsFailed() bool {
 	return s.Completed && s.FailureCause.StackTrace != ""
 }
 
-func (c *Client) GetJobStatusList(apiBaseURL string) (*JobStatusList, error) {
-	resp, err := c.httpClient.Get(apiBaseURL + "/jobs")
+func (c *Client) GetJobsOverview(apiBaseURL string) (*JobsOverview, error) {
+	resp, err := c.httpClient.Get(apiBaseURL + "/jobs/overview")
 	if err != nil {
 		return nil, err
 	}
 
-	jobStatusList := &JobStatusList{}
-	if err := parseJson(resp, jobStatusList); err != nil {
+	jobsOverview := &JobsOverview{}
+	if err := parseJson(resp, jobsOverview); err != nil {
 		return nil, err
 	}
 
-	return jobStatusList, err
+	sort.Sort(JobByStartTime(jobsOverview.Jobs))
+
+	return jobsOverview, err
 }
 
 // StopJob stops a job.
@@ -301,10 +314,14 @@ func (c *Client) GetJobExceptions(apiBaseURL string, jobId string) (*JobExceptio
 }
 
 func NewDefaultClient(log logr.Logger) *Client {
-	return NewClient(log, &http.Client{Timeout: 30 * time.Second})
+	return NewClient(log, &http.Client{})
 }
 
 func NewClient(log logr.Logger, httpClient *http.Client) *Client {
+	if httpClient.Transport == nil {
+		httpClient.Transport = http.DefaultTransport
+	}
 	httpClient.Transport = &roundTripper{Proxied: httpClient.Transport}
+
 	return &Client{log: log, httpClient: httpClient}
 }

@@ -686,9 +686,9 @@ func (reconciler *ClusterReconciler) cancelRunningJobs(
 	takeSavepoint bool) error {
 	var runningJobs = reconciler.observed.flinkJobStatus.flinkJobsUnexpected
 	var flinkJob = reconciler.observed.flinkJobStatus.flinkJob
-	if flinkJob != nil && flinkJob.ID != "" &&
-		getFlinkJobDeploymentState(flinkJob.Status) == v1beta1.JobStateRunning {
-		runningJobs = append(runningJobs, flinkJob.ID)
+	if flinkJob != nil && flinkJob.Id != "" &&
+		getFlinkJobDeploymentState(flinkJob.State) == v1beta1.JobStateRunning {
+		runningJobs = append(runningJobs, flinkJob.Id)
 	}
 	return reconciler.cancelJobs(takeSavepoint, runningJobs)
 }

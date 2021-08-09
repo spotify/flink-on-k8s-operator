@@ -677,8 +677,8 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 func (updater *ClusterStatusUpdater) getFlinkJobID() *string {
 	// Observed from active job manager
 	var observedFlinkJob = updater.observed.flinkJobStatus.flinkJob
-	if observedFlinkJob != nil && len(observedFlinkJob.ID) > 0 {
-		return &observedFlinkJob.ID
+	if observedFlinkJob != nil && len(observedFlinkJob.Id) > 0 {
+		return &observedFlinkJob.Id
 	}
 
 	// Observed from job submitter (when job manager is not ready yet)
@@ -722,9 +722,9 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 		jobState = recordedJobStatus.State
 	// Derive state from the observed Flink job
 	case observedFlinkJob != nil:
-		jobState = getFlinkJobDeploymentState(observedFlinkJob.Status)
+		jobState = getFlinkJobDeploymentState(observedFlinkJob.State)
 		if jobState == "" {
-			updater.log.Error(errors.New("failed to determine Flink job deployment state"), "observed flink job status", observedFlinkJob.Status)
+			updater.log.Error(errors.New("failed to determine Flink job deployment state"), "observed flink job status", observedFlinkJob.State)
 			jobState = recordedJobStatus.State
 		}
 	// When Flink job not found
@@ -763,7 +763,7 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 	if jobState == v1beta1.JobStateUpdating {
 		newJobStatus.ID = ""
 	} else if observedFlinkJob != nil {
-		newJobStatus.ID = observedFlinkJob.ID
+		newJobStatus.ID = observedFlinkJob.Id
 	}
 
 	// Update State

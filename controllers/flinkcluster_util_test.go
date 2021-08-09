@@ -416,7 +416,7 @@ func TestIsFlinkAPIReady(t *testing.T) {
 		jmStatefulSet:  &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "cluster-85dc8f749"}}},
 		tmStatefulSet:  &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "cluster-85dc8f749"}}},
 		jmService:      &corev1.Service{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "cluster-85dc8f749"}}},
-		flinkJobStatus: FlinkJobStatus{flinkJobList: &flink.JobStatusList{}},
+		flinkJobStatus: FlinkJobStatus{flinkJobList: &flink.JobsOverview{}},
 	}
 	var ready = isFlinkAPIReady(observed)
 	assert.Equal(t, ready, true)
