@@ -68,8 +68,8 @@ type ObservedClusterState struct {
 }
 
 type FlinkJobStatus struct {
-	flinkJob            *flink.JobStatus
-	flinkJobList        *flink.JobStatusList
+	flinkJob            *flink.Job
+	flinkJobList        *flink.JobsOverview
 	flinkJobExceptions  *flink.JobExceptions
 	flinkJobsUnexpected []string
 }
@@ -289,9 +289,9 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(
 	var log = observer.log
 
 	// Observe following
-	var flinkJob *flink.JobStatus
+	var flinkJob *flink.Job
 	var flinkJobExceptions *flink.JobExceptions
-	var flinkJobList *flink.JobStatusList
+	var flinkJobList *flink.JobsOverview
 	var flinkJobsUnexpected []string
 
 	// Wait until the job manager is ready.
@@ -305,7 +305,7 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(
 
 	// Get Flink job status list.
 	flinkAPIBaseURL := getFlinkAPIBaseURL(observed.cluster)
-	flinkJobList, err := observer.flinkClient.GetJobStatusList(flinkAPIBaseURL)
+	flinkJobList, err := observer.flinkClient.GetJobsOverview(flinkAPIBaseURL)
 	if err != nil {
 		// It is normal in many cases, not an error.
 		log.Info("Failed to get Flink job status list.", "error", err)
@@ -331,11 +331,10 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(
 	flinkJobStatus.flinkJobExceptions = flinkJobExceptions
 
 	for _, job := range flinkJobList.Jobs {
-		if flinkJobID == job.ID {
-			flinkJob = new(flink.JobStatus)
+		if flinkJobID == job.Id {
 			*flinkJob = job
-		} else if getFlinkJobDeploymentState(job.Status) == v1beta1.JobStateRunning {
-			flinkJobsUnexpected = append(flinkJobsUnexpected, job.ID)
+		} else if getFlinkJobDeploymentState(job.State) == v1beta1.JobStateRunning {
+			flinkJobsUnexpected = append(flinkJobsUnexpected, job.Id)
 		}
 	}
 
