@@ -221,7 +221,6 @@ func (observer *ClusterStateObserver) observeJob(
 	var observedFlinkJobStatus FlinkJobStatus
 	var observedFlinkJobSubmitLog *FlinkJobSubmitLog
 
-	var recordedJobStatus = observed.cluster.Status.Components.Job
 	var err error
 	var log = observer.log
 
@@ -260,19 +259,8 @@ func (observer *ClusterStateObserver) observeJob(
 	}
 	observed.flinkJobSubmitLog = observedFlinkJobSubmitLog
 
-	// Get Flink job ID.
-	// While job state is pending and job submitter is completed, extract the job ID from the pod termination log.
-	var flinkJobID string
-	if observedFlinkJobSubmitLog != nil && observedFlinkJobSubmitLog.JobID != "" {
-		flinkJobID = observedFlinkJobSubmitLog.JobID
-	}
-	// Or get the job ID from the recorded job status which is written previous iteration.
-	if flinkJobID == "" && recordedJobStatus != nil {
-		flinkJobID = recordedJobStatus.ID
-	}
-
 	// Flink job status.
-	observer.observeFlinkJobStatus(observed, flinkJobID, &observedFlinkJobStatus)
+	observer.observeFlinkJobStatus(observed, &observedFlinkJobStatus)
 	observed.flinkJobStatus = observedFlinkJobStatus
 	return nil
 }
@@ -282,24 +270,13 @@ func (observer *ClusterStateObserver) observeJob(
 //
 // This needs to be done after the job manager is ready, because we use it to detect whether the Flink API server is up
 // and running.
-func (observer *ClusterStateObserver) observeFlinkJobStatus(
-	observed *ObservedClusterState,
-	flinkJobID string,
-	flinkJobStatus *FlinkJobStatus) {
+func (observer *ClusterStateObserver) observeFlinkJobStatus(observed *ObservedClusterState, flinkJobStatus *FlinkJobStatus) {
 	var log = observer.log
 
-	// Observe following
-	var flinkJob *flink.Job
-	var flinkJobExceptions *flink.JobExceptions
-	var flinkJobList *flink.JobsOverview
-	var flinkJobsUnexpected []string
-
 	// Wait until the job manager is ready.
-	var jmReady = observed.jmStatefulSet != nil && getStatefulSetState(observed.jmStatefulSet) == v1beta1.ComponentStateReady
+	jmReady := observed.jmStatefulSet != nil && getStatefulSetState(observed.jmStatefulSet) == v1beta1.ComponentStateReady
 	if !jmReady {
-		log.Info(
-			"Skip getting Flink job status.",
-			"job manager ready", jmReady)
+		log.Info("Skip getting Flink job status; JobManager is not ready")
 		return
 	}
 
@@ -316,12 +293,17 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(
 	// Initialize flinkJobStatus if flink API is available.
 	flinkJobStatus.flinkJobList = flinkJobList
 
-	// Extract the current job status and unexpected jobs, if submitted job ID is provided.
-	if flinkJobID == "" {
+	// Check running jobs
+	if len(flinkJobList.Jobs) < 1 {
 		return
 	}
 
-	flinkJobExceptions, err = observer.flinkClient.GetJobExceptions(flinkAPIBaseURL, flinkJobID)
+	flinkJobStatus.flinkJob = &flinkJobList.Jobs[0]
+	for _, job := range flinkJobList.Jobs[1:] {
+		flinkJobStatus.flinkJobsUnexpected = append(flinkJobStatus.flinkJobsUnexpected, job.Id)
+	}
+
+	flinkJobExceptions, err := observer.flinkClient.GetJobExceptions(flinkAPIBaseURL, flinkJobStatus.flinkJob.Id)
 	if err != nil {
 		// It is normal in many cases, not an error.
 		log.Info("Failed to get Flink job exceptions.", "error", err)
@@ -330,31 +312,20 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(
 	log.Info("Observed Flink job exceptions", "jobs", flinkJobExceptions)
 	flinkJobStatus.flinkJobExceptions = flinkJobExceptions
 
-	for _, job := range flinkJobList.Jobs {
-		if flinkJobID == job.Id {
-			*flinkJob = job
-		} else if getFlinkJobDeploymentState(job.State) == v1beta1.JobStateRunning {
-			flinkJobsUnexpected = append(flinkJobsUnexpected, job.Id)
-		}
-	}
-
-	flinkJobStatus.flinkJob = flinkJob
-	flinkJobStatus.flinkJobsUnexpected = flinkJobsUnexpected
-
 	// It is okay if there are multiple jobs, but at most one of them is
 	// expected to be running. This is typically caused by job client
 	// timed out and exited but the job submission was actually
 	// successfully. When retrying, it first cancels the existing running
 	// job which it has lost track of, then submit the job again.
-	if len(flinkJobsUnexpected) > 1 {
+	if len(flinkJobStatus.flinkJobsUnexpected) > 1 {
 		log.Error(
 			errors.New("more than one unexpected Flink job were found"),
-			"", "unexpected jobs", flinkJobsUnexpected)
-	}
-	if flinkJob != nil {
-		log.Info("Observed Flink job", "flink job", *flinkJob)
+			"", "unexpected jobs", flinkJobStatus.flinkJobsUnexpected)
 	}
 
+	if flinkJobStatus.flinkJob != nil {
+		log.Info("Observed Flink job", "flink job", *flinkJobStatus.flinkJob)
+	}
 }
 
 func (observer *ClusterStateObserver) observeSavepoint(observed *ObservedClusterState) error {

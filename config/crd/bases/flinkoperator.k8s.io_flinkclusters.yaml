@@ -5850,6 +5850,8 @@ spec:
                         type: string
                       state:
                         type: string
+                      submitterName:
+                        type: string
                     required:
                     - state
                     type: object
