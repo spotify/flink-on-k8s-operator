@@ -698,74 +698,72 @@ func (updater *ClusterStatusUpdater) getFlinkJobID() *string {
 
 func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 	var observed = updater.observed
-	var observedJob = updater.observed.job
-	var observedFlinkJob = updater.observed.flinkJobStatus.flinkJob
-	var observedCluster = updater.observed.cluster
-	var observedSavepoint = updater.observed.savepoint
-	var recordedJobStatus = updater.observed.cluster.Status.Components.Job
-	var newJobStatus *v1beta1.JobStatus
+	var observedFlinkJob = observed.flinkJobStatus.flinkJob
+	var observedJobStatus = observed.cluster.Status.Components.Job
 
-	if recordedJobStatus == nil {
+	if observedJobStatus == nil {
 		return nil
 	}
-	newJobStatus = recordedJobStatus.DeepCopy()
+	newJobStatus := observedJobStatus.DeepCopy()
+
+	// Flink Job ID
+	if observedFlinkJob != nil {
+		newJobStatus.ID = observedFlinkJob.Id
+		newJobStatus.Name = observedFlinkJob.Name
+	}
+
+	if observed.job != nil {
+		newJobStatus.SubmitterName = observed.job.Name
+	}
 
 	// Determine job state
 	var jobState string
 	switch {
 	// Updating state
-	case isUpdateTriggered(observedCluster.Status) &&
-		(isJobStopped(recordedJobStatus) || observedCluster.Status.State == v1beta1.ClusterStateStopped):
+	case isUpdateTriggered(observed.cluster.Status) &&
+		(isJobStopped(observedJobStatus) || observed.cluster.Status.State == v1beta1.ClusterStateStopped):
 		jobState = v1beta1.JobStateUpdating
 	// Already terminated state
-	case isJobTerminated(observedCluster.Spec.Job.RestartPolicy, recordedJobStatus):
-		jobState = recordedJobStatus.State
+	case isJobTerminated(observed.cluster.Spec.Job.RestartPolicy, observedJobStatus):
+		jobState = observedJobStatus.State
 	// Derive state from the observed Flink job
 	case observedFlinkJob != nil:
 		jobState = getFlinkJobDeploymentState(observedFlinkJob.State)
 		if jobState == "" {
 			updater.log.Error(errors.New("failed to determine Flink job deployment state"), "observed flink job status", observedFlinkJob.State)
-			jobState = recordedJobStatus.State
+			jobState = observedJobStatus.State
 		}
 	// When Flink job not found
 	case isFlinkAPIReady(observed):
-		switch recordedJobStatus.State {
+		switch observedJobStatus.State {
 		case v1beta1.JobStateRunning:
 			jobState = v1beta1.JobStateLost
 		case v1beta1.JobStatePending:
 			// Flink job is submitted but not confirmed via job manager yet
 			var jobSubmitSucceeded = updater.getFlinkJobID() != nil
 			// Flink job submit is in progress
-			var jobSubmitInProgress = observedJob != nil &&
-				observedJob.Status.Succeeded == 0 &&
-				observedJob.Status.Failed == 0
+			var jobSubmitInProgress = observed.job != nil &&
+				observed.job.Status.Succeeded == 0 &&
+				observed.job.Status.Failed == 0
 			if jobSubmitSucceeded || jobSubmitInProgress {
 				jobState = v1beta1.JobStatePending
 				break
 			}
 			jobState = v1beta1.JobStateFailed
 		default:
-			jobState = recordedJobStatus.State
+			jobState = observedJobStatus.State
 		}
 	// When Flink API unavailable
 	default:
-		if recordedJobStatus.State == v1beta1.JobStatePending {
-			var jobSubmitFailed = observedJob != nil && observedJob.Status.Failed > 0
+		if observedJobStatus.State == v1beta1.JobStatePending {
+			var jobSubmitFailed = observed.job != nil && observed.job.Status.Failed > 0
 			if jobSubmitFailed {
 				jobState = v1beta1.JobStateFailed
 				break
 			}
 		}
-		jobState = recordedJobStatus.State
+		jobState = observedJobStatus.State
 	}
-
-	// Flink Job ID
-	if jobState == v1beta1.JobStateUpdating {
-		newJobStatus.ID = ""
-	} else if observedFlinkJob != nil {
-		newJobStatus.ID = observedFlinkJob.Id
-	}
-
 	// Update State
 	newJobStatus.State = jobState
 
@@ -778,23 +776,23 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 	if newJobStatus.State == v1beta1.JobStateFailed {
 		if len(newJobStatus.FailureReasons) == 0 {
 			newJobStatus.FailureReasons = []string{}
-			exceptions := updater.observed.flinkJobStatus.flinkJobExceptions
+			exceptions := observed.flinkJobStatus.flinkJobExceptions
 			if exceptions != nil && len(exceptions.Exceptions) > 0 {
 				for _, e := range exceptions.Exceptions {
 					newJobStatus.FailureReasons = append(newJobStatus.FailureReasons, e.Exception)
 				}
 			}
 			if updater.observed.flinkJobSubmitLog != nil {
-				newJobStatus.FailureReasons = append(newJobStatus.FailureReasons, updater.observed.flinkJobSubmitLog.Message)
+				newJobStatus.FailureReasons = append(newJobStatus.FailureReasons, observed.flinkJobSubmitLog.Message)
 			}
 		}
 	}
 
 	// Savepoint
-	if observedSavepoint != nil && observedSavepoint.IsSuccessful() {
+	if observed.savepoint != nil && observed.savepoint.IsSuccessful() {
 		newJobStatus.SavepointGeneration++
-		newJobStatus.LastSavepointTriggerID = observedSavepoint.TriggerID
-		newJobStatus.SavepointLocation = observedSavepoint.Location
+		newJobStatus.LastSavepointTriggerID = observed.savepoint.TriggerID
+		newJobStatus.SavepointLocation = observed.savepoint.Location
 		setTimestamp(&newJobStatus.LastSavepointTime)
 	}
 

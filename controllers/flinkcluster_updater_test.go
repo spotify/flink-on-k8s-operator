@@ -66,8 +66,8 @@ func TestClusterStatus(t *testing.T) {
 					State: "NotReady",
 				},
 				Job: &v1beta1.JobStatus{
-					Name:  "my-job",
-					State: "Pending",
+					SubmitterName: "my-job",
+					State:         "Pending",
 				},
 			},
 			State: "Creating"}
@@ -91,8 +91,8 @@ func TestClusterStatus(t *testing.T) {
 					URLs:  []string{"http://my-jobmanager"},
 				},
 				Job: &v1beta1.JobStatus{
-					Name:  "my-job",
-					State: "Running",
+					SubmitterName: "my-job",
+					State:         "Running",
 				},
 			},
 			State: "Creating"}
@@ -122,8 +122,8 @@ func TestClusterStatus(t *testing.T) {
 					State: v1beta1.ComponentStateNotReady,
 				},
 				Job: &v1beta1.JobStatus{
-					Name:  "my-job",
-					State: v1beta1.JobStatePending,
+					SubmitterName: "my-job",
+					State:         v1beta1.JobStatePending,
 				},
 			},
 			State:           v1beta1.ClusterStateCreating,

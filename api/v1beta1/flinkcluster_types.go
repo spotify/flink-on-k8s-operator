@@ -567,11 +567,14 @@ type FlinkClusterControlStatus struct {
 
 // JobStatus defines the status of a job.
 type JobStatus struct {
-	// The name of the Kubernetes job resource.
-	Name string `json:"name,omitempty"`
-
 	// The ID of the Flink job.
 	ID string `json:"id,omitempty"`
+
+	// The Name of the Flink job.
+	Name string `json:"name,omitempty"`
+
+	// The name of the Kubernetes job resource.
+	SubmitterName string `json:"submitterName,omitempty"`
 
 	// The state of the Kubernetes job.
 	State string `json:"state"`
