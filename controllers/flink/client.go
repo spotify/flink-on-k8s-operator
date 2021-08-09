@@ -14,11 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package flinkclient
+package flink
 
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -29,10 +32,47 @@ const (
 	savepointStateCompleted  = "COMPLETED"
 )
 
-// FlinkClient - Flink API client.
-type FlinkClient struct {
-	Log        logr.Logger
-	HTTPClient HTTPClient
+// Client - Flink API client.
+type Client struct {
+	log        logr.Logger
+	httpClient *http.Client
+}
+
+type responseError struct {
+	StatusCode int
+	Status     string
+}
+
+func (e *responseError) Error() string {
+	return e.Status
+}
+
+type roundTripper struct {
+	Proxied http.RoundTripper
+}
+
+func (rt *roundTripper) RoundTrip(req *http.Request) (res *http.Response, e error) {
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "flink-operator")
+	resp, err := rt.Proxied.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, &responseError{StatusCode: resp.StatusCode, Status: resp.Status}
+	}
+
+	return resp, nil
+}
+
+func parseJson(resp *http.Response, out interface{}) error {
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err == nil {
+		err = json.Unmarshal(body, out)
+	}
+	return err
 }
 
 type JobException struct {
@@ -93,29 +133,49 @@ func (s *SavepointStatus) IsFailed() bool {
 	return s.Completed && s.FailureCause.StackTrace != ""
 }
 
-func (c *FlinkClient) GetJobStatusList(
-	apiBaseURL string, jobStatusList *JobStatusList) error {
-	return c.HTTPClient.Get(apiBaseURL+"/jobs", jobStatusList)
+func (c *Client) GetJobStatusList(apiBaseURL string) (*JobStatusList, error) {
+	resp, err := c.httpClient.Get(apiBaseURL + "/jobs")
+	if err != nil {
+		return nil, err
+	}
+
+	jobStatusList := &JobStatusList{}
+	if err := parseJson(resp, jobStatusList); err != nil {
+		return nil, err
+	}
+
+	return jobStatusList, err
 }
 
 // StopJob stops a job.
-func (c *FlinkClient) StopJob(
+func (c *Client) StopJob(
 	apiBaseURL string, jobID string) error {
-	var resp = struct{}{}
-	return c.HTTPClient.Patch(
-		fmt.Sprintf("%s/jobs/%s?mode=cancel", apiBaseURL, jobID), []byte{}, &resp)
+	req, err := http.NewRequest(http.MethodPatch, fmt.Sprintf("%s/jobs/%s?mode=cancel", apiBaseURL, jobID), nil)
+	if err != nil {
+		return err
+	}
+	_, err = c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // TriggerSavepoint triggers an async savepoint operation.
-func (c *FlinkClient) TriggerSavepoint(
-	apiBaseURL string, jobID string, dir string) (SavepointTriggerID, error) {
-	var url = fmt.Sprintf("%s/jobs/%s/savepoints", apiBaseURL, jobID)
-	var jsonStr = fmt.Sprintf(`{
+func (c *Client) TriggerSavepoint(apiBaseURL string, jobID string, dir string) (*SavepointTriggerID, error) {
+	url := fmt.Sprintf("%s/jobs/%s/savepoints", apiBaseURL, jobID)
+	jsonStr := fmt.Sprintf(`{
 		"target-directory" : "%s",
 		"cancel-job" : false
 	}`, dir)
-	var triggerID = SavepointTriggerID{}
-	var err = c.HTTPClient.Post(url, []byte(jsonStr), &triggerID)
+	resp, err := c.httpClient.Post(url, "application/json", strings.NewReader(jsonStr))
+	if err != nil {
+		return nil, err
+	}
+
+	triggerID := &SavepointTriggerID{}
+	err = parseJson(resp, triggerID)
 	return triggerID, err
 }
 
@@ -143,23 +203,29 @@ func (c *FlinkClient) TriggerSavepoint(
 //      }
 //    }
 // }
-func (c *FlinkClient) GetSavepointStatus(
-	apiBaseURL string, jobID string, triggerID string) (SavepointStatus, error) {
-	var url = fmt.Sprintf(
-		"%s/jobs/%s/savepoints/%s", apiBaseURL, jobID, triggerID)
-	var status = SavepointStatus{JobID: jobID, TriggerID: triggerID}
+func (c *Client) GetSavepointStatus(
+	apiBaseURL string, jobID string, triggerID string) (*SavepointStatus, error) {
+	var url = fmt.Sprintf("%s/jobs/%s/savepoints/%s", apiBaseURL, jobID, triggerID)
+	var status = &SavepointStatus{JobID: jobID, TriggerID: triggerID}
 	var rootJSON map[string]*json.RawMessage
 	var stateID SavepointStateID
 	var opJSON map[string]*json.RawMessage
-	var err = c.HTTPClient.Get(url, &rootJSON)
+
+	resp, err := c.httpClient.Get(url)
 	if err != nil {
-		return status, err
+		return nil, err
 	}
-	c.Log.Info("Savepoint status json", "json", rootJSON)
+
+	err = parseJson(resp, &rootJSON)
+	if err != nil {
+		return nil, err
+	}
+
+	c.log.Info("Savepoint status json", "json", rootJSON)
 	if state, ok := rootJSON["status"]; ok && state != nil {
 		err = json.Unmarshal(*state, &stateID)
 		if err != nil {
-			return status, err
+			return nil, err
 		}
 		if stateID.ID == savepointStateCompleted {
 			status.Completed = true
@@ -170,20 +236,20 @@ func (c *FlinkClient) GetSavepointStatus(
 	if op, ok := rootJSON["operation"]; ok && op != nil {
 		err = json.Unmarshal(*op, &opJSON)
 		if err != nil {
-			return status, err
+			return nil, err
 		}
 		// Success
 		if location, ok := opJSON["location"]; ok && location != nil {
 			err = json.Unmarshal(*location, &status.Location)
 			if err != nil {
-				return status, err
+				return nil, err
 			}
 		}
 		// Failure
 		if failureCause, ok := opJSON["failure-cause"]; ok && failureCause != nil {
 			err = json.Unmarshal(*failureCause, &status.FailureCause)
 			if err != nil {
-				return status, err
+				return nil, err
 			}
 		}
 	}
@@ -191,15 +257,12 @@ func (c *FlinkClient) GetSavepointStatus(
 }
 
 // TakeSavepoint takes savepoint, blocks until it suceeds or fails.
-func (c *FlinkClient) TakeSavepoint(
-	apiBaseURL string, jobID string, dir string) (SavepointStatus, error) {
-	var triggerID = SavepointTriggerID{}
-	var status = SavepointStatus{JobID: jobID}
-	var err error
+func (c *Client) TakeSavepoint(apiBaseURL string, jobID string, dir string) (*SavepointStatus, error) {
+	status := &SavepointStatus{JobID: jobID}
 
-	triggerID, err = c.TriggerSavepoint(apiBaseURL, jobID, dir)
+	triggerID, err := c.TriggerSavepoint(apiBaseURL, jobID, dir)
 	if err != nil {
-		return SavepointStatus{}, err
+		return nil, err
 	}
 
 	for i := 0; i < 12; i++ {
@@ -213,12 +276,8 @@ func (c *FlinkClient) TakeSavepoint(
 	return status, err
 }
 
-func (c *FlinkClient) TakeSavepointAsync(
-	apiBaseURL string, jobID string, dir string) (string, error) {
-	var triggerID = SavepointTriggerID{}
-	var err error
-
-	triggerID, err = c.TriggerSavepoint(apiBaseURL, jobID, dir)
+func (c *Client) TakeSavepointAsync(apiBaseURL string, jobID string, dir string) (string, error) {
+	triggerID, err := c.TriggerSavepoint(apiBaseURL, jobID, dir)
 	if err != nil {
 		return "", err
 	}
@@ -226,8 +285,26 @@ func (c *FlinkClient) TakeSavepointAsync(
 	return triggerID.RequestID, err
 }
 
-func (c *FlinkClient) GetJobExceptions(
-	apiBaseURL string, jobId string, exceptions *JobExceptions) error {
+func (c *Client) GetJobExceptions(apiBaseURL string, jobId string) (*JobExceptions, error) {
 	url := fmt.Sprintf("%s/jobs/%s/exceptions", apiBaseURL, jobId)
-	return c.HTTPClient.Get(url, exceptions)
+	resp, err := c.httpClient.Get(url)
+	if err != nil {
+		return nil, err
+	}
+
+	exp := &JobExceptions{}
+	if err := parseJson(resp, exp); err != nil {
+		return nil, err
+	}
+
+	return exp, nil
+}
+
+func NewDefaultClient(log logr.Logger) *Client {
+	return NewClient(log, &http.Client{Timeout: 30 * time.Second})
+}
+
+func NewClient(log logr.Logger, httpClient *http.Client) *Client {
+	httpClient.Transport = &roundTripper{Proxied: httpClient.Transport}
+	return &Client{log: log, httpClient: httpClient}
 }

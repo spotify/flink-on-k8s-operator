@@ -20,11 +20,11 @@ import (
 	"context"
 	"time"
 
+	"github.com/spotify/flink-on-k8s-operator/controllers/flink"
 	"github.com/spotify/flink-on-k8s-operator/controllers/history"
 
 	"github.com/go-logr/logr"
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/api/v1beta1"
-	"github.com/spotify/flink-on-k8s-operator/controllers/flinkclient"
 	"github.com/spotify/flink-on-k8s-operator/controllers/model"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -70,16 +70,13 @@ func (reconciler *FlinkClusterReconciler) Reconcile(ctx context.Context,
 	var log = reconciler.Log.WithValues(
 		"cluster", request.NamespacedName)
 	var handler = FlinkClusterHandler{
-		k8sClient: reconciler.Client,
-		flinkClient: flinkclient.FlinkClient{
-			Log:        log,
-			HTTPClient: flinkclient.HTTPClient{Log: log},
-		},
-		request:  request,
-		context:  context.Background(),
-		log:      log,
-		recorder: reconciler.Mgr.GetEventRecorderFor("FlinkOperator"),
-		observed: ObservedClusterState{},
+		k8sClient:   reconciler.Client,
+		flinkClient: flink.NewDefaultClient(log),
+		request:     request,
+		context:     context.Background(),
+		log:         log,
+		recorder:    reconciler.Mgr.GetEventRecorderFor("FlinkOperator"),
+		observed:    ObservedClusterState{},
 	}
 	return handler.reconcile(ctx, request)
 }
@@ -102,7 +99,7 @@ func (reconciler *FlinkClusterReconciler) SetupWithManager(
 // reconcile request.
 type FlinkClusterHandler struct {
 	k8sClient         client.Client
-	flinkClient       flinkclient.FlinkClient
+	flinkClient       *flink.Client
 	request           ctrl.Request
 	context           context.Context
 	log               logr.Logger

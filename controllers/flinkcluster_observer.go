@@ -25,7 +25,7 @@ import (
 
 	"github.com/go-logr/logr"
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/api/v1beta1"
-	"github.com/spotify/flink-on-k8s-operator/controllers/flinkclient"
+	"github.com/spotify/flink-on-k8s-operator/controllers/flink"
 	"github.com/spotify/flink-on-k8s-operator/controllers/history"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -40,7 +40,7 @@ import (
 // ClusterStateObserver gets the observed state of the cluster.
 type ClusterStateObserver struct {
 	k8sClient   client.Client
-	flinkClient flinkclient.FlinkClient
+	flinkClient *flink.Client
 	request     ctrl.Request
 	context     context.Context
 	log         logr.Logger
@@ -61,16 +61,16 @@ type ObservedClusterState struct {
 	jobPod                 *corev1.Pod
 	flinkJobStatus         FlinkJobStatus
 	flinkJobSubmitLog      *FlinkJobSubmitLog
-	savepoint              *flinkclient.SavepointStatus
+	savepoint              *flink.SavepointStatus
 	revisionStatus         *RevisionStatus
 	savepointErr           error
 	observeTime            time.Time
 }
 
 type FlinkJobStatus struct {
-	flinkJob            *flinkclient.JobStatus
-	flinkJobList        *flinkclient.JobStatusList
-	flinkJobExceptions  *flinkclient.JobExceptions
+	flinkJob            *flink.JobStatus
+	flinkJobList        *flink.JobStatusList
+	flinkJobExceptions  *flink.JobExceptions
 	flinkJobsUnexpected []string
 }
 
@@ -289,9 +289,9 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(
 	var log = observer.log
 
 	// Observe following
-	var flinkJob *flinkclient.JobStatus
-	var flinkJobExceptions *flinkclient.JobExceptions
-	var flinkJobList *flinkclient.JobStatusList
+	var flinkJob *flink.JobStatus
+	var flinkJobExceptions *flink.JobExceptions
+	var flinkJobList *flink.JobStatusList
 	var flinkJobsUnexpected []string
 
 	// Wait until the job manager is ready.
@@ -304,9 +304,8 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(
 	}
 
 	// Get Flink job status list.
-	flinkJobList = &flinkclient.JobStatusList{}
 	flinkAPIBaseURL := getFlinkAPIBaseURL(observed.cluster)
-	err := observer.flinkClient.GetJobStatusList(flinkAPIBaseURL, flinkJobList)
+	flinkJobList, err := observer.flinkClient.GetJobStatusList(flinkAPIBaseURL)
 	if err != nil {
 		// It is normal in many cases, not an error.
 		log.Info("Failed to get Flink job status list.", "error", err)
@@ -322,8 +321,7 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(
 		return
 	}
 
-	flinkJobExceptions = &flinkclient.JobExceptions{}
-	err = observer.flinkClient.GetJobExceptions(flinkAPIBaseURL, flinkJobID, flinkJobExceptions)
+	flinkJobExceptions, err = observer.flinkClient.GetJobExceptions(flinkAPIBaseURL, flinkJobID)
 	if err != nil {
 		// It is normal in many cases, not an error.
 		log.Info("Failed to get Flink job exceptions.", "error", err)
@@ -334,7 +332,7 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(
 
 	for _, job := range flinkJobList.Jobs {
 		if flinkJobID == job.ID {
-			flinkJob = new(flinkclient.JobStatus)
+			flinkJob = new(flink.JobStatus)
 			*flinkJob = job
 		} else if getFlinkJobDeploymentState(job.Status) == v1beta1.JobStateRunning {
 			flinkJobsUnexpected = append(flinkJobsUnexpected, job.ID)
@@ -373,11 +371,9 @@ func (observer *ClusterStateObserver) observeSavepoint(observed *ObservedCluster
 		var flinkAPIBaseURL = getFlinkAPIBaseURL(observed.cluster)
 		var jobID = savepointStatus.JobID
 		var triggerID = savepointStatus.TriggerID
-		var savepoint flinkclient.SavepointStatus
-		var err error
 
-		savepoint, err = observer.flinkClient.GetSavepointStatus(flinkAPIBaseURL, jobID, triggerID)
-		observed.savepoint = &savepoint
+		savepoint, err := observer.flinkClient.GetSavepointStatus(flinkAPIBaseURL, jobID, triggerID)
+		observed.savepoint = savepoint
 		if err == nil && len(savepoint.FailureCause.StackTrace) > 0 {
 			err = fmt.Errorf("%s", savepoint.FailureCause.StackTrace)
 		}

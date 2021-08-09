@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spotify/flink-on-k8s-operator/controllers/flinkclient"
+	"github.com/spotify/flink-on-k8s-operator/controllers/flink"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -416,7 +416,7 @@ func TestIsFlinkAPIReady(t *testing.T) {
 		jmStatefulSet:  &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "cluster-85dc8f749"}}},
 		tmStatefulSet:  &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "cluster-85dc8f749"}}},
 		jmService:      &corev1.Service{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "cluster-85dc8f749"}}},
-		flinkJobStatus: FlinkJobStatus{flinkJobList: &flinkclient.JobStatusList{}},
+		flinkJobStatus: FlinkJobStatus{flinkJobList: &flink.JobStatusList{}},
 	}
 	var ready = isFlinkAPIReady(observed)
 	assert.Equal(t, ready, true)
