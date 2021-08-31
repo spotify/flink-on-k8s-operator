@@ -487,7 +487,6 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 	var observed = reconciler.observed
 	var observedJob = observed.job
 	var recordedJobStatus = observed.cluster.Status.Components.Job
-	var activeFlinkJob bool
 	var err error
 
 	// Update status changed via job reconciliation.
@@ -503,11 +502,7 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 	}
 
 	// Check if Flink job is active
-	if isJobActive(recordedJobStatus) {
-		activeFlinkJob = true
-	} else {
-		activeFlinkJob = false
-	}
+	activeFlinkJob := isJobActive(recordedJobStatus)
 
 	// Create Flink job submitter
 	if desiredJob != nil && !activeFlinkJob {
