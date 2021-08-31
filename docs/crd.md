@@ -34,6 +34,7 @@ FlinkCluster
         |__ resources
         |__ memoryOffHeapRatio
         |__ memoryOffHeapMin
+        |__ memoryProcessRatio
         |__ volumes
         |__ volumeMounts
         |__ volumeClaimTemplates
@@ -189,7 +190,7 @@ FlinkCluster
         You can express this value like 600M, 572Mi and 600e6.
         See [more info](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory)
         about value expression.
-      - **memoryProcessRation**: For Flink 1.10+. Percentage of memory process, as a safety margin to avoid OOM kill, default: 80
+      - **memoryProcessRatio**: (optional) For Flink 1.10+. Percentage of memory process, as a safety margin to avoid OOM kill, default: 80
       - **volumes** (optional): Volumes in the JobManager pod.
         See [more info](https://kubernetes.io/docs/concepts/storage/volumes/) about volumes.
       - **volumeMounts** (optional): Volume mounts in the JobManager container.
@@ -231,7 +232,7 @@ FlinkCluster
         You can express this value like 600M, 572Mi and 600e6.
         See [more info](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory)
         about value expression.
-      - **memoryProcessRation**: For Flink 1.10+. Percentage of memory process, as a safety margin to avoid OOM kill, default: 80
+      - **memoryProcessRatio**: (optional) For Flink 1.10+. Percentage of memory process, as a safety margin to avoid OOM kill, default: 80
       - **volumes** (optional): Volumes in the TaskManager pod.
         See [more info](https://kubernetes.io/docs/concepts/storage/volumes/) about volumes.
       - **volumeMounts** (optional): Volume mounts in the TaskManager containers.
