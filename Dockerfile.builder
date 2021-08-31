@@ -9,12 +9,12 @@
 # docker run flink-operator-builder
 
 
-FROM golang:1.16.5-alpine
+FROM golang:1.17-alpine
 
 RUN apk update && apk add curl git make gcc libc-dev
 
 # Install Kubebuilder
-RUN curl -sL https://go.kubebuilder.io/dl/2.3.2/linux/amd64 | tar -xz -C /usr/local/ \
+RUN curl -sL https://github.com/kubernetes-sigs/kubebuilder/releases/download/v2.3.2/kubebuilder_2.3.2_linux_amd64.tar.gz | tar -xz -C /usr/local/ \
     && mv /usr/local/kubebuilder_2.3.2_linux_amd64 /usr/local/kubebuilder
 ENV PATH=${PATH}:/usr/local/kubebuilder/bin
 
