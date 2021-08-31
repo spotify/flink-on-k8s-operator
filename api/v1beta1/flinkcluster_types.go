@@ -206,7 +206,7 @@ type JobManagerSpec struct {
 	// More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory
 	MemoryOffHeapMin resource.Quantity `json:"memoryOffHeapMin,omitempty"`
 
-	// For Flink 1.10+. Percentage of memory process, as a safety margin to avoid OOM kill, default: 20
+	// For Flink 1.10+. Percentage of memory process, as a safety margin to avoid OOM kill, default: 80
 	MemoryProcessRatio *int32 `json:"memoryProcessRatio,omitempty"`
 
 	// Volumes in the JobManager pod.
