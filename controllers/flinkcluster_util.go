@@ -154,8 +154,7 @@ func shouldRestartJob(
 	jobStatus *v1beta1.JobStatus) bool {
 	return restartPolicy != nil &&
 		*restartPolicy == v1beta1.JobRestartPolicyFromSavepointOnFailure &&
-		jobStatus != nil &&
-		(jobStatus.State == v1beta1.JobStateFailed || jobStatus.State == v1beta1.JobStateLost) &&
+		isJobFailed(jobStatus) &&
 		len(jobStatus.SavepointLocation) > 0
 }
 
@@ -372,6 +371,11 @@ func getSavepointEvent(status v1beta1.SavepointStatus) (eventType string, eventR
 func isJobActive(status *v1beta1.JobStatus) bool {
 	return status != nil &&
 		(status.State == v1beta1.JobStateRunning || status.State == v1beta1.JobStatePending)
+}
+
+func isJobFailed(status *v1beta1.JobStatus) bool {
+	return status != nil &&
+		(status.State == v1beta1.JobStateFailed || status.State == v1beta1.JobStateLost)
 }
 
 func isJobStopped(status *v1beta1.JobStatus) bool {
