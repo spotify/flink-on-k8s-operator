@@ -927,7 +927,7 @@ func shouldCleanup(
 	switch jobStatus.State {
 	case v1beta1.JobStateSucceeded:
 		action = cluster.Spec.Job.CleanupPolicy.AfterJobSucceeds
-	case v1beta1.JobStateFailed:
+	case v1beta1.JobStateFailed, v1beta1.JobStateLost:
 		action = cluster.Spec.Job.CleanupPolicy.AfterJobFails
 	case v1beta1.JobStateCancelled:
 		action = cluster.Spec.Job.CleanupPolicy.AfterJobCancelled

@@ -773,7 +773,7 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 		newJobStatus.CompletionTime = &now
 	}
 
-	if newJobStatus.State == v1beta1.JobStateFailed {
+	if isJobFailed(newJobStatus) {
 		if len(newJobStatus.FailureReasons) == 0 {
 			newJobStatus.FailureReasons = []string{}
 			exceptions := observed.flinkJobStatus.flinkJobExceptions
