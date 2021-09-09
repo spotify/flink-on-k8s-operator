@@ -86,3 +86,10 @@ vars:
       kind: Service
       version: v1
       name: webhook-service
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+  - name: controller
+    newName: gcr.io/spotify/flink-operator
+    newTag: latest
