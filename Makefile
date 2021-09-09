@@ -1,3 +1,4 @@
+SHELL := /bin/bash
 
 # Image URL to use all building/pushing image targets
 IMG ?= ghcr.io/spotify/flink-operator:latest
