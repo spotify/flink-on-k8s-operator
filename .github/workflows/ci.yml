@@ -7,4 +7,4 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v2
       - name: Build image
-        run: make operator-image
+        run: make docker-build
