@@ -79,9 +79,8 @@ ifneq ($(WATCH_NAMESPACE),)
 			&& sed -E -i.bak  "s/(\-\-watch\-namespace\=)/\1$(WATCH_NAMESPACE)/" manager_auth_proxy_patch.yaml \
 			&& kustomize edit add patch --path mutation_webhook_namespace_selector_patch.yaml \
 			&& kustomize edit add patch --path validation_webhook_namespace_selector_patch.yaml \
-			|| true
+			&& 	rm config/deploy/*.bak || true
 endif
-	rm config/deploy/*.bak
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | kubectl apply -f -
