@@ -81,6 +81,7 @@ ifneq ($(WATCH_NAMESPACE),)
 			&& kustomize edit add patch --path validation_webhook_namespace_selector_patch.yaml \
 			|| true
 endif
+	rm config/deploy/*.bak
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | kubectl apply -f -
