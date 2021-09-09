@@ -39,18 +39,23 @@ spec:
         control-plane: controller-manager
         app: flink-operator
     spec:
+      securityContext:
+        runAsNonRoot: true
       containers:
-        - name: flink-operator
-          image: flink-operator:latest
-          command:
-            - /flink-operator
+        - command:
+            - /manager
           args:
             - --enable-leader-election
+          image: controller:latest
+          name: manager
+          securityContext:
+            allowPrivilegeEscalation: false
           resources:
             limits:
-              cpu: 1
-              memory: 512Mi
+              cpu: 100m
+              memory: 30Mi
             requests:
               cpu: 100m
-              memory: 50Mi
+              memory: 20Mi
+      serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10

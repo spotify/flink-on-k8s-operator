@@ -13,11 +13,8 @@
 # limitations under the License.
 
 resources:
-    - service.yaml
-    - manifests.v1beta1.yaml
-
-patchesStrategicMerge:
-    - patches/admission_cabundle.yaml
+  - manifests.v1beta1.yaml
+  - service.yaml
 
 configurations:
-    - kustomizeconfig.yaml
+  - kustomizeconfig.yaml
