@@ -40,10 +40,10 @@ spec:
         app: flink-operator
     spec:
       securityContext:
-        runAsNonRoot: true
+        runAsNonRoot: false
       containers:
         - command:
-            - /manager
+            - /flink-operator
           args:
             - --enable-leader-election
           image: controller:latest
