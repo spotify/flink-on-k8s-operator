@@ -6,56 +6,41 @@ metadata:
   name: manager-role
 rules:
   - apiGroups:
-      - flinkoperator.k8s.io
-    resources:
-      - flinkclusters
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - patch
-      - delete
-  - apiGroups:
-      - flinkoperator.k8s.io
-    resources:
-      - flinkclusters/status
-    verbs:
-      - get
-      - update
-      - patch
-  - apiGroups:
       - apps
     resources:
       - deployments
-      - statefulsets
     verbs:
+      - create
+      - delete
       - get
       - list
-      - watch
-      - create
-      - update
       - patch
-      - delete
+      - update
+      - watch
   - apiGroups:
       - apps
     resources:
       - deployments/status
-      - statefulsets/status
     verbs:
       - get
   - apiGroups:
-      - ""
+      - apps
     resources:
-      - pods
-      - secrets
+      - statefulsets
     verbs:
       - create
+      - delete
       - get
       - list
-      - watch
       - patch
+      - update
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - statefulsets/status
+    verbs:
+      - get
   - apiGroups:
       - apps
     resources:
@@ -69,42 +54,47 @@ rules:
       - patch
       - delete
   - apiGroups:
-      - ""
+      - batch
     resources:
-      - pods/status
+      - jobs
     verbs:
-      - get
-  - apiGroups:
-      - ""
-    resources:
-      - services
-      - persistentvolumeclaims
-    verbs:
+      - create
+      - delete
       - get
       - list
-      - watch
-      - create
-      - update
       - patch
-      - delete
+      - update
+      - watch
+  - apiGroups:
+      - batch
+    resources:
+      - jobs/status
+    verbs:
+      - get
   - apiGroups:
       - ""
     resources:
-      - services/status
+      - configmaps
     verbs:
+      - create
+      - delete
       - get
+      - list
+      - patch
+      - update
+      - watch
   - apiGroups:
       - ""
     resources:
       - events
     verbs:
+      - create
+      - delete
       - get
       - list
-      - watch
-      - create
-      - update
       - patch
-      - delete
+      - update
+      - watch
   - apiGroups:
       - ""
     resources:
@@ -114,31 +104,45 @@ rules:
   - apiGroups:
       - ""
     resources:
-      - configmaps
+      - persistentvolumeclaims
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - pods
     verbs:
       - get
       - list
       - watch
-      - create
-      - update
-      - patch
-      - delete
   - apiGroups:
-      - batch
+      - ""
     resources:
-      - jobs
+      - pods/status
     verbs:
       - get
-      - list
-      - watch
-      - create
-      - update
-      - patch
-      - delete
   - apiGroups:
-      - batch
+      - ""
     resources:
-      - jobs/status
+      - services
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - services/status
     verbs:
       - get
   - apiGroups:
@@ -146,13 +150,13 @@ rules:
     resources:
       - ingresses
     verbs:
+      - create
+      - delete
       - get
       - list
-      - watch
-      - create
-      - update
       - patch
-      - delete
+      - update
+      - watch
   - apiGroups:
       - extensions
     resources:
@@ -160,20 +164,22 @@ rules:
     verbs:
       - get
   - apiGroups:
-      - admissionregistration.k8s.io
+      - flinkoperator.k8s.io
     resources:
-      - mutatingwebhookconfigurations
-      - validatingwebhookconfigurations
+      - flinkclusters
     verbs:
-      - get
       - create
-      - update
+      - delete
+      - get
+      - list
       - patch
+      - update
+      - watch
   - apiGroups:
-      - scheduling.volcano.sh
+      - flinkoperator.k8s.io
     resources:
-      - podgroups
+      - flinkclusters/status
     verbs:
       - get
-      - create
+      - patch
       - update

@@ -3,9 +3,20 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     api-approved.kubernetes.io: unapproved
-    controller-gen.kubebuilder.io/version: v0.6.1
+    cert-manager.io/inject-ca-from: $(CERTIFICATE_NAMESPACE)/$(CERTIFICATE_NAME)
+    controller-gen.kubebuilder.io/version: v0.6.2
   name: flinkclusters.flinkoperator.k8s.io
 spec:
+  conversion:
+    strategy: Webhook
+    webhook:
+      clientConfig:
+        service:
+          name: webhook-service
+          namespace: system
+          path: /convert
+      conversionReviewVersions:
+      - v1
   group: flinkoperator.k8s.io
   names:
     kind: FlinkCluster
@@ -611,6 +622,8 @@ spec:
                                   type: string
                                 gmsaCredentialSpecName:
                                   type: string
+                                hostProcess:
+                                  type: boolean
                                 runAsUserName:
                                   type: string
                               type: object
@@ -832,6 +845,8 @@ spec:
                             type: string
                           gmsaCredentialSpecName:
                             type: string
+                          hostProcess:
+                            type: boolean
                           runAsUserName:
                             type: string
                         type: object
@@ -1071,6 +1086,18 @@ spec:
                                         type: string
                                       type: array
                                     dataSource:
+                                      properties:
+                                        apiGroup:
+                                          type: string
+                                        kind:
+                                          type: string
+                                        name:
+                                          type: string
+                                      required:
+                                      - kind
+                                      - name
+                                      type: object
+                                    dataSourceRef:
                                       properties:
                                         apiGroup:
                                           type: string
@@ -2019,6 +2046,8 @@ spec:
                                   type: string
                                 gmsaCredentialSpecName:
                                   type: string
+                                hostProcess:
+                                  type: boolean
                                 runAsUserName:
                                   type: string
                               type: object
@@ -2258,6 +2287,8 @@ spec:
                             type: string
                           gmsaCredentialSpecName:
                             type: string
+                          hostProcess:
+                            type: boolean
                           runAsUserName:
                             type: string
                         type: object
@@ -2697,6 +2728,8 @@ spec:
                                   type: string
                                 gmsaCredentialSpecName:
                                   type: string
+                                hostProcess:
+                                  type: boolean
                                 runAsUserName:
                                   type: string
                               type: object
@@ -2866,6 +2899,18 @@ spec:
                                 type: string
                               type: array
                             dataSource:
+                              properties:
+                                apiGroup:
+                                  type: string
+                                kind:
+                                  type: string
+                                name:
+                                  type: string
+                              required:
+                              - kind
+                              - name
+                              type: object
+                            dataSourceRef:
                               properties:
                                 apiGroup:
                                   type: string
@@ -3200,6 +3245,18 @@ spec:
                                         type: string
                                       type: array
                                     dataSource:
+                                      properties:
+                                        apiGroup:
+                                          type: string
+                                        kind:
+                                          type: string
+                                        name:
+                                          type: string
+                                      required:
+                                      - kind
+                                      - name
+                                      type: object
+                                    dataSourceRef:
                                       properties:
                                         apiGroup:
                                           type: string
@@ -4143,6 +4200,8 @@ spec:
                                   type: string
                                 gmsaCredentialSpecName:
                                   type: string
+                                hostProcess:
+                                  type: boolean
                                 runAsUserName:
                                   type: string
                               type: object
@@ -4379,6 +4438,8 @@ spec:
                             type: string
                           gmsaCredentialSpecName:
                             type: string
+                          hostProcess:
+                            type: boolean
                           runAsUserName:
                             type: string
                         type: object
@@ -4818,6 +4879,8 @@ spec:
                                   type: string
                                 gmsaCredentialSpecName:
                                   type: string
+                                hostProcess:
+                                  type: boolean
                                 runAsUserName:
                                   type: string
                               type: object
@@ -4987,6 +5050,18 @@ spec:
                                 type: string
                               type: array
                             dataSource:
+                              properties:
+                                apiGroup:
+                                  type: string
+                                kind:
+                                  type: string
+                                name:
+                                  type: string
+                              required:
+                              - kind
+                              - name
+                              type: object
+                            dataSourceRef:
                               properties:
                                 apiGroup:
                                   type: string
@@ -5321,6 +5396,18 @@ spec:
                                         type: string
                                       type: array
                                     dataSource:
+                                      properties:
+                                        apiGroup:
+                                          type: string
+                                        kind:
+                                          type: string
+                                        name:
+                                          type: string
+                                      required:
+                                      - kind
+                                      - name
+                                      type: object
+                                    dataSourceRef:
                                       properties:
                                         apiGroup:
                                           type: string

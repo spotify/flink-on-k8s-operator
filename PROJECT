@@ -1,7 +1,19 @@
-version: "2"
-domain: k8s.io
+domain: flinkoperator.k8s.io
+layout:
+  - go.kubebuilder.io/v3
+projectName: migration-project
 repo: github.com/spotify/flink-on-k8s-operator
 resources:
-- group: flinkoperator
-  version: v1beta1
-  kind: FlinkCluster
+  - api:
+      crdVersion: v1
+      namespaced: true
+    controller: true
+    domain: flinkoperator.k8s.io
+    kind: FlinkCluster
+    path: github.com/spotify/flink-on-k8s-operator/api/v1beta1
+    version: v1beta1
+    webhooks:
+      defaulting: true
+      validation: true
+      webhookVersion: v1
+version: "3"
