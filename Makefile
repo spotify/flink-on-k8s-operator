@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-VERSION := latest
+VERSION ?= latest
 # Image URL to use all building/pushing image targets
 IMG ?= ghcr.io/spotify/flink-operator:$(VERSION)
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
