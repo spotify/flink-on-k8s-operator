@@ -1,4 +1,4 @@
-name: Publish Docker image
+name: Publish
 on:
   push:
     tags: ["v*"]
@@ -21,8 +21,11 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.CR_PAT }}
-      - name: Push image
-        run: make operator-image push-operator-image
+      - name: Push Image
+        uses: actions/setup-go@v2
+        with:
+          go-version: "^1.17"
+      - run: make docker-push
         env:
           IMG: ${{ steps.prep.outputs.image }}
       - name: Tag latest
