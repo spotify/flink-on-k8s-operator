@@ -1,7 +1,7 @@
 SHELL := /bin/bash
-
+VERSION := latest
 # Image URL to use all building/pushing image targets
-IMG ?= ghcr.io/spotify/flink-operator:latest
+IMG ?= ghcr.io/spotify/flink-operator:$(VERSION)
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:maxDescLen=0,trivialVersions=true,preserveUnknownFields=false,generateEmbeddedObjectMeta=true"
 # The Kubernetes namespace in which the operator will be deployed.
@@ -59,17 +59,6 @@ test: manifests generate fmt vet tidy kustomize ## Run tests.
 build: generate fmt vet tidy ## Build manager binary.
 	go build -o bin/manager main.go
 
-run: manifests generate fmt vet tidy ## Run a controller from your host against the configured Kubernetes cluster in ~/.kube/config
-	go run ./main.go
-
-docker-build: test ## Build docker image with the manager.
-	docker build -t ${IMG} --label git-commit=$(shell git rev-parse HEAD) .
-
-docker-push: docker-build ## Push docker image with the manager.
-	docker push ${IMG}
-
-##@ Deployment
-
 build-overlay: manifests kustomize ## Build overlay for deployment.
 	rm -rf config/deploy && cp -rf config/default config/deploy && cd config/deploy \
 	    && $(KUSTOMIZE) edit set image controller="${IMG}" \
@@ -82,6 +71,20 @@ ifneq ($(WATCH_NAMESPACE),)
 			&& kustomize edit add patch --path validation_webhook_namespace_selector_patch.yaml \
 			&& 	rm config/deploy/*.bak || true
 endif
+
+run: manifests generate fmt vet tidy ## Run a controller from your host against the configured Kubernetes cluster in ~/.kube/config
+	go run ./main.go
+
+docker-build: test ## Build docker image with the manager.
+	docker build -t ${IMG} --label git-commit=$(shell git rev-parse HEAD) .
+
+docker-push: docker-build ## Push docker image with the manager.
+	docker push ${IMG}
+
+release-manifests: build-overlay ## Build manifests for release.
+	$(KUSTOMIZE) build config/deploy > config/deploy/flink-operator.yaml
+
+##@ Deployment
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | kubectl apply -f -
