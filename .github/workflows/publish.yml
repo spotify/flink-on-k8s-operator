@@ -35,4 +35,4 @@ jobs:
       - name: Push release manifest
         uses: softprops/action-gh-release@v1
         with:
-          files: deploy/flink-operator.yaml
+          files: config/deploy/flink-operator.yaml
