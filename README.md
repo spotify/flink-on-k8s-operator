@@ -1,3 +1,8 @@
+[![Build Status](https://github.com/spotify/flink-on-k8s-operator/actions/workflows/ci.yml/badge.svg)](https://github.com/spotify/flink-on-k8s-operator/actions/workflows/ci.yml)
+[![GoDoc](https://godoc.org/github.com/spotify/flink-on-k8s-operator?status.svg)](https://godoc.org/github.com/spotify/flink-on-k8s-operator)
+[![License](https://img.shields.io/badge/LICENSE-Apache2.0-ff69b4.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
+[![Go Report Card](https://goreportcard.com/badge/github.com/spotify/flink-on-k8s-operator)](https://goreportcard.com/report/github.com/spotify/flink-on-k8s-operator)
+
 # Kubernetes Operator for Apache Flink
 
 [Kubernetes](https://kubernetes.io/) operator for that acts as control plane to manage the complete deployment lifecycle of [Apache Flink](https://flink.apache.org/) applications. This is an open source fork of [GoogleCloudPlatform/flink-on-k8s-operator](https://github.com/GoogleCloudPlatform/flink-on-k8s-operator) with several new features and bug fixes.
