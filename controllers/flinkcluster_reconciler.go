@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"reflect"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -827,7 +826,7 @@ func (reconciler *ClusterReconciler) triggerSavepoint(jobID string, triggerReaso
 	var cluster = reconciler.observed.cluster
 	var apiBaseURL = getFlinkAPIBaseURL(reconciler.observed.cluster)
 	var triggerSuccess bool
-	var triggerID flinkclient.SavepointTriggerID
+	var triggerID *flink.SavepointTriggerID
 	var message string
 	var err error
 
@@ -934,7 +933,7 @@ func (reconciler *ClusterReconciler) updateJobDeployStatus() error {
 	// Reset running job information.
 	newJob.ID = ""
 	newJob.StartTime = ""
-	newJob.EndTime = ""
+	newJob.CompletionTime = nil
 
 	// Mark as job submitter is deployed.
 	setTimestamp(&newJob.DeployTime)

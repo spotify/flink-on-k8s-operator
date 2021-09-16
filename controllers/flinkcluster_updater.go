@@ -607,7 +607,7 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 			}
 		case newJob.State == v1beta1.JobStateRunning:
 			setTimestamp(&newJob.StartTime)
-			newJob.EndTime = ""
+			newJob.CompletionTime = nil
 			// When job started, the savepoint is not the final state of the job any more.
 			if oldJob.FinalSavepoint {
 				newJob.FinalSavepoint = false

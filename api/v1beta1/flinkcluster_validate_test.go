@@ -689,14 +689,14 @@ func TestUpdateJob(t *testing.T) {
 	assert.Equal(t, err, nil)
 
 	// when job is stopped and no up-to-date savepoint
-	var jobEndTime = time.Now()
-	savepointTime = jobEndTime.Add(-(maxStateAge + 10) * time.Second) // stale savepoint
+	var jobCompletionTime = time.Now()
+	savepointTime = jobCompletionTime.Add(-(maxStateAge + 10) * time.Second) // stale savepoint
 	oldCluster = getSimpleFlinkCluster()
 	oldCluster.Status.Components.Job = &JobStatus{
 		SavepointTime:     tc.ToString(savepointTime),
 		SavepointLocation: "gs://my-bucket/my-sp-123",
 		State:             JobStateFailed,
-		EndTime:           tc.ToString(jobEndTime),
+		CompletionTime:    &metav1.Time{Time: jobCompletionTime},
 	}
 	newCluster = getSimpleFlinkCluster()
 	newCluster.Spec.Job.JarFile = "gs://my-bucket/myjob-v2.jar"
@@ -707,14 +707,14 @@ func TestUpdateJob(t *testing.T) {
 	assert.Equal(t, err.Error(), expectedErr)
 
 	// when job is stopped and savepoint is up-to-date
-	jobEndTime = time.Now()
-	savepointTime = jobEndTime.Add(-(maxStateAge - 10) * time.Second) // up-to-date savepoint
+	jobCompletionTime = time.Now()
+	savepointTime = jobCompletionTime.Add(-(maxStateAge - 10) * time.Second) // up-to-date savepoint
 	oldCluster = getSimpleFlinkCluster()
 	oldCluster.Status.Components.Job = &JobStatus{
 		SavepointTime:     tc.ToString(savepointTime),
 		SavepointLocation: "gs://my-bucket/my-sp-123",
 		State:             JobStateFailed,
-		EndTime:           tc.ToString(jobEndTime),
+		CompletionTime:    &metav1.Time{Time: jobCompletionTime},
 	}
 	newCluster = getSimpleFlinkCluster()
 	newCluster.Spec.Job.JarFile = "gs://my-bucket/myjob-v2.jar"
@@ -723,14 +723,14 @@ func TestUpdateJob(t *testing.T) {
 
 	// when job is stopped and savepoint is stale, but fromSavepoint is provided
 	var fromSavepoint = "gs://my-bucket/sp-123"
-	jobEndTime = time.Now()
-	savepointTime = jobEndTime.Add(-(maxStateAge + 10) * time.Second) // stale savepoint
+	jobCompletionTime = time.Now()
+	savepointTime = jobCompletionTime.Add(-(maxStateAge + 10) * time.Second) // stale savepoint
 	oldCluster = getSimpleFlinkCluster()
 	oldCluster.Status.Components.Job = &JobStatus{
 		SavepointTime:     tc.ToString(savepointTime),
 		SavepointLocation: "gs://my-bucket/my-sp-123",
 		State:             JobStateFailed,
-		EndTime:           tc.ToString(jobEndTime),
+		CompletionTime:    &metav1.Time{Time: jobCompletionTime},
 	}
 	newCluster = getSimpleFlinkCluster()
 	newCluster.Spec.Job.JarFile = "gs://my-bucket/myjob-v2.jar"
@@ -903,7 +903,6 @@ func TestUserControlSavepoint(t *testing.T) {
 }
 
 func TestUserControlJobCancel(t *testing.T) {
-	var tc = TimeConverter{}
 	var validator = &Validator{}
 	var restartPolicy = JobRestartPolicyNever
 	var newCluster = FlinkCluster{
@@ -935,8 +934,8 @@ func TestUserControlJobCancel(t *testing.T) {
 	var oldCluster4 = FlinkCluster{
 		Spec: FlinkClusterSpec{Job: &JobSpec{}},
 		Status: FlinkClusterStatus{Components: FlinkClusterComponentsStatus{Job: &JobStatus{
-			State:   JobStateSucceeded,
-			EndTime: tc.ToString(time.Now()),
+			State:          JobStateSucceeded,
+			CompletionTime: &metav1.Time{Time: time.Now()},
 		}}},
 	}
 	var err4 = validator.ValidateUpdate(&oldCluster4, &newCluster)
@@ -947,7 +946,7 @@ func TestUserControlJobCancel(t *testing.T) {
 		Spec: FlinkClusterSpec{Job: &JobSpec{RestartPolicy: &restartPolicy}},
 		Status: FlinkClusterStatus{Components: FlinkClusterComponentsStatus{
 			Job: &JobStatus{State: JobStateFailed,
-				EndTime: tc.ToString(time.Now()),
+				CompletionTime: &metav1.Time{Time: time.Now()},
 			}}},
 	}
 	var err5 = validator.ValidateUpdate(&oldCluster5, &newCluster)

@@ -38,7 +38,7 @@ func (j *JobStatus) IsTerminated(spec *JobSpec) bool {
 	return j.IsStopped() && !j.ShouldRestart(spec)
 }
 
-// Check if the recorded savepoint is up to date compared to maxStateAgeToRestoreSeconds.
+// IsSavepointUpToDate check if the recorded savepoint is up-to-date compared to maxStateAgeToRestoreSeconds.
 // If maxStateAgeToRestoreSeconds is not set,
 // the savepoint is up-to-date only when the recorded savepoint is the final job state.
 func (j *JobStatus) IsSavepointUpToDate(spec *JobSpec, compareTime time.Time) bool {
@@ -59,19 +59,18 @@ func (j *JobStatus) IsSavepointUpToDate(spec *JobSpec, compareTime time.Time) bo
 	return false
 }
 
-// shouldRestartJob returns true if the controller should restart failed job.
+// ShouldRestart returns true if the controller should restart failed job.
 // The controller can restart the job only if there is a savepoint that is close to the end time of the job.
 func (j *JobStatus) ShouldRestart(spec *JobSpec) bool {
 	if j == nil || !j.IsFailed() || spec == nil {
 		return false
 	}
-	var tc TimeConverter
 	var restartEnabled = spec.RestartPolicy != nil && *spec.RestartPolicy == JobRestartPolicyFromSavepointOnFailure
-	var jobEndTime = tc.FromString(j.EndTime)
-	return restartEnabled && j.IsSavepointUpToDate(spec, jobEndTime)
+	var jobCompletionTime = j.CompletionTime.Time
+	return restartEnabled && j.IsSavepointUpToDate(spec, jobCompletionTime)
 }
 
-// Return true if job is ready to proceed update.
+// UpdateReady returns true if job is ready to proceed update.
 func (j *JobStatus) UpdateReady(spec *JobSpec, observeTime time.Time) bool {
 	var takeSavepointOnUpdate = spec.TakeSavepointOnUpdate == nil || *spec.TakeSavepointOnUpdate
 	switch {
@@ -93,12 +92,11 @@ func (j *JobStatus) UpdateReady(spec *JobSpec, observeTime time.Time) bool {
 		return true
 	default:
 		// In other cases, check if savepoint is up-to-date compared to job end time.
-		var tc = TimeConverter{}
-		var jobEndTime time.Time
-		if j.EndTime != "" {
-			jobEndTime = tc.FromString(j.EndTime)
+		var jobCompletionTime time.Time
+		if !j.CompletionTime.IsZero() {
+			jobCompletionTime = j.CompletionTime.Time
 		}
-		if j.IsSavepointUpToDate(spec, jobEndTime) {
+		if j.IsSavepointUpToDate(spec, jobCompletionTime) {
 			return true
 		}
 	}

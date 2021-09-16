@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/spotify/flink-on-k8s-operator/controllers/flink"
 	"os"
 	"strconv"
 	"strings"
@@ -27,7 +28,6 @@ import (
 
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/api/v1beta1"
 	"github.com/spotify/flink-on-k8s-operator/controllers/history"
-	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -432,7 +432,7 @@ func isClusterUpdateToDate(observed *ObservedClusterState) bool {
 }
 
 // isFlinkAPIReady checks whether cluster is ready to submit job.
-func isFlinkAPIReady(list *flinkclient.JobStatusList) bool {
+func isFlinkAPIReady(list *flink.JobsOverview) bool {
 	// If the observed Flink job status list is not nil (e.g., emtpy list),
 	// it means Flink REST API server is up and running. It is the source of
 	// truth of whether we can submit a job.
