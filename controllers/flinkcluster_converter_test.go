@@ -294,7 +294,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 				},
 			},
 			Status: v1beta1.FlinkClusterStatus{
-				NextRevision: "flinkjobcluster-sample-85dc8f749-1",
+				Revision: v1beta1.RevisionStatus{NextRevision: "flinkjobcluster-sample-85dc8f749-1"},
 			},
 		},
 	}
@@ -1034,7 +1034,7 @@ func TestSecurityContext(t *testing.T) {
 				},
 			},
 			Status: v1beta1.FlinkClusterStatus{
-				NextRevision: "flinkjobcluster-sample-85dc8f749-1",
+				Revision: v1beta1.RevisionStatus{NextRevision: "flinkjobcluster-sample-85dc8f749-1"},
 			},
 		},
 	}
@@ -1072,7 +1072,7 @@ func TestSecurityContext(t *testing.T) {
 				},
 			},
 			Status: v1beta1.FlinkClusterStatus{
-				NextRevision: "flinkjobcluster-sample-85dc8f749-1",
+				Revision: v1beta1.RevisionStatus{NextRevision: "flinkjobcluster-sample-85dc8f749-1"},
 			},
 		},
 	}
