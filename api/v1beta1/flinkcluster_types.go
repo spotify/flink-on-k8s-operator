@@ -241,6 +241,14 @@ type JobManagerSpec struct {
 
 	// JobManager StatefulSet pod template labels.
 	PodLabels map[string]string `json:"podLabels,omitempty"`
+
+	// Container liveness probe
+	// If omitted, a default value will be used.
+	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
+
+	// Container readiness probe
+	// If omitted, a default value will be used.
+	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
 }
 
 // TaskManagerPorts defines ports of TaskManager.
@@ -319,6 +327,14 @@ type TaskManagerSpec struct {
 
 	// TaskManager StatefulSet pod template labels.
 	PodLabels map[string]string `json:"podLabels,omitempty"`
+
+	// Container liveness probe
+	// If omitted, a default value will be used.
+	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
+
+	// Container readiness probe
+	// If omitted, a default value will be used.
+	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
 }
 
 // CleanupAction defines the action to take after job finishes.
