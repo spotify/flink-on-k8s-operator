@@ -13,10 +13,22 @@ spec:
     kind: FlinkCluster
     listKind: FlinkClusterList
     plural: flinkclusters
+    shortNames:
+    - fc
     singular: flinkcluster
   scope: Namespaced
   versions:
-  - name: v1beta1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.flinkVersion
+      name: version
+      type: string
+    - jsonPath: .status.state
+      name: status
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: age
+      type: date
+    name: v1beta1
     schema:
       openAPIV3Schema:
         properties:
