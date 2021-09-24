@@ -46,14 +46,6 @@ cluster, the following dependencies are required on your local machine:
 
 To build the Flink Operator binary and run unit tests, run:
 
-### In Docker (recommended)
-
-```bash
-make test-in-docker
-```
-
-### Non-Docker (not recommended)
-
 ```bash
 make test
 ```

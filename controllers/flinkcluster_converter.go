@@ -121,28 +121,6 @@ func getDesiredJobManagerStatefulSet(
 	volumes = append(jobManagerSpec.Volumes, *confVol)
 	volumeMounts = append(jobManagerSpec.VolumeMounts, *confMount)
 	var envVars []corev1.EnvVar
-	var readinessProbe = corev1.Probe{
-		Handler: corev1.Handler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.FromInt(int(*jobManagerSpec.Ports.RPC)),
-			},
-		},
-		TimeoutSeconds:      10,
-		InitialDelaySeconds: 5,
-		PeriodSeconds:       5,
-		FailureThreshold:    60,
-	}
-	var livenessProbe = corev1.Probe{
-		Handler: corev1.Handler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.FromInt(int(*jobManagerSpec.Ports.RPC)),
-			},
-		},
-		TimeoutSeconds:      10,
-		InitialDelaySeconds: 5,
-		PeriodSeconds:       60,
-		FailureThreshold:    5,
-	}
 
 	// Hadoop config.
 	var hcVolume, hcMount, hcEnv = convertHadoopConfig(clusterSpec.HadoopConfig)
@@ -175,8 +153,8 @@ func getDesiredJobManagerStatefulSet(
 		ImagePullPolicy: imageSpec.PullPolicy,
 		Args:            []string{"jobmanager"},
 		Ports:           ports,
-		LivenessProbe:   &livenessProbe,
-		ReadinessProbe:  &readinessProbe,
+		LivenessProbe:   jobManagerSpec.LivenessProbe,
+		ReadinessProbe:  jobManagerSpec.ReadinessProbe,
 		Resources:       jobManagerSpec.Resources,
 		Env:             envVars,
 		EnvFrom:         flinkCluster.Spec.EnvFrom,
@@ -433,28 +411,6 @@ func getDesiredTaskManagerStatefulSet(
 			},
 		},
 	}
-	var readinessProbe = corev1.Probe{
-		Handler: corev1.Handler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.FromInt(int(*taskManagerSpec.Ports.RPC)),
-			},
-		},
-		TimeoutSeconds:      10,
-		InitialDelaySeconds: 5,
-		PeriodSeconds:       5,
-		FailureThreshold:    60,
-	}
-	var livenessProbe = corev1.Probe{
-		Handler: corev1.Handler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.FromInt(int(*taskManagerSpec.Ports.RPC)),
-			},
-		},
-		TimeoutSeconds:      10,
-		InitialDelaySeconds: 5,
-		PeriodSeconds:       60,
-		FailureThreshold:    5,
-	}
 
 	// Hadoop config.
 	var hcVolume, hcMount, hcEnv = convertHadoopConfig(clusterSpec.HadoopConfig)
@@ -487,8 +443,8 @@ func getDesiredTaskManagerStatefulSet(
 		ImagePullPolicy: imageSpec.PullPolicy,
 		Args:            []string{"taskmanager"},
 		Ports:           ports,
-		LivenessProbe:   &livenessProbe,
-		ReadinessProbe:  &readinessProbe,
+		LivenessProbe:   taskManagerSpec.LivenessProbe,
+		ReadinessProbe:  taskManagerSpec.ReadinessProbe,
 		Resources:       taskManagerSpec.Resources,
 		Env:             envVars,
 		EnvFrom:         flinkCluster.Spec.EnvFrom,

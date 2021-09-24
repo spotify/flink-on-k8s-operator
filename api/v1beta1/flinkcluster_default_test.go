@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -58,6 +59,50 @@ func TestSetDefault(t *testing.T) {
 	defaultRecreateOnUpdate := new(bool)
 	*defaultRecreateOnUpdate = true
 	resources := DefaultResources
+	var defaultJmReadinessProbe = corev1.Probe{
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.FromInt(int(defaultJmRPCPort)),
+			},
+		},
+		TimeoutSeconds:      10,
+		InitialDelaySeconds: 5,
+		PeriodSeconds:       5,
+		FailureThreshold:    60,
+	}
+	var defaultJmLivenessProbe = corev1.Probe{
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.FromInt(int(defaultJmRPCPort)),
+			},
+		},
+		TimeoutSeconds:      10,
+		InitialDelaySeconds: 5,
+		PeriodSeconds:       60,
+		FailureThreshold:    5,
+	}
+	var defaultTmReadinessProbe = corev1.Probe{
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.FromInt(int(defaultTmRPCPort)),
+			},
+		},
+		TimeoutSeconds:      10,
+		InitialDelaySeconds: 5,
+		PeriodSeconds:       5,
+		FailureThreshold:    60,
+	}
+	var defaultTmLivenessProbe = corev1.Probe{
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.FromInt(int(defaultTmRPCPort)),
+			},
+		},
+		TimeoutSeconds:      10,
+		InitialDelaySeconds: 5,
+		PeriodSeconds:       60,
+		FailureThreshold:    5,
+	}
 
 	var expectedCluster = FlinkCluster{
 		TypeMeta:   metav1.TypeMeta{},
@@ -86,6 +131,8 @@ func TestSetDefault(t *testing.T) {
 				Volumes:            nil,
 				VolumeMounts:       nil,
 				SecurityContext:    nil,
+				LivenessProbe:      &defaultJmLivenessProbe,
+				ReadinessProbe:     &defaultJmReadinessProbe,
 			},
 			TaskManager: TaskManagerSpec{
 				Replicas: 0,
@@ -99,6 +146,8 @@ func TestSetDefault(t *testing.T) {
 				MemoryOffHeapMin:   defaultMemoryOffHeapMin,
 				Volumes:            nil,
 				SecurityContext:    nil,
+				LivenessProbe:      &defaultTmLivenessProbe,
+				ReadinessProbe:     &defaultTmReadinessProbe,
 			},
 			Job: &JobSpec{
 				AllowNonRestoredState: &defaultJobAllowNonRestoredState,
@@ -165,6 +214,48 @@ func TestSetNonDefault(t *testing.T) {
 			corev1.ResourceMemory: resource.MustParse("2Gi"),
 		},
 	}
+	var jmReadinessProbe = corev1.Probe{
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.FromInt(int(jmRPCPort)),
+			},
+		},
+		InitialDelaySeconds: 50,
+		PeriodSeconds:       50,
+		FailureThreshold:    600,
+	}
+	var jmLivenessProbe = corev1.Probe{
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.FromInt(int(jmRPCPort)),
+			},
+		},
+		InitialDelaySeconds: 50,
+		PeriodSeconds:       600,
+		FailureThreshold:    50,
+	}
+	var tmReadinessProbe = corev1.Probe{
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.FromInt(int(tmRPCPort)),
+			},
+		},
+		TimeoutSeconds:      100,
+		InitialDelaySeconds: 50,
+		PeriodSeconds:       50,
+		FailureThreshold:    600,
+	}
+	var tmLivenessProbe = corev1.Probe{
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.FromInt(int(tmRPCPort)),
+			},
+		},
+		TimeoutSeconds:      100,
+		InitialDelaySeconds: 50,
+		PeriodSeconds:       600,
+		FailureThreshold:    50,
+	}
 
 	var cluster = FlinkCluster{
 		TypeMeta:   metav1.TypeMeta{},
@@ -192,6 +283,8 @@ func TestSetNonDefault(t *testing.T) {
 				Volumes:         nil,
 				VolumeMounts:    nil,
 				SecurityContext: &securityContext,
+				LivenessProbe:   &jmLivenessProbe,
+				ReadinessProbe:  &jmReadinessProbe,
 			},
 			TaskManager: TaskManagerSpec{
 				Replicas: 0,
@@ -203,6 +296,8 @@ func TestSetNonDefault(t *testing.T) {
 				Resources:       tmResources,
 				Volumes:         nil,
 				SecurityContext: &securityContext,
+				LivenessProbe:   &tmLivenessProbe,
+				ReadinessProbe:  &tmReadinessProbe,
 			},
 			Job: &JobSpec{
 				AllowNonRestoredState: &jobAllowNonRestoredState,
@@ -227,6 +322,28 @@ func TestSetNonDefault(t *testing.T) {
 
 	_SetDefault(&cluster)
 
+	var jmExpectedReadinessProbe = corev1.Probe{
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.FromInt(int(jmRPCPort)),
+			},
+		},
+		TimeoutSeconds:      10,
+		InitialDelaySeconds: 50,
+		PeriodSeconds:       50,
+		FailureThreshold:    600,
+	}
+	var jmExpectedLivenessProbe = corev1.Probe{
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.FromInt(int(jmRPCPort)),
+			},
+		},
+		TimeoutSeconds:      10,
+		InitialDelaySeconds: 50,
+		PeriodSeconds:       600,
+		FailureThreshold:    50,
+	}
 	var expectedCluster = FlinkCluster{
 		TypeMeta:   metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{},
@@ -254,6 +371,8 @@ func TestSetNonDefault(t *testing.T) {
 				Volumes:            nil,
 				VolumeMounts:       nil,
 				SecurityContext:    &securityContext,
+				LivenessProbe:      &jmExpectedLivenessProbe,
+				ReadinessProbe:     &jmExpectedReadinessProbe,
 			},
 			TaskManager: TaskManagerSpec{
 				Replicas: 0,
@@ -266,6 +385,8 @@ func TestSetNonDefault(t *testing.T) {
 				MemoryProcessRatio: &memoryProcessRatio,
 				Volumes:            nil,
 				SecurityContext:    &securityContext,
+				LivenessProbe:      &tmLivenessProbe,
+				ReadinessProbe:     &tmReadinessProbe,
 			},
 			Job: &JobSpec{
 				AllowNonRestoredState: &jobAllowNonRestoredState,
