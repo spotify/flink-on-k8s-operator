@@ -50,11 +50,14 @@ func init() {
 
 func main() {
 	var metricsAddr string
-	var enableLeaderElection bool
 	var watchNamespace string
+	var enableLeaderElection bool
+	var leaderElectionID string
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
+	flag.StringVar(&leaderElectionID, "leader-election-id", "flink-operator-lock",
+		"The name that leader election will use for holding the leader lock")
 	flag.StringVar(
 		&watchNamespace,
 		"watch-namespace",
@@ -74,6 +77,7 @@ func main() {
 		MetricsBindAddress: metricsAddr,
 		LeaderElection:     enableLeaderElection,
 		Namespace:          watchNamespace,
+		LeaderElectionID:   leaderElectionID,
 	})
 	if err != nil {
 		setupLog.Error(err, "Unable to start manager")
