@@ -125,6 +125,7 @@ rules:
       - ""
     resources:
       - pods/status
+      - pods/log
     verbs:
       - get
   - apiGroups:
