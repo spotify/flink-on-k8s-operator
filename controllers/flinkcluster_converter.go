@@ -934,8 +934,16 @@ func calTaskManagerTaskSlots(cluster *v1beta1.FlinkCluster) *int {
 		return &value
 	}
 
-	ts := int(cluster.Spec.TaskManager.Resources.Limits.Cpu().Value())
-	return &ts
+	quantity := cluster.Spec.TaskManager.Resources.Limits.Cpu()
+	if quantity == nil {
+		return nil
+	}
+
+	s := 1
+	if slots := int(quantity.ToDec().AsApproximateFloat64()); slots != 0 {
+		s = slots / 2
+	}
+	return &s
 }
 
 func calFlinkHeapSize(cluster *v1beta1.FlinkCluster) map[string]string {
