@@ -95,6 +95,26 @@ type Job struct {
 	Duration  int64  `json:"duration"`
 }
 
+type JobSorter struct {
+	Jobs []Job
+	By   func(p1, p2 *Job) bool // Closure used in the Less method.
+}
+
+// Len is part of sort.Interface.
+func (s *JobSorter) Len() int {
+	return len(s.Jobs)
+}
+
+// Swap is part of sort.Interface.
+func (s *JobSorter) Swap(i, j int) {
+	s.Jobs[i], s.Jobs[j] = s.Jobs[j], s.Jobs[i]
+}
+
+// Less is part of sort.Interface. It is implemented by calling the "by" closure in the sorter.
+func (s *JobSorter) Less(i, j int) bool {
+	return s.By(&s.Jobs[i], &s.Jobs[j])
+}
+
 // JobsOverview defines Flink job overview list.
 type JobsOverview struct {
 	Jobs []Job

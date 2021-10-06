@@ -177,7 +177,8 @@ func (reconciler *ClusterReconciler) createStatefulSet(
 	var log = reconciler.log.WithValues("component", component)
 	var k8sClient = reconciler.k8sClient
 
-	log.Info("Creating StatefulSet", "StatefulSet", *statefulSet)
+	log.Info("Creating StatefulSet")
+
 	var err = k8sClient.Create(context, statefulSet)
 	if err != nil {
 		log.Error(err, "Failed to create StatefulSet")
@@ -279,7 +280,8 @@ func (reconciler *ClusterReconciler) createService(
 	var log = reconciler.log.WithValues("component", component)
 	var k8sClient = reconciler.k8sClient
 
-	log.Info("Creating service", "resource", *service)
+	log.Info("Creating service")
+
 	var err = k8sClient.Create(context, service)
 	if err != nil {
 		log.Info("Failed to create service", "error", err)
@@ -344,7 +346,8 @@ func (reconciler *ClusterReconciler) createIngress(
 	var log = reconciler.log.WithValues("component", component)
 	var k8sClient = reconciler.k8sClient
 
-	log.Info("Creating ingress", "resource", *ingress)
+	log.Info("Creating ingress")
+
 	var err = k8sClient.Create(context, ingress)
 	if err != nil {
 		log.Info("Failed to create ingress", "error", err)
@@ -409,7 +412,8 @@ func (reconciler *ClusterReconciler) createConfigMap(
 	var log = reconciler.log.WithValues("component", component)
 	var k8sClient = reconciler.k8sClient
 
-	log.Info("Creating configMap", "configMap", *cm)
+	log.Info("Creating configMap")
+
 	var err = k8sClient.Create(context, cm)
 	if err != nil {
 		log.Info("Failed to create configMap", "error", err)
@@ -604,7 +608,7 @@ func (reconciler *ClusterReconciler) createJob(job *batchv1.Job) error {
 	var log = reconciler.log
 	var k8sClient = reconciler.k8sClient
 
-	log.Info("Submitting job", "resource", *job)
+	log.Info("Submitting job")
 	var err = k8sClient.Create(context, job)
 	if err != nil {
 		log.Info("Failed to created job", "error", err)
@@ -990,7 +994,9 @@ func (reconciler *ClusterReconciler) updateStatus(ss **v1beta1.SavepointStatus, 
 			newStatus.Control = controlStatus
 		}
 		setTimestamp(&newStatus.LastUpdateTime)
-		log.Info("Updating cluster status", "clusterClone", clusterClone, "newStatus", newStatus)
+
+		log.Info("Updating cluster status")
+
 		statusUpdateErr = reconciler.k8sClient.Status().Update(reconciler.context, clusterClone)
 		if statusUpdateErr == nil {
 			return nil
@@ -1040,8 +1046,7 @@ func (reconciler *ClusterReconciler) updateStatusForNewJob() error {
 	err = reconciler.k8sClient.Status().Update(reconciler.context, clusterClone)
 
 	if err != nil {
-		log.Error(
-			err, "Failed to update job status for new job submission", "error", err)
+		log.Error(err, "Failed to update job status for new job submission", "error", err)
 	} else {
 		log.Info("Succeeded to update job status for new job submission.", "job status", newJobStatus)
 	}

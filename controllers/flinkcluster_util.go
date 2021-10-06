@@ -28,8 +28,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-logr/logr"
+	"github.com/google/go-cmp/cmp"
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/api/v1beta1"
+	"github.com/spotify/flink-on-k8s-operator/controllers/flink"
 	"github.com/spotify/flink-on-k8s-operator/controllers/history"
+	"github.com/spotify/flink-on-k8s-operator/controllers/model"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -38,6 +42,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 const (
@@ -602,4 +608,139 @@ func getFlinkJobSubmitLogFromString(podLog string) (*FlinkJobSubmitLog, error) {
 	} else {
 		return nil, fmt.Errorf("no job id found")
 	}
+}
+
+// -------------------------------
+
+type KubernetesResourceState struct {
+	Revisions              []*appsv1.ControllerRevision
+	Cluster                *v1beta1.FlinkCluster
+	JmStatefulSet          *appsv1.StatefulSet
+	JmService              *corev1.Service
+	JmIngress              *extensionsv1beta1.Ingress
+	TmStatefulSet          *appsv1.StatefulSet
+	ConfigMap              *corev1.ConfigMap
+	PersistentVolumeClaims *corev1.PersistentVolumeClaimList
+	Job                    *batchv1.Job
+	JobPod                 *corev1.Pod
+}
+
+type FlinkResourceState struct {
+	JobStatus      FlinkJobStatus
+	JobSubmitLog   *FlinkJobSubmitLog
+	Savepoint      *flink.SavepointStatus
+	RevisionStatus *RevisionStatus
+	SavepointErr   error
+}
+
+func (clusterState KubernetesResourceState) log(log logr.Logger, stateType string) {
+	if clusterState.ConfigMap != nil {
+		log.Info(stateType, "ConfigMap", *clusterState.ConfigMap)
+	} else {
+		log.Info(stateType, "ConfigMap", "nil")
+	}
+	if clusterState.JmStatefulSet != nil {
+		log.Info(stateType, "JobManager StatefulSet", *clusterState.JmStatefulSet)
+	} else {
+		log.Info(stateType, "JobManager StatefulSet", "nil")
+	}
+	if clusterState.JmService != nil {
+		log.Info(stateType, "JobManager service", *clusterState.JmService)
+	} else {
+		log.Info(stateType, "JobManager service", "nil")
+	}
+	if clusterState.JmIngress != nil {
+		log.Info(stateType, "JobManager ingress", *clusterState.JmIngress)
+	} else {
+		log.Info(stateType, "JobManager ingress", "nil")
+	}
+	if clusterState.TmStatefulSet != nil {
+		log.Info(stateType, "TaskManager StatefulSet", *clusterState.TmStatefulSet)
+	} else {
+		log.Info(stateType, "TaskManager StatefulSet", "nil")
+	}
+	if clusterState.Job != nil {
+		log.Info(stateType, "Job", *clusterState.Job)
+	} else {
+		log.Info(stateType, "Job", "nil")
+	}
+}
+
+func StateFromDesired(desiredState model.DesiredClusterState) KubernetesResourceState {
+	return KubernetesResourceState{
+		JmStatefulSet: desiredState.JmStatefulSet,
+		JmService:     desiredState.JmService,
+		JmIngress:     desiredState.JmIngress,
+		TmStatefulSet: desiredState.TmStatefulSet,
+		ConfigMap:     desiredState.ConfigMap,
+		Job:           desiredState.Job,
+	}
+}
+
+func StateFromObserved(observed ObservedClusterState) KubernetesResourceState {
+	return KubernetesResourceState{
+		JmStatefulSet: observed.jmStatefulSet,
+		JmService:     observed.jmService,
+		JmIngress:     observed.jmIngress,
+		TmStatefulSet: observed.tmStatefulSet,
+		ConfigMap:     observed.configMap,
+		Job:           observed.job,
+	}
+}
+
+// -------------------------------
+
+// Predicate to update only when spec updates
+type FlinkClusterIgnoreStatusPredicate struct {
+	predicate.Funcs
+	Log logr.Logger
+}
+
+// Update implements default UpdateEvent filter for validating generation change.
+func (flinkPredicate FlinkClusterIgnoreStatusPredicate) Update(e event.UpdateEvent) bool {
+
+	if e.ObjectOld == nil {
+		flinkPredicate.Log.Info("Update event has no old object to update")
+		return false
+	}
+	if e.ObjectNew == nil {
+		flinkPredicate.Log.Info("Update event has no new object for update")
+		return false
+	}
+
+	oldObject := e.ObjectOld.(*v1beta1.FlinkCluster)
+	newObject := e.ObjectNew.(*v1beta1.FlinkCluster)
+
+	if diff := cmp.Diff(oldObject.Spec, newObject.Spec); diff != "" {
+		// flinkPredicate.Log.Info("Spec diff", "diff", diff)
+		return true
+	}
+
+	return e.ObjectNew.GetGeneration() != e.ObjectOld.GetGeneration()
+}
+
+// -------------------------------
+
+func shouldRestartJobV2(restartPolicy *v1beta1.JobRestartPolicy, jobStatus *v1beta1.JobStatus) bool {
+	if jobStatus == nil {
+		return false
+	}
+
+	if !(jobStatus.State == v1beta1.JobStateFailed || jobStatus.State == v1beta1.JobStateLost) {
+		return false
+	}
+
+	if restartPolicy == nil {
+		return false
+	}
+
+	if *restartPolicy == v1beta1.JobRestartPolicyNever {
+		return false
+	}
+
+	if *restartPolicy == v1beta1.JobRestartPolicyFromSavepointOnFailure && len(jobStatus.SavepointLocation) > 0 {
+		return true
+	}
+
+	return false
 }

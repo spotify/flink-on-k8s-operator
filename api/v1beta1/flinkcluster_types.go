@@ -719,12 +719,12 @@ type FlinkClusterStatus struct {
 	LastUpdateTime string `json:"lastUpdateTime,omitempty"`
 }
 
-// +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName="fc"
-// +kubebuilder:printcolumn:name="version",type=string,JSONPath=`.spec.flinkVersion`
-// +kubebuilder:printcolumn:name="status",type=string,JSONPath=`.status.state`
-// +kubebuilder:printcolumn:name="age",type=date,JSONPath=`.metadata.creationTimestamp`
+//+kubebuilder:object:root=true
+//+kubebuilder:subresource:status
+//+kubebuilder:resource:shortName="fc"
+//+kubebuilder:printcolumn:name="version",type=string,JSONPath=`.spec.flinkVersion`
+//+kubebuilder:printcolumn:name="status",type=string,JSONPath=`.status.state`
+//+kubebuilder:printcolumn:name="age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // FlinkCluster is the Schema for the flinkclusters API
 type FlinkCluster struct {
@@ -735,8 +735,8 @@ type FlinkCluster struct {
 	Status FlinkClusterStatus `json:"status,omitempty"`
 }
 
-// +kubebuilder:object:root=true
-// +kubebuilder:resource:shortName="fc"
+//+kubebuilder:object:root=true
+//+kubebuilder:resource:shortName="fc"
 
 // FlinkClusterList contains a list of FlinkCluster
 type FlinkClusterList struct {

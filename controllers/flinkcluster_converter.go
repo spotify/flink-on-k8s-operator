@@ -75,21 +75,28 @@ func getDesiredClusterState(
 	if cluster == nil {
 		return model.DesiredClusterState{}
 	}
+
+	var jobSpec = observed.cluster.Spec.Job
+	var jobStatus = observed.cluster.Status.Components.Job
+
+	shouldNotCreateJob := jobSpec == nil ||
+		(!isUpdateTriggered(cluster.Status) &&
+			!shouldRestartJob(jobSpec.RestartPolicy, jobStatus) &&
+			(isJobCancelRequested(*cluster) || isJobStopped(jobStatus)))
+
 	return model.DesiredClusterState{
-		ConfigMap:     getDesiredConfigMap(cluster),
-		JmStatefulSet: getDesiredJobManagerStatefulSet(cluster),
-		JmService:     getDesiredJobManagerService(cluster),
-		JmIngress:     getDesiredJobManagerIngress(cluster),
-		TmStatefulSet: getDesiredTaskManagerStatefulSet(cluster),
-		Job:           getDesiredJob(observed),
+		ConfigMap:     getDesiredConfigMap(cluster, shouldCleanup(cluster, "ConfigMap")),
+		JmStatefulSet: getDesiredJobManagerStatefulSet(cluster, shouldCleanup(cluster, "JobManagerStatefulSet")),
+		JmService:     getDesiredJobManagerService(cluster, shouldCleanup(cluster, "JobManagerService")),
+		JmIngress:     getDesiredJobManagerIngress(cluster, shouldCleanup(cluster, "JobManagerIngress")),
+		TmStatefulSet: getDesiredTaskManagerStatefulSet(cluster, shouldCleanup(cluster, "TaskManagerStatefulSet")),
+		Job:           getDesiredJob(cluster, shouldNotCreateJob),
 	}
 }
 
 // Gets the desired JobManager StatefulSet spec from the FlinkCluster spec.
-func getDesiredJobManagerStatefulSet(
-	flinkCluster *v1beta1.FlinkCluster) *appsv1.StatefulSet {
-
-	if shouldCleanup(flinkCluster, "JobManagerStatefulSet") {
+func getDesiredJobManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster, shouldNotCreateResource bool) *appsv1.StatefulSet {
+	if shouldNotCreateResource {
 		return nil
 	}
 
@@ -207,10 +214,8 @@ func getDesiredJobManagerStatefulSet(
 }
 
 // Gets the desired JobManager service spec from a cluster spec.
-func getDesiredJobManagerService(
-	flinkCluster *v1beta1.FlinkCluster) *corev1.Service {
-
-	if shouldCleanup(flinkCluster, "JobManagerService") {
+func getDesiredJobManagerService(flinkCluster *v1beta1.FlinkCluster, shouldNotCreateResource bool) *corev1.Service {
+	if shouldNotCreateResource {
 		return nil
 	}
 
@@ -280,14 +285,13 @@ func getDesiredJobManagerService(
 }
 
 // Gets the desired JobManager ingress spec from a cluster spec.
-func getDesiredJobManagerIngress(
-	flinkCluster *v1beta1.FlinkCluster) *extensionsv1beta1.Ingress {
-	var jobManagerIngressSpec = flinkCluster.Spec.JobManager.Ingress
-	if jobManagerIngressSpec == nil {
+func getDesiredJobManagerIngress(flinkCluster *v1beta1.FlinkCluster, shouldNotCreateResource bool) *extensionsv1beta1.Ingress {
+	if shouldNotCreateResource {
 		return nil
 	}
 
-	if shouldCleanup(flinkCluster, "JobManagerIngress") {
+	var jobManagerIngressSpec = flinkCluster.Spec.JobManager.Ingress
+	if jobManagerIngressSpec == nil {
 		return nil
 	}
 
@@ -353,10 +357,8 @@ func getDesiredJobManagerIngress(
 }
 
 // Gets the desired TaskManager StatefulSet spec from a cluster spec.
-func getDesiredTaskManagerStatefulSet(
-	flinkCluster *v1beta1.FlinkCluster) *appsv1.StatefulSet {
-
-	if shouldCleanup(flinkCluster, "TaskManagerStatefulSet") {
+func getDesiredTaskManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster, shouldNotCreateResource bool) *appsv1.StatefulSet {
+	if shouldNotCreateResource {
 		return nil
 	}
 
@@ -497,14 +499,12 @@ func getDesiredTaskManagerStatefulSet(
 }
 
 // Gets the desired configMap.
-func getDesiredConfigMap(
-	flinkCluster *v1beta1.FlinkCluster) *corev1.ConfigMap {
-	appVersion, _ := version.NewVersion(flinkCluster.Spec.FlinkVersion)
-
-	if shouldCleanup(flinkCluster, "ConfigMap") {
+func getDesiredConfigMap(flinkCluster *v1beta1.FlinkCluster, shouldNotCreateResource bool) *corev1.ConfigMap {
+	if shouldNotCreateResource {
 		return nil
 	}
 
+	appVersion, _ := version.NewVersion(flinkCluster.Spec.FlinkVersion)
 	var clusterNamespace = flinkCluster.Namespace
 	var clusterName = flinkCluster.Name
 	var flinkProperties = flinkCluster.Spec.FlinkProperties
@@ -572,23 +572,12 @@ func getDesiredConfigMap(
 }
 
 // Gets the desired job spec from a cluster spec.
-func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
-	var flinkCluster = observed.cluster
-	var jobSpec = flinkCluster.Spec.Job
-	var jobStatus = flinkCluster.Status.Components.Job
-
-	if jobSpec == nil {
+func getDesiredJob(flinkCluster *v1beta1.FlinkCluster, shouldNotCreateResource bool) *batchv1.Job {
+	if shouldNotCreateResource {
 		return nil
 	}
 
-	// Unless update has been triggered or the job needs to be restarted, keep the job to be stopped in that state.
-	if !isUpdateTriggered(flinkCluster.Status) && !shouldRestartJob(jobSpec.RestartPolicy, jobStatus) {
-		// Job cancel requested or stopped already
-		if isJobCancelRequested(*flinkCluster) || isJobStopped(jobStatus) {
-			return nil
-		}
-	}
-
+	var jobSpec = flinkCluster.Spec.Job
 	var clusterSpec = flinkCluster.Spec
 	var imageSpec = clusterSpec.Image
 	var serviceAccount = clusterSpec.ServiceAccountName

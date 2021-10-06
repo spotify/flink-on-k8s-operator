@@ -33,6 +33,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -67,30 +68,37 @@ type FlinkClusterReconciler struct {
 // +kubebuilder:rbac:groups=extensions,resources=ingresses/status,verbs=get
 
 // Reconcile the observed state towards the desired state for a FlinkCluster custom resource.
-func (reconciler *FlinkClusterReconciler) Reconcile(ctx context.Context,
-	request ctrl.Request) (ctrl.Result, error) {
-	var log = reconciler.Log.WithValues(
-		"cluster", request.NamespacedName)
-	var handler = FlinkClusterHandler{
+func (reconciler *FlinkClusterReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
+	var log = reconciler.Log.WithValues("cluster", request.NamespacedName)
+	// var handler = FlinkClusterHandler{
+	// 	k8sClient:    reconciler.Client,
+	// 	k8sClientset: reconciler.Clientset,
+	// 	flinkClient:  flink.NewDefaultClient(log),
+	// 	request:      request,
+	// 	context:      context.Background(),
+	// 	log:          log,
+	// 	recorder:     reconciler.Mgr.GetEventRecorderFor("FlinkOperator"),
+	// 	observed:     ObservedClusterState{},
+	// }
+	var handler = FlinkClusterHandlerV2{
 		k8sClient:    reconciler.Client,
 		k8sClientset: reconciler.Clientset,
 		flinkClient:  flink.NewDefaultClient(log),
 		request:      request,
-		context:      context.Background(),
 		log:          log,
 		recorder:     reconciler.Mgr.GetEventRecorderFor("FlinkOperator"),
-		observed:     ObservedClusterState{},
 	}
-	return handler.reconcile(ctx, request)
+	return handler.reconcile(ctx)
 }
 
 // SetupWithManager registers this reconciler with the controller manager and
 // starts watching FlinkCluster, Deployment and Service resources.
-func (reconciler *FlinkClusterReconciler) SetupWithManager(
-	mgr ctrl.Manager) error {
+func (reconciler *FlinkClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	reconciler.Mgr = mgr
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1beta1.FlinkCluster{}).
+		For(&v1beta1.FlinkCluster{}, builder.WithPredicates(FlinkClusterIgnoreStatusPredicate{
+			Log: reconciler.Log,
+		})).
 		Owns(&appsv1.Deployment{}).
 		Owns(&appsv1.StatefulSet{}).
 		Owns(&corev1.Service{}).

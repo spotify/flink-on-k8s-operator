@@ -54,9 +54,9 @@ var _ webhook.Defaulter = &FlinkCluster{}
 // Default implements webhook.Defaulter so a webhook will be registered for the
 // type.
 func (cluster *FlinkCluster) Default() {
-	log.Info("default", "name", cluster.Name, "original", *cluster)
+	// log.Info("default", "name", cluster.Name, "original", *cluster)
 	_SetDefault(cluster)
-	log.Info("default", "name", cluster.Name, "augmented", *cluster)
+	// log.Info("default", "name", cluster.Name, "augmented", *cluster)
 }
 
 /*
