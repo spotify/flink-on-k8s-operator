@@ -25,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -84,9 +85,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	cs, err := kubernetes.NewForConfig(mgr.GetConfig())
 	err = (&controllers.FlinkClusterReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("FlinkCluster"),
+		Client:    mgr.GetClient(),
+		Clientset: cs,
+		Log:       ctrl.Log.WithName("controllers").WithName("FlinkCluster"),
 	}).SetupWithManager(mgr)
 	if err != nil {
 		setupLog.Error(err, "Unable to create controller", "controller", "FlinkCluster")

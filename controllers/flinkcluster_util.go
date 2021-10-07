@@ -18,16 +18,18 @@ package controllers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/api/v1beta1"
 	"github.com/spotify/flink-on-k8s-operator/controllers/history"
-	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -35,6 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -50,6 +53,10 @@ const (
 	// TODO: need to be user configurable
 	SavepointAgeForJobUpdateSec      = 300
 	SavepointRequestRetryIntervalSec = 10
+)
+
+var (
+	jobIdRegexp = regexp.MustCompile("JobID (.*)\n")
 )
 
 type UpdateState string
@@ -556,29 +563,43 @@ func getFlinkJobDeploymentState(flinkJobState string) string {
 	}
 }
 
-// getFlinkJobSubmitLog extract submit result from the pod termination log.
-func getFlinkJobSubmitLog(observedPod *corev1.Pod) (*FlinkJobSubmitLog, error) {
-	if observedPod == nil {
-		return nil, fmt.Errorf("no job pod found, even though submission completed")
+func getPodLogs(clientset *kubernetes.Clientset, pod *corev1.Pod) (string, error) {
+	if pod == nil {
+		return "", fmt.Errorf("no job pod found, even though submission completed")
 	}
-	var containerStatuses = observedPod.Status.ContainerStatuses
-	if len(containerStatuses) == 0 ||
-		containerStatuses[0].State.Terminated == nil ||
-		containerStatuses[0].State.Terminated.Message == "" {
-		return nil, fmt.Errorf("job pod found, but no termination log found even though submission completed")
-	}
+	pods := clientset.CoreV1().Pods(pod.Namespace)
 
-	// The job submission script writes the submission log to the pod termination log at the end of execution.
-	// If the job submission is successful, the extracted job ID is also included.
-	// The job submit script writes the submission result in YAML format,
-	// so parse it here to get the ID - if available - and log.
-	// Note: https://kubernetes.io/docs/tasks/debug-application-cluster/determine-reason-pod-failure/
-	var rawJobSubmitResult = containerStatuses[0].State.Terminated.Message
-	var result = new(FlinkJobSubmitLog)
-	var err = yaml.Unmarshal([]byte(rawJobSubmitResult), result)
+	req := pods.GetLogs(pod.Name, &corev1.PodLogOptions{})
+	podLogs, err := req.Stream(context.TODO())
+	if err != nil {
+		return "", fmt.Errorf("Failed to get logs for pod %s: %v", pod.Name, err)
+	}
+	defer podLogs.Close()
+
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, podLogs)
+	if err != nil {
+		return "", fmt.Errorf("error in copy information from pod logs to buf")
+	}
+	str := buf.String()
+
+	return str, nil
+}
+
+// getFlinkJobSubmitLog extract submit result from the pod termination log.
+func getFlinkJobSubmitLog(clientset *kubernetes.Clientset, observedPod *corev1.Pod) (*FlinkJobSubmitLog, error) {
+	log, err := getPodLogs(clientset, observedPod)
 	if err != nil {
 		return nil, err
 	}
 
-	return result, nil
+	return getFlinkJobSubmitLogFromString(log)
+}
+
+func getFlinkJobSubmitLogFromString(podLog string) (*FlinkJobSubmitLog, error) {
+	if result := jobIdRegexp.FindStringSubmatch(podLog); len(result) > 0 {
+		return &FlinkJobSubmitLog{JobID: result[1], Message: podLog}, nil
+	} else {
+		return nil, fmt.Errorf("no job id found")
+	}
 }

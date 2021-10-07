@@ -12,7 +12,6 @@ require (
 	github.com/onsi/gomega v1.16.0
 	golang.org/x/net v0.0.0-20210825183410-e898025ed96a
 	golang.org/x/tools v0.1.5 // indirect
-	gopkg.in/yaml.v2 v2.4.0
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.22.1
 	k8s.io/apimachinery v0.22.1
@@ -60,6 +59,7 @@ require (
 	google.golang.org/protobuf v1.26.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 	k8s.io/apiextensions-apiserver v0.21.3 // indirect
 	k8s.io/component-base v0.21.3 // indirect

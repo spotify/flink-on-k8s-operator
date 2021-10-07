@@ -33,18 +33,20 @@ import (
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // ClusterStateObserver gets the observed state of the cluster.
 type ClusterStateObserver struct {
-	k8sClient   client.Client
-	flinkClient *flink.Client
-	request     ctrl.Request
-	context     context.Context
-	log         logr.Logger
-	history     history.Interface
+	k8sClient    client.Client
+	k8sClientset *kubernetes.Clientset
+	flinkClient  *flink.Client
+	request      ctrl.Request
+	context      context.Context
+	log          logr.Logger
+	history      history.Interface
 }
 
 // ObservedClusterState holds observed state of a cluster.
@@ -245,7 +247,7 @@ func (observer *ClusterStateObserver) observeJob(
 	observed.job = observedJob
 
 	// Get job submitter pod resource.
-	var observedJobPod *corev1.Pod = new(corev1.Pod)
+	observedJobPod := new(corev1.Pod)
 	err = observer.observeJobPod(observedJobPod)
 	if err != nil {
 		log.Error(err, "Failed to get job pod")
@@ -253,9 +255,9 @@ func (observer *ClusterStateObserver) observeJob(
 	observed.jobPod = observedJobPod
 
 	// Extract submit result.
-	observedFlinkJobSubmitLog, err = getFlinkJobSubmitLog(observedJobPod)
+	observedFlinkJobSubmitLog, err = getFlinkJobSubmitLog(observer.k8sClientset, observedJobPod)
 	if err != nil {
-		log.Error(err, "Failed to extract job submit result")
+		log.Info("Failed to extract job submit result", "error", err.Error())
 	}
 	observed.flinkJobSubmitLog = observedFlinkJobSubmitLog
 
@@ -294,13 +296,16 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(observed *ObservedCl
 	flinkJobStatus.flinkJobList = flinkJobList
 
 	// Check running jobs
-	if len(flinkJobList.Jobs) < 1 {
+	if len(flinkJobList.Jobs) < 1 && observed.flinkJobSubmitLog == nil {
 		return
 	}
 
-	flinkJobStatus.flinkJob = &flinkJobList.Jobs[0]
-	for _, job := range flinkJobList.Jobs[1:] {
-		flinkJobStatus.flinkJobsUnexpected = append(flinkJobStatus.flinkJobsUnexpected, job.Id)
+	for _, job := range flinkJobList.Jobs {
+		if observed.flinkJobSubmitLog.JobID == job.Id {
+			flinkJobStatus.flinkJob = &job
+		} else if getFlinkJobDeploymentState(job.State) == v1beta1.JobStateRunning {
+			flinkJobStatus.flinkJobsUnexpected = append(flinkJobStatus.flinkJobsUnexpected, job.Id)
+		}
 	}
 
 	flinkJobExceptions, err := observer.flinkClient.GetJobExceptions(flinkAPIBaseURL, flinkJobStatus.flinkJob.Id)
