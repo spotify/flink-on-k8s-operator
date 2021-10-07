@@ -542,8 +542,8 @@ func getDesiredConfigMap(
 		}
 	}
 
-	if taskSlots := calTaskManagerTaskSlots(flinkCluster); taskSlots != nil {
-		flinkProps["taskmanager.numberOfTaskSlots"] = strconv.Itoa(*taskSlots)
+	if taskSlots, err := calTaskManagerTaskSlots(flinkCluster); err == nil {
+		flinkProps["taskmanager.numberOfTaskSlots"] = strconv.Itoa(taskSlots)
 	}
 
 	// Add custom Flink properties.
@@ -618,8 +618,8 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 		jobArgs = append(jobArgs, "--allowNonRestoredState")
 	}
 
-	if parallelism := calJobParallelism(flinkCluster); parallelism != nil {
-		jobArgs = append(jobArgs, "--parallelism", fmt.Sprint(*parallelism))
+	if parallelism, err := calJobParallelism(flinkCluster); err == nil {
+		jobArgs = append(jobArgs, "--parallelism", fmt.Sprint(parallelism))
 	}
 
 	if jobSpec.NoLoggingToStdout != nil &&
@@ -901,49 +901,43 @@ func shouldCleanup(
 	return false
 }
 
-func calJobParallelism(cluster *v1beta1.FlinkCluster) *int32 {
+func calJobParallelism(cluster *v1beta1.FlinkCluster) (int32, error) {
 	if cluster.Spec.Job.Parallelism != nil {
-		return cluster.Spec.Job.Parallelism
+		return *cluster.Spec.Job.Parallelism, nil
 	}
 
-	var value *int
+	var value int
+	var err error
 	if ts, ok := cluster.Spec.FlinkProperties["taskmanager.numberOfTaskSlots"]; ok {
-		parsed, err := strconv.Atoi(ts)
+		value, err = strconv.Atoi(ts)
 		if err != nil {
-			return nil
+			return 0, nil
 		}
-		value = &parsed
 	} else {
-		value = calTaskManagerTaskSlots(cluster)
+		value, err = calTaskManagerTaskSlots(cluster)
+		if err != nil {
+			return 0, nil
+		}
 	}
 
-	if value == nil {
-		return nil
-	}
-
-	parallelism := cluster.Spec.TaskManager.Replicas * int32(*value)
-	return &parallelism
+	parallelism := cluster.Spec.TaskManager.Replicas * int32(value)
+	return parallelism, nil
 }
 
-func calTaskManagerTaskSlots(cluster *v1beta1.FlinkCluster) *int {
+func calTaskManagerTaskSlots(cluster *v1beta1.FlinkCluster) (int, error) {
 	if ts, ok := cluster.Spec.FlinkProperties["taskmanager.numberOfTaskSlots"]; ok {
 		value, err := strconv.Atoi(ts)
 		if err != nil {
-			return nil
+			return 0, err
 		}
-		return &value
+		return value, nil
 	}
 
-	quantity := cluster.Spec.TaskManager.Resources.Limits.Cpu()
-	if quantity == nil {
-		return nil
+	slots := int(cluster.Spec.TaskManager.Resources.Limits.Cpu().Value()) / 2
+	if slots == 0 {
+		return 1, nil
 	}
-
-	s := 1
-	if slots := int(quantity.ToDec().AsApproximateFloat64()); slots != 0 {
-		s = slots / 2
-	}
-	return &s
+	return slots, nil
 }
 
 func calFlinkHeapSize(cluster *v1beta1.FlinkCluster) map[string]string {
