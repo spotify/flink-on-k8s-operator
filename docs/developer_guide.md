@@ -28,31 +28,20 @@ You might want to watch this tech talk ([video](https://www.youtube.com/watch?v=
 The following dependencies are required to build the Flink Operator binary and
 run unit tests:
 
-* [Go v1.14+](https://golang.org/)
-* [Kubebuilder v2+](https://github.com/kubernetes-sigs/kubebuilder)
+- [Go v1.14+](https://golang.org/)
+- [Kubebuilder v3+](https://github.com/kubernetes-sigs/kubebuilder)
 
-But you don't have to install them on your local machine, because this project
-includes a [builder Docker image](../Dockerfile.builder) with the dependencies
-installed. Build and unit test can happen inside of the builder container. This
-is the recommended way for local development.
+But you don't have to install them on your local machine, the [`Makefile`](../Makefile) will take care of those dependencies.
 
-But to create the Flink Operator Docker image and deploy it to a Kubernetes
+To create the Flink Operator Docker image and deploy it to a Kubernetes
 cluster, the following dependencies are required on your local machine:
 
-* [Docker](https://docs.docker.com/install/)
-* [kubectl v1.15+](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+- [Docker](https://docs.docker.com/install/)
+- [kubectl v1.15+](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 
 ## Local build and test
 
 To build the Flink Operator binary and run unit tests, run:
-
-### In Docker (recommended)
-
-```bash
-make test-in-docker
-```
-
-### Non-Docker (not recommended)
 
 ```bash
 make test
@@ -64,7 +53,7 @@ Build a Docker image for the Flink Operator and then push it to an image
 registry with
 
 ```bash
-make operator-image push-operator-image IMG=<tag>
+make docker-push IMG=<tag>
 ```
 
 For example, if you are using [Google Container Registry](https://cloud.google.com/container-registry/docs/),
@@ -74,12 +63,8 @@ to set it up, then build the image and push it to GCR with:
 ```bash
 PROJECT=<gcp-project>
 IMAGE_TAG=gcr.io/${PROJECT}/flink-operator:latest
-make operator-image push-operator-image IMG=${IMAGE_TAG}
+make docker-push IMG=${IMAGE_TAG}
 ```
-
-After building the image, the image tag will be automatically saved in
-`config/default/manager_image_patch.yaml`, when you run `make deploy` later,
-it knows what image to use.
 
 ## Deploy the operator and run jobs
 

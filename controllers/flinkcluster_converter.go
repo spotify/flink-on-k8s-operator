@@ -121,28 +121,6 @@ func getDesiredJobManagerStatefulSet(
 	volumes = append(jobManagerSpec.Volumes, *confVol)
 	volumeMounts = append(jobManagerSpec.VolumeMounts, *confMount)
 	var envVars []corev1.EnvVar
-	var readinessProbe = corev1.Probe{
-		Handler: corev1.Handler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.FromInt(int(*jobManagerSpec.Ports.RPC)),
-			},
-		},
-		TimeoutSeconds:      10,
-		InitialDelaySeconds: 5,
-		PeriodSeconds:       5,
-		FailureThreshold:    60,
-	}
-	var livenessProbe = corev1.Probe{
-		Handler: corev1.Handler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.FromInt(int(*jobManagerSpec.Ports.RPC)),
-			},
-		},
-		TimeoutSeconds:      10,
-		InitialDelaySeconds: 5,
-		PeriodSeconds:       60,
-		FailureThreshold:    5,
-	}
 
 	// Hadoop config.
 	var hcVolume, hcMount, hcEnv = convertHadoopConfig(clusterSpec.HadoopConfig)
@@ -175,8 +153,8 @@ func getDesiredJobManagerStatefulSet(
 		ImagePullPolicy: imageSpec.PullPolicy,
 		Args:            []string{"jobmanager"},
 		Ports:           ports,
-		LivenessProbe:   &livenessProbe,
-		ReadinessProbe:  &readinessProbe,
+		LivenessProbe:   jobManagerSpec.LivenessProbe,
+		ReadinessProbe:  jobManagerSpec.ReadinessProbe,
 		Resources:       jobManagerSpec.Resources,
 		Env:             envVars,
 		EnvFrom:         flinkCluster.Spec.EnvFrom,
@@ -433,28 +411,6 @@ func getDesiredTaskManagerStatefulSet(
 			},
 		},
 	}
-	var readinessProbe = corev1.Probe{
-		Handler: corev1.Handler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.FromInt(int(*taskManagerSpec.Ports.RPC)),
-			},
-		},
-		TimeoutSeconds:      10,
-		InitialDelaySeconds: 5,
-		PeriodSeconds:       5,
-		FailureThreshold:    60,
-	}
-	var livenessProbe = corev1.Probe{
-		Handler: corev1.Handler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.FromInt(int(*taskManagerSpec.Ports.RPC)),
-			},
-		},
-		TimeoutSeconds:      10,
-		InitialDelaySeconds: 5,
-		PeriodSeconds:       60,
-		FailureThreshold:    5,
-	}
 
 	// Hadoop config.
 	var hcVolume, hcMount, hcEnv = convertHadoopConfig(clusterSpec.HadoopConfig)
@@ -487,8 +443,8 @@ func getDesiredTaskManagerStatefulSet(
 		ImagePullPolicy: imageSpec.PullPolicy,
 		Args:            []string{"taskmanager"},
 		Ports:           ports,
-		LivenessProbe:   &livenessProbe,
-		ReadinessProbe:  &readinessProbe,
+		LivenessProbe:   taskManagerSpec.LivenessProbe,
+		ReadinessProbe:  taskManagerSpec.ReadinessProbe,
 		Resources:       taskManagerSpec.Resources,
 		Env:             envVars,
 		EnvFrom:         flinkCluster.Spec.EnvFrom,
@@ -586,8 +542,8 @@ func getDesiredConfigMap(
 		}
 	}
 
-	if taskSlots := calTaskManagerTaskSlots(flinkCluster); taskSlots != nil {
-		flinkProps["taskmanager.numberOfTaskSlots"] = strconv.Itoa(*taskSlots)
+	if taskSlots, err := calTaskManagerTaskSlots(flinkCluster); err == nil {
+		flinkProps["taskmanager.numberOfTaskSlots"] = strconv.Itoa(taskSlots)
 	}
 
 	// Add custom Flink properties.
@@ -661,8 +617,8 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 		jobArgs = append(jobArgs, "--allowNonRestoredState")
 	}
 
-	if parallelism := calJobParallelism(flinkCluster); parallelism != nil {
-		jobArgs = append(jobArgs, "--parallelism", fmt.Sprint(*parallelism))
+	if parallelism, err := calJobParallelism(flinkCluster); err == nil {
+		jobArgs = append(jobArgs, "--parallelism", fmt.Sprint(parallelism))
 	}
 
 	if jobSpec.NoLoggingToStdout != nil &&
@@ -945,41 +901,43 @@ func shouldCleanup(
 	return false
 }
 
-func calJobParallelism(cluster *v1beta1.FlinkCluster) *int32 {
+func calJobParallelism(cluster *v1beta1.FlinkCluster) (int32, error) {
 	if cluster.Spec.Job.Parallelism != nil {
-		return cluster.Spec.Job.Parallelism
+		return *cluster.Spec.Job.Parallelism, nil
 	}
 
-	var value *int
+	var value int
+	var err error
 	if ts, ok := cluster.Spec.FlinkProperties["taskmanager.numberOfTaskSlots"]; ok {
-		parsed, err := strconv.Atoi(ts)
+		value, err = strconv.Atoi(ts)
 		if err != nil {
-			return nil
+			return 0, err
 		}
-		value = &parsed
 	} else {
-		value = calTaskManagerTaskSlots(cluster)
+		value, err = calTaskManagerTaskSlots(cluster)
+		if err != nil {
+			return 0, err
+		}
 	}
 
-	if value == nil {
-		return nil
-	}
-
-	parallelism := cluster.Spec.TaskManager.Replicas * int32(*value)
-	return &parallelism
+	parallelism := cluster.Spec.TaskManager.Replicas * int32(value)
+	return parallelism, nil
 }
 
-func calTaskManagerTaskSlots(cluster *v1beta1.FlinkCluster) *int {
+func calTaskManagerTaskSlots(cluster *v1beta1.FlinkCluster) (int, error) {
 	if ts, ok := cluster.Spec.FlinkProperties["taskmanager.numberOfTaskSlots"]; ok {
 		value, err := strconv.Atoi(ts)
 		if err != nil {
-			return nil
+			return 0, err
 		}
-		return &value
+		return value, nil
 	}
 
-	ts := int(cluster.Spec.TaskManager.Resources.Limits.Cpu().Value())
-	return &ts
+	slots := int(cluster.Spec.TaskManager.Resources.Limits.Cpu().Value()) / 2
+	if slots == 0 {
+		return 1, nil
+	}
+	return slots, nil
 }
 
 func calFlinkHeapSize(cluster *v1beta1.FlinkCluster) map[string]string {

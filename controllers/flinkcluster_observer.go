@@ -26,25 +26,26 @@ import (
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/api/v1beta1"
 	"github.com/spotify/flink-on-k8s-operator/controllers/flink"
 	"github.com/spotify/flink-on-k8s-operator/controllers/history"
-	yaml "gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // ClusterStateObserver gets the observed state of the cluster.
 type ClusterStateObserver struct {
-	k8sClient   client.Client
-	flinkClient *flink.Client
-	request     ctrl.Request
-	context     context.Context
-	log         logr.Logger
-	history     history.Interface
+	k8sClient    client.Client
+	k8sClientset *kubernetes.Clientset
+	flinkClient  *flink.Client
+	request      ctrl.Request
+	context      context.Context
+	log          logr.Logger
+	history      history.Interface
 }
 
 // ObservedClusterState holds observed state of a cluster.
@@ -303,13 +304,13 @@ func (observer *ClusterStateObserver) observeSubmitter(submitter *FlinkJobSubmit
 
 	// Job resource.
 	job = new(batchv1.Job)
-	err = observer.observeSubmitterJob(job)
+	err = observer.observeJobSubmitter(job)
 	if err != nil {
 		if client.IgnoreNotFound(err) != nil {
-			log.Error(err, "Failed to get the submitter job")
+			log.Error(err, "Failed to get the job submitter")
 			return err
 		}
-		log.Info("Observed submitter job", "state", "nil")
+		log.Info("Observed job submitter", "state", "nil")
 		job = nil
 	} else {
 		log.Info("Observed submitter job", "state", *job)
@@ -336,16 +337,16 @@ func (observer *ClusterStateObserver) observeSubmitter(submitter *FlinkJobSubmit
 	}
 	submitter.pod = pod
 
+	// TODO: for blocking mode
 	// Extract submission result.
 	var jobSubmissionCompleted = job.Status.Succeeded > 0 || job.Status.Failed > 0
 	if !jobSubmissionCompleted {
 		return nil
 	}
 	log.Info("Extracting the result of job submission because it is completed")
-	podLog = new(SubmitterLog)
-	err = observer.observeFlinkJobSubmitterLog(pod, podLog)
+	podLog, err = getFlinkJobSubmitLog(observer.k8sClientset, pod)
 	if err != nil {
-		log.Error(err, "Failed to extract the job submission result")
+		log.Info("Failed to extract the job submission result", "error", err.Error())
 		podLog = nil
 	} else if podLog == nil {
 		log.Info("Observed submitter log", "state", "nil")
@@ -540,7 +541,7 @@ func (observer *ClusterStateObserver) observeJobManagerIngress(
 		observedIngress)
 }
 
-func (observer *ClusterStateObserver) observeSubmitterJob(
+func (observer *ClusterStateObserver) observeJobSubmitter(
 	observedJob *batchv1.Job) error {
 	var clusterNamespace = observer.request.Namespace
 	var clusterName = observer.request.Name
@@ -715,26 +716,4 @@ func (observer *ClusterStateObserver) truncateHistory(observed *ObservedClusterS
 		}
 	}
 	return nil
-}
-
-// observeFlinkJobSubmit extract submit result from the pod termination log.
-func (observer *ClusterStateObserver) observeFlinkJobSubmitterLog(observedPod *corev1.Pod, submitterLog *SubmitterLog) error {
-	var log = observer.log
-	var containerStatuses = observedPod.Status.ContainerStatuses
-	if len(containerStatuses) == 0 ||
-		containerStatuses[0].State.Terminated == nil ||
-		containerStatuses[0].State.Terminated.Message == "" {
-		submitterLog = nil
-		log.Info("job pod found, but no termination log")
-		return nil
-	}
-
-	// The job submission script writes the submission log to the pod termination log at the end of execution.
-	// If the job submission is successful, the extracted job ID is also included.
-	// The job submit script writes the submission result in YAML format,
-	// so parse it here to get the ID - if available - and log.
-	// Note: https://kubernetes.io/docs/tasks/debug-application-cluster/determine-reason-pod-failure/
-	var rawJobSubmissionResult = containerStatuses[0].State.Terminated.Message
-	var err = yaml.Unmarshal([]byte(rawJobSubmissionResult), submitterLog)
-	return err
 }

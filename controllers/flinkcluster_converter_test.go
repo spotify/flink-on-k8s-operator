@@ -198,6 +198,8 @@ func TestGetDesiredClusterState(t *testing.T) {
 						Query: &jmQueryPort,
 						UI:    &jmUIPort,
 					},
+					LivenessProbe:  &jmLivenessProbe,
+					ReadinessProbe: &jmReadinessProbe,
 					Resources: corev1.ResourceRequirements{
 						Requests: map[corev1.ResourceName]resource.Quantity{
 							corev1.ResourceCPU:    resource.MustParse("100m"),
@@ -234,6 +236,8 @@ func TestGetDesiredClusterState(t *testing.T) {
 							corev1.ResourceMemory: resource.MustParse("1Gi"),
 						},
 					},
+					LivenessProbe:      &tmLivenessProbe,
+					ReadinessProbe:     &tmReadinessProbe,
 					MemoryOffHeapRatio: &memoryOffHeapRatio,
 					MemoryOffHeapMin:   memoryOffHeapMin,
 					MemoryProcessRatio: &memoryProcessRatio,

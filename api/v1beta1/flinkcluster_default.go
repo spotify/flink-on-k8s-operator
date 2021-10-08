@@ -18,8 +18,10 @@ package v1beta1
 
 import (
 	"github.com/hashicorp/go-version"
+	"github.com/imdario/mergo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 var (
@@ -100,6 +102,38 @@ func _SetJobManagerDefault(jmSpec *JobManagerSpec, flinkVersion *version.Version
 	if jmSpec.Resources.Size() == 0 {
 		jmSpec.Resources = DefaultResources
 	}
+
+	var livenessProbe = corev1.Probe{
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.FromInt(int(*jmSpec.Ports.RPC)),
+			},
+		},
+		TimeoutSeconds:      10,
+		InitialDelaySeconds: 5,
+		PeriodSeconds:       60,
+		FailureThreshold:    5,
+	}
+	if jmSpec.LivenessProbe != nil {
+		mergo.Merge(&livenessProbe, jmSpec.LivenessProbe, mergo.WithOverride)
+	}
+	jmSpec.LivenessProbe = &livenessProbe
+
+	var readinessProbe = corev1.Probe{
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.FromInt(int(*jmSpec.Ports.RPC)),
+			},
+		},
+		TimeoutSeconds:      10,
+		InitialDelaySeconds: 5,
+		PeriodSeconds:       5,
+		FailureThreshold:    60,
+	}
+	if jmSpec.ReadinessProbe != nil {
+		mergo.Merge(&readinessProbe, jmSpec.ReadinessProbe, mergo.WithOverride)
+	}
+	jmSpec.ReadinessProbe = &readinessProbe
 }
 
 func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Version) {
@@ -132,6 +166,38 @@ func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Versi
 	if tmSpec.Resources.Size() == 0 {
 		tmSpec.Resources = DefaultResources
 	}
+
+	var livenessProbe = corev1.Probe{
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.FromInt(int(*tmSpec.Ports.RPC)),
+			},
+		},
+		TimeoutSeconds:      10,
+		InitialDelaySeconds: 5,
+		PeriodSeconds:       60,
+		FailureThreshold:    5,
+	}
+	if tmSpec.LivenessProbe != nil {
+		mergo.Merge(&livenessProbe, tmSpec.LivenessProbe, mergo.WithOverride)
+	}
+	tmSpec.LivenessProbe = &livenessProbe
+
+	var readinessProbe = corev1.Probe{
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.FromInt(int(*tmSpec.Ports.RPC)),
+			},
+		},
+		TimeoutSeconds:      10,
+		InitialDelaySeconds: 5,
+		PeriodSeconds:       5,
+		FailureThreshold:    60,
+	}
+	if tmSpec.ReadinessProbe != nil {
+		mergo.Merge(&readinessProbe, tmSpec.ReadinessProbe, mergo.WithOverride)
+	}
+	tmSpec.ReadinessProbe = &readinessProbe
 }
 
 func _SetJobDefault(jobSpec *JobSpec) {

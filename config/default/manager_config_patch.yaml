@@ -7,14 +7,8 @@ spec:
   template:
     spec:
       containers:
-      - name: manager
-        args:
-        - "--config=controller_manager_config.yaml"
-        volumeMounts:
-        - name: manager-config
-          mountPath: /controller_manager_config.yaml
-          subPath: controller_manager_config.yaml
-      volumes:
-      - name: manager-config
-        configMap:
-          name: manager-config
+        - name: manager
+          args:
+            - "--metrics-addr=127.0.0.1:8080"
+            - "--enable-leader-election"
+            - "--zap-devel=false"

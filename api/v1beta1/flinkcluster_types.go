@@ -242,6 +242,14 @@ type JobManagerSpec struct {
 
 	// JobManager StatefulSet pod template labels.
 	PodLabels map[string]string `json:"podLabels,omitempty"`
+
+	// Container liveness probe
+	// If omitted, a default value will be used.
+	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
+
+	// Container readiness probe
+	// If omitted, a default value will be used.
+	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
 }
 
 // TaskManagerPorts defines ports of TaskManager.
@@ -320,6 +328,14 @@ type TaskManagerSpec struct {
 
 	// TaskManager StatefulSet pod template labels.
 	PodLabels map[string]string `json:"podLabels,omitempty"`
+
+	// Container liveness probe
+	// If omitted, a default value will be used.
+	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
+
+	// Container readiness probe
+	// If omitted, a default value will be used.
+	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
 }
 
 // CleanupAction defines the action to take after job finishes.
@@ -721,6 +737,10 @@ type FlinkClusterStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:shortName="fc"
+// +kubebuilder:printcolumn:name="version",type=string,JSONPath=`.spec.flinkVersion`
+// +kubebuilder:printcolumn:name="status",type=string,JSONPath=`.status.state`
+// +kubebuilder:printcolumn:name="age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // FlinkCluster is the Schema for the flinkclusters API
 type FlinkCluster struct {
@@ -732,6 +752,7 @@ type FlinkCluster struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:shortName="fc"
 
 // FlinkClusterList contains a list of FlinkCluster
 type FlinkClusterList struct {

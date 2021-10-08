@@ -45,6 +45,8 @@ FlinkCluster
         |__ podAnnotations
         |__ podLabels
         |__ securityContext
+        |__ livenessProbe
+        |__ readinessProbe
     |__ taskManager
         |__ replicas
         |__ ports
@@ -65,6 +67,8 @@ FlinkCluster
         |__ podAnnotations
         |__ podLabels
         |__ securityContext
+        |__ livenessProbe
+        |__ readinessProbe
     |__ job
         |__ jarFile
         |__ className
@@ -212,6 +216,10 @@ FlinkCluster
       - **podLabels** (optional): Pod template labels for the JobManager StatefulSet.
       - **securityContext** (optional): PodSecurityContext for the JobManager pod.
         See [more info](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod).
+      - **livenessProbe** (optional): LivenessProbe for the JobManager pod.
+        See [more info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)
+      - **readinessProbe** (optional): ReadinessProbe for the JobManager pod.
+        See [more info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)
     - **taskManager** (required): TaskManager spec.
       - **replicas** (required): The number of TaskManager replicas.
       - **ports** (optional): Ports that TaskManager listening on.
@@ -255,6 +263,10 @@ FlinkCluster
       - **podLabels** (optional): Pod template labels for the TaskManager StatefulSet.
       - **securityContext** (optional): PodSecurityContext for the TaskManager pods.
         See [more info](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod).
+      - **livenessProbe** (optional): LivenessProbe for the TaskManager pod.
+        See [more info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)
+      - **readinessProbe** (optional): ReadinessProbe for the TaskManager pod.
+        See [more info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)
     - **job** (optional): Job spec. If specified, the cluster is a Flink job cluster; otherwise, it is a Flink
       session cluster.
       - **jarFile** (required): JAR file of the job. It could be a local file or remote URI, depending on which

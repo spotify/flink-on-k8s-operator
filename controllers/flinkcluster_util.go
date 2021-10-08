@@ -18,10 +18,13 @@ package controllers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"github.com/spotify/flink-on-k8s-operator/controllers/flink"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -35,6 +38,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -44,6 +48,10 @@ const (
 	RevisionNameLabel = "flinkoperator.k8s.io/revision-name"
 
 	SavepointRetryIntervalSeconds = 10
+)
+
+var (
+	jobIdRegexp = regexp.MustCompile("JobID (.*)\n")
 )
 
 type UpdateState string
@@ -502,5 +510,46 @@ func getFlinkJobDeploymentState(flinkJobState string) string {
 		return v1beta1.JobStateFailed
 	default:
 		return ""
+	}
+}
+
+func getPodLogs(clientset *kubernetes.Clientset, pod *corev1.Pod) (string, error) {
+	if pod == nil {
+		return "", fmt.Errorf("no job pod found, even though submission completed")
+	}
+	pods := clientset.CoreV1().Pods(pod.Namespace)
+
+	req := pods.GetLogs(pod.Name, &corev1.PodLogOptions{})
+	podLogs, err := req.Stream(context.TODO())
+	if err != nil {
+		return "", fmt.Errorf("Failed to get logs for pod %s: %v", pod.Name, err)
+	}
+	defer podLogs.Close()
+
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, podLogs)
+	if err != nil {
+		return "", fmt.Errorf("error in copy information from pod logs to buf")
+	}
+	str := buf.String()
+
+	return str, nil
+}
+
+// getFlinkJobSubmitLog extract submit result from the pod termination log.
+func getFlinkJobSubmitLog(clientset *kubernetes.Clientset, observedPod *corev1.Pod) (*FlinkJobSubmitLog, error) {
+	log, err := getPodLogs(clientset, observedPod)
+	if err != nil {
+		return nil, err
+	}
+
+	return getFlinkJobSubmitLogFromString(log)
+}
+
+func getFlinkJobSubmitLogFromString(podLog string) (*SubmitterLog, error) {
+	if result := jobIdRegexp.FindStringSubmatch(podLog); len(result) > 0 {
+		return &SubmitterLog{JobID: result[1], Message: podLog}, nil
+	} else {
+		return nil, fmt.Errorf("no job id found")
 	}
 }
