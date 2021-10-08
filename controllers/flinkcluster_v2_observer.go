@@ -580,7 +580,7 @@ func (observer *FlinkClusterHandlerV2) truncateHistory(observed *ObservedCluster
 // Utils
 
 func (observed ObservedClusterState) isNewRevision() bool {
-	return observed.cluster.Status.CurrentRevision != observed.cluster.Status.NextRevision
+	return observed.cluster.Status.CurrentRevision != "" && observed.cluster.Status.CurrentRevision != observed.cluster.Status.NextRevision
 }
 
 func (observed ObservedClusterState) isClusterStopped() bool {
@@ -668,40 +668,4 @@ func (observed ObservedClusterState) getFlinkJobId() *string {
 	}
 
 	return nil
-}
-
-// Checks whether the component should be deleted according to the cleanup
-// policy. Always return false for session cluster.
-func (observed ObservedClusterState) shouldCleanup(cluster *v1beta1.FlinkCluster, component string) bool {
-	var jobStatus = cluster.Status.Components.Job
-
-	// Session cluster.
-	if jobStatus == nil {
-		return false
-	}
-
-	if isUpdateTriggered(cluster.Status) {
-		return false
-	}
-
-	var action v1beta1.CleanupAction
-	switch jobStatus.State {
-	case v1beta1.JobStateSucceeded:
-		action = cluster.Spec.Job.CleanupPolicy.AfterJobSucceeds
-	case v1beta1.JobStateFailed, v1beta1.JobStateLost:
-		action = cluster.Spec.Job.CleanupPolicy.AfterJobFails
-	case v1beta1.JobStateCancelled:
-		action = cluster.Spec.Job.CleanupPolicy.AfterJobCancelled
-	default:
-		return false
-	}
-
-	switch action {
-	case v1beta1.CleanupActionDeleteCluster:
-		return true
-	case v1beta1.CleanupActionDeleteTaskManager:
-		return component == "TaskManagerStatefulSet"
-	}
-
-	return false
 }
