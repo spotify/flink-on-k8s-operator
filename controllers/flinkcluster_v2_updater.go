@@ -53,7 +53,7 @@ func (updater *FlinkClusterHandlerV2) updateStatusIfChanged(ctx context.Context,
 	var changed = false
 	if diff := cmp.Diff(oldStatus, newStatus); diff != "" {
 		updater.log.Info("Status changed")
-		// updater.log.Info("Status diff", "diff", diff)
+		updater.log.Info("Status diff", "diff", diff)
 		changed = true
 	}
 
@@ -716,6 +716,8 @@ func (updater *FlinkClusterHandlerV2) deriveJobStatus(observed ObservedClusterSt
 				for _, e := range exceptions.Exceptions {
 					newJobStatus.FailureReasons = append(newJobStatus.FailureReasons, e.Exception)
 				}
+			} else {
+				newJobStatus.FailureReasons = append(newJobStatus.FailureReasons, "Failed to get job exceptions")
 			}
 			if observed.flinkJobSubmitLog != nil {
 				newJobStatus.FailureReasons = append(newJobStatus.FailureReasons, observed.flinkJobSubmitLog.Message)
