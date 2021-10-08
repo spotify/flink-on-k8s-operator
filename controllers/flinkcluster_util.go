@@ -386,6 +386,10 @@ func isJobActive(status *v1beta1.JobStatus) bool {
 		(status.State == v1beta1.JobStateRunning || status.State == v1beta1.JobStatePending)
 }
 
+func isJobUpdating(status *v1beta1.JobStatus) bool {
+	return status != nil && (status.State == v1beta1.JobStateUpdating)
+}
+
 func isJobFailed(status *v1beta1.JobStatus) bool {
 	return status != nil &&
 		(status.State == v1beta1.JobStateFailed || status.State == v1beta1.JobStateLost)
@@ -743,4 +747,21 @@ func shouldRestartJobV2(restartPolicy *v1beta1.JobRestartPolicy, jobStatus *v1be
 	}
 
 	return false
+}
+
+func getUpdateStateV2(observed ObservedClusterState) UpdateState {
+	var recordedJobStatus = observed.cluster.Status.Components.Job
+	if !isUpdateTriggered(observed.cluster.Status) {
+		return ""
+	}
+	if isJobUpdating(recordedJobStatus) {
+		return UpdateStateInProgress
+	}
+	if isJobActive(recordedJobStatus) {
+		return UpdateStatePreparing
+	}
+	if !isClusterUpdateToDate(observed) {
+		return UpdateStateInProgress
+	}
+	return UpdateStateFinished
 }
