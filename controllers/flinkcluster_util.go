@@ -21,8 +21,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"github.com/spotify/flink-on-k8s-operator/controllers/flink"
+	"io"
 	"os"
 	"regexp"
 	"strconv"
@@ -522,7 +522,7 @@ func getPodLogs(clientset *kubernetes.Clientset, pod *corev1.Pod) (string, error
 	req := pods.GetLogs(pod.Name, &corev1.PodLogOptions{})
 	podLogs, err := req.Stream(context.TODO())
 	if err != nil {
-		return "", fmt.Errorf("Failed to get logs for pod %s: %v", pod.Name, err)
+		return "", fmt.Errorf("failed to get logs for pod %s: %v", pod.Name, err)
 	}
 	defer podLogs.Close()
 
@@ -536,20 +536,20 @@ func getPodLogs(clientset *kubernetes.Clientset, pod *corev1.Pod) (string, error
 	return str, nil
 }
 
-// getFlinkJobSubmitLog extract submit result from the pod termination log.
-func getFlinkJobSubmitLog(clientset *kubernetes.Clientset, observedPod *corev1.Pod) (*FlinkJobSubmitLog, error) {
+// getFlinkJobSubmitLog extract logs from the job submitter pod.
+func getFlinkJobSubmitLog(clientset *kubernetes.Clientset, observedPod *corev1.Pod) (*SubmitterLog, error) {
 	log, err := getPodLogs(clientset, observedPod)
 	if err != nil {
 		return nil, err
 	}
 
-	return getFlinkJobSubmitLogFromString(log)
+	return getFlinkJobSubmitLogFromString(log), nil
 }
 
-func getFlinkJobSubmitLogFromString(podLog string) (*SubmitterLog, error) {
+func getFlinkJobSubmitLogFromString(podLog string) *SubmitterLog {
 	if result := jobIdRegexp.FindStringSubmatch(podLog); len(result) > 0 {
-		return &SubmitterLog{JobID: result[1], Message: podLog}, nil
+		return &SubmitterLog{jobID: result[1], message: podLog}
 	} else {
-		return nil, fmt.Errorf("no job id found")
+		return &SubmitterLog{jobID: "", message: podLog}
 	}
 }

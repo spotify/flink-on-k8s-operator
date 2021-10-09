@@ -506,8 +506,8 @@ func (updater *ClusterStatusUpdater) getFlinkJobID() *string {
 
 	// Observed from job submitter (when Flink API is not ready).
 	var observedJobSubmitterLog = updater.observed.flinkJobSubmitter.log
-	if observedJobSubmitterLog != nil && observedJobSubmitterLog.JobID != "" {
-		return &observedJobSubmitterLog.JobID
+	if observedJobSubmitterLog != nil && observedJobSubmitterLog.jobID != "" {
+		return &observedJobSubmitterLog.jobID
 	}
 
 	// Recorded.
@@ -570,19 +570,20 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 		}
 		fallthrough
 	default:
+		// Maintain the job state as recorded if job is not being deployed.
 		if oldJob.State != v1beta1.JobStateDeploying {
 			newJobState = oldJob.State
 			break
 		}
-		// Job submitter is deployed but tracking failed.
-		var submitterState = observedSubmitter.getState()
-		if submitterState == JobDeployStateUnknown {
+		// Job must be in deployment but the submitter not found or tracking failed.
+		var jobDeployState = observedSubmitter.getState()
+		if observedSubmitter.job == nil || jobDeployState == JobDeployStateUnknown {
 			newJobState = v1beta1.JobStateLost
 			break
 		}
 		// Case in which the job submission clearly fails even if it is not confirmed by JobManager
 		// Job submitter is deployed but failed.
-		if submitterState == JobDeployStateFailed {
+		if jobDeployState == JobDeployStateFailed {
 			newJobState = v1beta1.JobStateDeployFailed
 			break
 		}
@@ -630,8 +631,8 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 						newJob.FailureReasons = append(newJob.FailureReasons, e.Exception)
 					}
 				}
-				if updater.observed.flinkJobSubmitter.log != nil {
-					newJob.FailureReasons = append(newJob.FailureReasons, observed.flinkJobSubmitter.log.Message)
+				if observedSubmitter.log != nil {
+					newJob.FailureReasons = append(newJob.FailureReasons, observedSubmitter.log.message)
 				}
 			}
 		}

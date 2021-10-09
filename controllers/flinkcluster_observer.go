@@ -80,8 +80,8 @@ type FlinkJobSubmitter struct {
 }
 
 type SubmitterLog struct {
-	JobID   string `yaml:"jobID,omitempty"`
-	Message string `yaml:"message"`
+	jobID   string
+	message string
 }
 
 type Savepoint struct {
@@ -102,17 +102,20 @@ func (o *ObservedClusterState) isClusterUpdating() bool {
 // Job submitter status.
 func (s *FlinkJobSubmitter) getState() JobSubmitState {
 	switch {
-	case s.job == nil:
-		break
+	case s.log != nil && s.log.jobID != "":
+		return JobDeployStateSucceeded
+	// Job ID not found cases:
+	// Ongoing job submission.
 	case s.job.Status.Succeeded == 0 && s.job.Status.Failed == 0:
+		fallthrough
+	// Finished, but failed to extract log.
+	case s.log == nil:
 		return JobDeployStateInProgress
+	// Failed and job ID not found.
 	case s.job.Status.Failed > 0:
 		return JobDeployStateFailed
-	case s.job.Status.Succeeded > 0:
-		if s.log != nil && s.log.JobID != "" {
-			return JobDeployStateSucceeded
-		}
 	}
+	// Abnormal case: successfully finished but job ID not found.
 	return JobDeployStateUnknown
 }
 
@@ -270,7 +273,11 @@ func (observer *ClusterStateObserver) observeJob(
 
 	// Observe the Flink job submitter.
 	var submitter FlinkJobSubmitter
-	err = observer.observeSubmitter(&submitter)
+
+	// Extract the log stream from pod only when the job state is Deploying.
+	var recordedJob = recorded.Components.Job
+	var extractLog = recordedJob != nil && recordedJob.State == v1beta1.JobStateDeploying
+	err = observer.observeSubmitter(extractLog, &submitter)
 	if err != nil {
 		log.Error(err, "Failed to get the status of the job submitter")
 	}
@@ -279,8 +286,8 @@ func (observer *ClusterStateObserver) observeJob(
 	// Observe the Flink job status.
 	var flinkJobID string
 	// Get the ID from the job submitter.
-	if submitter.log != nil && submitter.log.JobID != "" {
-		flinkJobID = submitter.log.JobID
+	if submitter.log != nil && submitter.log.jobID != "" {
+		flinkJobID = submitter.log.jobID
 	} else
 	// Or get the job ID from the recorded job status which is written in previous iteration.
 	if recorded.Components.Job != nil {
@@ -293,7 +300,7 @@ func (observer *ClusterStateObserver) observeJob(
 	return nil
 }
 
-func (observer *ClusterStateObserver) observeSubmitter(submitter *FlinkJobSubmitter) error {
+func (observer *ClusterStateObserver) observeSubmitter(extractLog bool, submitter *FlinkJobSubmitter) error {
 	var log = observer.log
 	var err error
 
@@ -337,21 +344,24 @@ func (observer *ClusterStateObserver) observeSubmitter(submitter *FlinkJobSubmit
 	}
 	submitter.pod = pod
 
-	// TODO: for blocking mode
 	// Extract submission result.
-	var jobSubmissionCompleted = job.Status.Succeeded > 0 || job.Status.Failed > 0
-	if !jobSubmissionCompleted {
+	if !extractLog {
 		return nil
 	}
 	log.Info("Extracting the result of job submission because it is completed")
 	podLog, err = getFlinkJobSubmitLog(observer.k8sClientset, pod)
 	if err != nil {
-		log.Info("Failed to extract the job submission result", "error", err.Error())
-		podLog = nil
-	} else if podLog == nil {
-		log.Info("Observed submitter log", "state", "nil")
+		// Error occurred while pulling log stream from the job submitter pod.
+		// In this case the operator must return the error and retry in the next reconciliation iteration.
+		log.Error(err, "Failed to get log stream from the job submitter pod. Will try again in the next iteration.")
+		return err
 	} else {
-		log.Info("Observed submitter log", "state", *podLog)
+		log.Info("Observed job submitter log", "submitter log", podLog.message)
+		if podLog.jobID != "" {
+			log.Info("Observed job submitter: Flink job ID found", "job ID", podLog.jobID)
+		} else {
+			log.Info("Observed job submitter: Flink job ID not found yet")
+		}
 	}
 	submitter.log = podLog
 

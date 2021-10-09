@@ -356,7 +356,6 @@ func TestGetNonLiveHistory(t *testing.T) {
 
 func TestGetFlinkJobSubmitLog(t *testing.T) {
 	var submit, expected *SubmitterLog
-	var err error
 
 	// success
 	log := `
@@ -369,8 +368,8 @@ func TestGetFlinkJobSubmitLog(t *testing.T) {
   Job Runtime: 333688 ms
 `
 	expected = &SubmitterLog{
-		JobID: "ec74209eb4e3db8ae72db00bd7a830aa",
-		Message: `
+		jobID: "ec74209eb4e3db8ae72db00bd7a830aa",
+		message: `
   /opt/flink/bin/flink run --jobmanager flinkjobcluster-sample-jobmanager:8081 --class org.apache.flink.streaming.examples.wordcount.WordCount --parallelism 2 --detached ./examples/streaming/WordCount.jar --input ./README.txt
   Starting execution of program
   Printing result to stdout. Use --output to specify output path.
@@ -381,10 +380,11 @@ func TestGetFlinkJobSubmitLog(t *testing.T) {
 `,
 	}
 
-	submit, _ = getFlinkJobSubmitLogFromString(log)
-	assert.DeepEqual(t, *submit, *expected)
+	submit = getFlinkJobSubmitLogFromString(log)
+	assert.Equal(t, submit.jobID, expected.jobID)
+	assert.Equal(t, submit.message, expected.message)
 
-	// failed: pod not found
-	_, err = getFlinkJobSubmitLogFromString("")
-	assert.Error(t, err, "no job id found")
+	// job ID not found
+	submit = getFlinkJobSubmitLogFromString("")
+	assert.Equal(t, submit.jobID, "")
 }
