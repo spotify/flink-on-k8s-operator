@@ -18,7 +18,7 @@ require (
 	k8s.io/client-go v0.22.1
 	k8s.io/klog v1.0.0
 	sigs.k8s.io/controller-runtime v0.9.6
-	volcano.sh/apis v0.0.0-20210518032656-21e2239e42bc
+	volcano.sh/apis v0.0.0-20210924061932-d4408f25a528
 )
 
 require (
