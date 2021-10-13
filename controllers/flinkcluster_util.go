@@ -84,8 +84,8 @@ func getFlinkAPIBaseURL(cluster *v1beta1.FlinkCluster) string {
 
 	return fmt.Sprintf(
 		"http://%s.%s.svc.%s:%d",
-		getJobManagerServiceName(cluster.ObjectMeta.Name),
-		cluster.ObjectMeta.Namespace,
+		getJobManagerServiceName(cluster.Name),
+		cluster.Namespace,
 		clusterDomain,
 		*cluster.Spec.JobManager.Ports.UI)
 }
@@ -202,18 +202,18 @@ func newRevision(cluster *v1beta1.FlinkCluster, revision int64, collisionCount *
 	}
 	cr, err := history.NewControllerRevision(cluster,
 		controllerKind,
-		cluster.ObjectMeta.Labels,
+		cluster.Labels,
 		runtime.RawExtension{Raw: patch},
 		revision,
 		collisionCount)
 	if err != nil {
 		return nil, err
 	}
-	if cr.ObjectMeta.Annotations == nil {
-		cr.ObjectMeta.Annotations = make(map[string]string)
+	if cr.Annotations == nil {
+		cr.Annotations = make(map[string]string)
 	}
 	for key, value := range cluster.Annotations {
-		cr.ObjectMeta.Annotations[key] = value
+		cr.Annotations[key] = value
 	}
 	cr.SetNamespace(cluster.GetNamespace())
 	cr.GetLabels()[history.ControllerRevisionManagedByLabel] = cluster.GetName()
@@ -572,7 +572,7 @@ func getPodLogs(clientset *kubernetes.Clientset, pod *corev1.Pod) (string, error
 	req := pods.GetLogs(pod.Name, &corev1.PodLogOptions{})
 	podLogs, err := req.Stream(context.TODO())
 	if err != nil {
-		return "", fmt.Errorf("Failed to get logs for pod %s: %v", pod.Name, err)
+		return "", fmt.Errorf("failed to get logs for pod %s: %v", pod.Name, err)
 	}
 	defer podLogs.Close()
 
