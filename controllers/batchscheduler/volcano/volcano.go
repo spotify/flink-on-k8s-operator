@@ -111,8 +111,10 @@ func newOwnerReference(flinkCluster *v1beta1.FlinkCluster) metav1.OwnerReference
 
 func (v *VolcanoBatchScheduler) syncPodGroup(cluster *v1beta1.FlinkCluster, size int32, minResource corev1.ResourceList) error {
 	var err error
+	var pg *scheduling.PodGroup
+
 	podGroupName := v.getPodGroupName(cluster)
-	if pg, err := v.volcanoClient.SchedulingV1beta1().PodGroups(cluster.Namespace).Get(context.TODO(), podGroupName, metav1.GetOptions{}); err != nil {
+	if pg, err = v.volcanoClient.SchedulingV1beta1().PodGroups(cluster.Namespace).Get(context.TODO(), podGroupName, metav1.GetOptions{}); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}

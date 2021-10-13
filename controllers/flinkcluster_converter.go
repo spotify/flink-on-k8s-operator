@@ -857,7 +857,7 @@ func getFlinkProperties(properties map[string]string) string {
 	return builder.String()
 }
 
-var jobManagerIngressHostRegex = regexp.MustCompile("{{\\s*[$]clusterName\\s*}}")
+var jobManagerIngressHostRegex = regexp.MustCompile(`{{\s*[$]clusterName\s*}}`)
 
 func getJobManagerIngressHost(ingressHostFormat string, clusterName string) string {
 	// TODO: Validating webhook should verify hostFormat
