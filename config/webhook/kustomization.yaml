@@ -13,7 +13,7 @@
 # limitations under the License.
 
 resources:
-  - manifests.v1beta1.yaml
+  - manifests.yaml
   - service.yaml
 
 configurations:
