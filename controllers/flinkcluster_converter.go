@@ -543,7 +543,7 @@ func getDesiredConfigMap(
 	}
 
 	if taskSlots, err := calTaskManagerTaskSlots(flinkCluster); err == nil {
-		flinkProps["taskmanager.numberOfTaskSlots"] = strconv.Itoa(taskSlots)
+		flinkProps["taskmanager.numberOfTaskSlots"] = strconv.Itoa(int(taskSlots))
 	}
 
 	// Add custom Flink properties.
@@ -906,34 +906,25 @@ func calJobParallelism(cluster *v1beta1.FlinkCluster) (int32, error) {
 		return *cluster.Spec.Job.Parallelism, nil
 	}
 
-	var value int
-	var err error
-	if ts, ok := cluster.Spec.FlinkProperties["taskmanager.numberOfTaskSlots"]; ok {
-		value, err = strconv.Atoi(ts)
-		if err != nil {
-			return 0, err
-		}
-	} else {
-		value, err = calTaskManagerTaskSlots(cluster)
-		if err != nil {
-			return 0, err
-		}
+	value, err := calTaskManagerTaskSlots(cluster)
+	if err != nil {
+		return 0, err
 	}
 
-	parallelism := cluster.Spec.TaskManager.Replicas * int32(value)
+	parallelism := cluster.Spec.TaskManager.Replicas * value
 	return parallelism, nil
 }
 
-func calTaskManagerTaskSlots(cluster *v1beta1.FlinkCluster) (int, error) {
+func calTaskManagerTaskSlots(cluster *v1beta1.FlinkCluster) (int32, error) {
 	if ts, ok := cluster.Spec.FlinkProperties["taskmanager.numberOfTaskSlots"]; ok {
-		value, err := strconv.Atoi(ts)
+		parsed, err := strconv.ParseInt(ts, 10, 32)
 		if err != nil {
 			return 0, err
 		}
-		return value, nil
+		return int32(parsed), nil
 	}
 
-	slots := int(cluster.Spec.TaskManager.Resources.Limits.Cpu().Value()) / 2
+	slots := int32(cluster.Spec.TaskManager.Resources.Limits.Cpu().Value()) / 2
 	if slots == 0 {
 		return 1, nil
 	}
