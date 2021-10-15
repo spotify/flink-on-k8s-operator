@@ -176,12 +176,12 @@ func (c *Client) StopJob(
 }
 
 // TriggerSavepoint triggers an async savepoint operation.
-func (c *Client) TriggerSavepoint(apiBaseURL string, jobID string, dir string) (*SavepointTriggerID, error) {
+func (c *Client) TriggerSavepoint(apiBaseURL string, jobID string, dir string, cancel bool) (*SavepointTriggerID, error) {
 	url := fmt.Sprintf("%s/jobs/%s/savepoints", apiBaseURL, jobID)
 	jsonStr := fmt.Sprintf(`{
 		"target-directory" : "%s",
-		"cancel-job" : false
-	}`, dir)
+		"cancel-job" : %v
+	}`, dir, cancel)
 	resp, err := c.httpClient.Post(url, "application/json", strings.NewReader(jsonStr))
 	if err != nil {
 		return nil, err
@@ -269,11 +269,11 @@ func (c *Client) GetSavepointStatus(
 	return status, err
 }
 
-// TakeSavepoint takes savepoint, blocks until it suceeds or fails.
+// TakeSavepoint takes savepoint, blocks until it succeeds or fails.
 func (c *Client) TakeSavepoint(apiBaseURL string, jobID string, dir string) (*SavepointStatus, error) {
 	status := &SavepointStatus{JobID: jobID}
 
-	triggerID, err := c.TriggerSavepoint(apiBaseURL, jobID, dir)
+	triggerID, err := c.TriggerSavepoint(apiBaseURL, jobID, dir, false)
 	if err != nil {
 		return nil, err
 	}
@@ -290,7 +290,7 @@ func (c *Client) TakeSavepoint(apiBaseURL string, jobID string, dir string) (*Sa
 }
 
 func (c *Client) TakeSavepointAsync(apiBaseURL string, jobID string, dir string) (string, error) {
-	triggerID, err := c.TriggerSavepoint(apiBaseURL, jobID, dir)
+	triggerID, err := c.TriggerSavepoint(apiBaseURL, jobID, dir, false)
 	if err != nil {
 		return "", err
 	}

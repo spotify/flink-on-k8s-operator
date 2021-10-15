@@ -126,9 +126,11 @@ func TestClusterStatus(t *testing.T) {
 					State:         v1beta1.JobStatePending,
 				},
 			},
-			State:           v1beta1.ClusterStateCreating,
-			CurrentRevision: currentRevision,
-			NextRevision:    nextRevision,
+			State: v1beta1.ClusterStateCreating,
+			Revision: v1beta1.RevisionStatus{
+				CurrentRevision: currentRevision,
+				NextRevision:    nextRevision,
+			},
 		}
 
 		restart := v1beta1.JobRestartPolicyNever
@@ -159,7 +161,7 @@ func TestClusterStatus(t *testing.T) {
 					ReadyReplicas: 1,
 				},
 			},
-			revisionStatus: &RevisionStatus{
+			revision: Revision{
 				currentRevision: &appsv1.ControllerRevision{
 					Revision: 1,
 				},
@@ -198,8 +200,10 @@ func TestClusterStatus(t *testing.T) {
 							State: v1beta1.JobStateSucceeded,
 						},
 					},
-					CurrentRevision: currentRevision,
-					NextRevision:    nextRevision,
+					Revision: v1beta1.RevisionStatus{
+						CurrentRevision: currentRevision,
+						NextRevision:    nextRevision,
+					},
 				},
 			},
 		}

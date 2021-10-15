@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -59,26 +58,65 @@ type ObservedClusterState struct {
 	jmIngress              *extensionsv1beta1.Ingress
 	tmStatefulSet          *appsv1.StatefulSet
 	persistentVolumeClaims *corev1.PersistentVolumeClaimList
-	job                    *batchv1.Job
-	jobPod                 *corev1.Pod
-	flinkJobStatus         FlinkJobStatus
-	flinkJobSubmitLog      *FlinkJobSubmitLog
-	savepoint              *flink.SavepointStatus
-	revisionStatus         *RevisionStatus
-	savepointErr           error
+	flinkJob               FlinkJob
+	flinkJobSubmitter      FlinkJobSubmitter
+	savepoint              Savepoint
+	revision               Revision
 	observeTime            time.Time
+	updateState            UpdateState
 }
 
-type FlinkJobStatus struct {
-	flinkJob            *flink.Job
-	flinkJobList        *flink.JobsOverview
-	flinkJobExceptions  *flink.JobExceptions
-	flinkJobsUnexpected []string
+type FlinkJob struct {
+	status     *flink.Job
+	list       *flink.JobsOverview
+	exceptions *flink.JobExceptions
+	unexpected []string
 }
 
-type FlinkJobSubmitLog struct {
-	JobID   string `yaml:"jobID,omitempty"`
-	Message string `yaml:"message"`
+type FlinkJobSubmitter struct {
+	job *batchv1.Job
+	pod *corev1.Pod
+	log *SubmitterLog
+}
+
+type SubmitterLog struct {
+	jobID   string
+	message string
+}
+
+type Savepoint struct {
+	status *flink.SavepointStatus
+	error  error
+}
+
+type Revision struct {
+	currentRevision *appsv1.ControllerRevision
+	nextRevision    *appsv1.ControllerRevision
+	collisionCount  int32
+}
+
+func (o *ObservedClusterState) isClusterUpdating() bool {
+	return o.updateState == UpdateStateInProgress
+}
+
+// Job submitter status.
+func (s *FlinkJobSubmitter) getState() JobSubmitState {
+	switch {
+	case s.log != nil && s.log.jobID != "":
+		return JobDeployStateSucceeded
+	// Job ID not found cases:
+	// Ongoing job submission.
+	case s.job.Status.Succeeded == 0 && s.job.Status.Failed == 0:
+		fallthrough
+	// Finished, but failed to extract log.
+	case s.log == nil:
+		return JobDeployStateInProgress
+	// Failed and job ID not found.
+	case s.job.Status.Failed > 0:
+		return JobDeployStateFailed
+	}
+	// Abnormal case: successfully finished but job ID not found.
+	return JobDeployStateUnknown
 }
 
 // Observes the state of the cluster and its components.
@@ -197,8 +235,14 @@ func (observer *ClusterStateObserver) observe(
 	}
 
 	// (Optional) Savepoint.
-	// Savepoint observe error do not affect deploy reconciliation loop.
-	observer.observeSavepoint(observed)
+	var observedSavepoint Savepoint
+	err = observer.observeSavepoint(observed.cluster, &observedSavepoint)
+	if err != nil {
+		log.Error(err, "Failed to get Flink job savepoint status")
+	} else {
+		log.Info("Observed Flink job savepoint status", "status", observedSavepoint.status)
+	}
+	observed.savepoint = observedSavepoint
 
 	var pvcs = new(corev1.PersistentVolumeClaimList)
 	observer.observePersistentVolumeClaims(pvcs)
@@ -206,64 +250,121 @@ func (observer *ClusterStateObserver) observe(
 
 	// (Optional) job.
 	err = observer.observeJob(observed)
+	if err != nil {
+		log.Error(err, "Failed to get Flink job status")
+		return err
+	}
 
 	observed.observeTime = time.Now()
+	observed.updateState = getUpdateState(observed)
 
-	return err
+	return nil
 }
 
 func (observer *ClusterStateObserver) observeJob(
 	observed *ObservedClusterState) error {
-	if observed.cluster == nil {
-		return nil
-	}
-
-	// Observe following
-	var observedJob *batchv1.Job
-	var observedFlinkJobStatus FlinkJobStatus
-	var observedFlinkJobSubmitLog *FlinkJobSubmitLog
-
-	var err error
-	var log = observer.log
-
 	// Either the cluster has been deleted or it is a session cluster.
 	if observed.cluster == nil || observed.cluster.Spec.Job == nil {
 		return nil
 	}
+	var log = observer.log
+	var recorded = observed.cluster.Status
+	var err error
+
+	// Observe the Flink job submitter.
+	var submitter FlinkJobSubmitter
+
+	// Extract the log stream from pod only when the job state is Deploying.
+	var recordedJob = recorded.Components.Job
+	var extractLog = recordedJob != nil && recordedJob.State == v1beta1.JobStateDeploying
+	err = observer.observeSubmitter(extractLog, &submitter)
+	if err != nil {
+		log.Error(err, "Failed to get the status of the job submitter")
+	}
+	observed.flinkJobSubmitter = submitter
+
+	// Observe the Flink job status.
+	var flinkJobID string
+	// Get the ID from the job submitter.
+	if submitter.log != nil && submitter.log.jobID != "" {
+		flinkJobID = submitter.log.jobID
+	} else
+	// Or get the job ID from the recorded job status which is written in previous iteration.
+	if recorded.Components.Job != nil {
+		flinkJobID = recorded.Components.Job.ID
+	}
+	var observedFlinkJob FlinkJob
+	observer.observeFlinkJobStatus(observed, flinkJobID, &observedFlinkJob)
+	observed.flinkJob = observedFlinkJob
+
+	return nil
+}
+
+func (observer *ClusterStateObserver) observeSubmitter(extractLog bool, submitter *FlinkJobSubmitter) error {
+	var log = observer.log
+	var err error
+
+	// Observe following
+	var job *batchv1.Job
+	var pod *corev1.Pod
+	var podLog *SubmitterLog
 
 	// Job resource.
-	observedJob = new(batchv1.Job)
-	err = observer.observeJobResource(observedJob)
+	job = new(batchv1.Job)
+	err = observer.observeJobSubmitter(job)
 	if err != nil {
 		if client.IgnoreNotFound(err) != nil {
-			log.Error(err, "Failed to get job")
+			log.Error(err, "Failed to get the job submitter")
 			return err
 		}
 		log.Info("Observed job submitter", "state", "nil")
-		observedJob = nil
+		job = nil
 	} else {
-		log.Info("Observed job submitter", "state", *observedJob)
+		log.Info("Observed submitter job", "state", *job)
 	}
-	observed.job = observedJob
+	submitter.job = job
 
+	// Get the job submission log.
+	// When the recorded job state is pending or updating, and the actual submission is completed,
+	// extract the job submission log from the pod termination log.
+	if submitter.job == nil {
+		return nil
+	}
 	// Get job submitter pod resource.
-	observedJobPod := new(corev1.Pod)
-	err = observer.observeJobPod(observedJobPod)
+	pod = new(corev1.Pod)
+	err = observer.observeJobSubmitterPod(pod)
 	if err != nil {
-		log.Error(err, "Failed to get job pod")
+		log.Error(err, "Failed to get the submitter pod")
+		return err
+	} else if pod == nil {
+		log.Info("Observed submitter job pod", "state", "nil")
+		return nil
+	} else {
+		log.Info("Observed submitter job pod", "state", *pod)
 	}
-	observed.jobPod = observedJobPod
+	submitter.pod = pod
 
-	// Extract submit result.
-	observedFlinkJobSubmitLog, err = getFlinkJobSubmitLog(observer.k8sClientset, observedJobPod)
+	// Extract submission result.
+	if !extractLog {
+		return nil
+	}
+	log.Info("Extracting the result of job submission because it is completed")
+	podLog, err = getFlinkJobSubmitLog(observer.k8sClientset, pod)
 	if err != nil {
-		log.Info("Failed to extract job submit result", "error", err.Error())
+		// Error occurred while pulling log stream from the job submitter pod.
+		// In this case the operator must return the error and retry in the next reconciliation iteration.
+		log.Error(err, "Failed to get log stream from the job submitter pod. Will try again in the next iteration.")
+		return err
+	} else {
+		log.Info("Observed job submitter log", "submitter log", podLog.message)
+		if podLog.jobID != "" {
+			log.Info("Observed job submitter: Flink job ID found", "job ID", podLog.jobID)
+		} else {
+			log.Info("Observed job submitter: Flink job ID not found yet")
+		}
 	}
-	observed.flinkJobSubmitLog = observedFlinkJobSubmitLog
+	submitter.log = podLog
 
-	// Flink job status.
-	observer.observeFlinkJobStatus(observed, &observedFlinkJobStatus)
-	observed.flinkJobStatus = observedFlinkJobStatus
 	return nil
 }
 
@@ -272,8 +373,13 @@ func (observer *ClusterStateObserver) observeJob(
 //
 // This needs to be done after the job manager is ready, because we use it to detect whether the Flink API server is up
 // and running.
-func (observer *ClusterStateObserver) observeFlinkJobStatus(observed *ObservedClusterState, flinkJobStatus *FlinkJobStatus) {
+func (observer *ClusterStateObserver) observeFlinkJobStatus(observed *ObservedClusterState, flinkJobID string, flinkJob *FlinkJob) {
 	var log = observer.log
+
+	// Observe following
+	var flinkJobStatus *flink.Job
+	var flinkJobList *flink.JobsOverview
+	var flinkJobsUnexpected []string
 
 	// Wait until the job manager is ready.
 	jmReady := observed.jmStatefulSet != nil && getStatefulSetState(observed.jmStatefulSet) == v1beta1.ComponentStateReady
@@ -290,75 +396,57 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(observed *ObservedCl
 		log.Info("Failed to get Flink job status list.", "error", err)
 		return
 	}
-	log.Info("Observed Flink job status list", "jobs", flinkJobList.Jobs)
+	flinkJob.list = flinkJobList
 
-	// Initialize flinkJobStatus if flink API is available.
-	flinkJobStatus.flinkJobList = flinkJobList
-
-	// Check running jobs
-	if len(flinkJobList.Jobs) < 1 && observed.flinkJobSubmitLog == nil {
-		return
-	}
-
+	// Extract the current job status and unexpected jobs.
 	for _, job := range flinkJobList.Jobs {
-		if observed.flinkJobSubmitLog.JobID == job.Id {
-			flinkJobStatus.flinkJob = &job
+		if flinkJobID == job.Id {
+			flinkJobStatus = &job
 		} else if getFlinkJobDeploymentState(job.State) == v1beta1.JobStateRunning {
-			flinkJobStatus.flinkJobsUnexpected = append(flinkJobStatus.flinkJobsUnexpected, job.Id)
+			flinkJobsUnexpected = append(flinkJobsUnexpected, job.Id)
 		}
 	}
 
-	flinkJobExceptions, err := observer.flinkClient.GetJobExceptions(flinkAPIBaseURL, flinkJobStatus.flinkJob.Id)
+	flinkJobExceptions, err := observer.flinkClient.GetJobExceptions(flinkAPIBaseURL, flinkJobID)
 	if err != nil {
 		// It is normal in many cases, not an error.
 		log.Info("Failed to get Flink job exceptions.", "error", err)
 		return
 	}
 	log.Info("Observed Flink job exceptions", "jobs", flinkJobExceptions)
-	flinkJobStatus.flinkJobExceptions = flinkJobExceptions
+	flinkJob.exceptions = flinkJobExceptions
 
-	// It is okay if there are multiple jobs, but at most one of them is
-	// expected to be running. This is typically caused by job client
-	// timed out and exited but the job submission was actually
-	// successfully. When retrying, it first cancels the existing running
-	// job which it has lost track of, then submit the job again.
-	if len(flinkJobStatus.flinkJobsUnexpected) > 1 {
-		log.Error(
-			errors.New("more than one unexpected Flink job were found"),
-			"", "unexpected jobs", flinkJobStatus.flinkJobsUnexpected)
+	flinkJob.status = flinkJobStatus
+	flinkJob.unexpected = flinkJobsUnexpected
+	log.Info("Observed Flink job",
+		"submitted job status", flinkJob.status,
+		"all job list", flinkJob.list,
+		"unexpected job list", flinkJob.unexpected)
+	if len(flinkJobsUnexpected) > 0 {
+		log.Info("More than one unexpected Flink job were found!")
 	}
 
-	if flinkJobStatus.flinkJob != nil {
-		log.Info("Observed Flink job", "flink job", *flinkJobStatus.flinkJob)
-	}
+	return
 }
 
-func (observer *ClusterStateObserver) observeSavepoint(observed *ObservedClusterState) error {
-	var log = observer.log
-
-	if observed.cluster == nil {
+func (observer *ClusterStateObserver) observeSavepoint(cluster *v1beta1.FlinkCluster, savepoint *Savepoint) error {
+	if cluster == nil ||
+		cluster.Status.Savepoint == nil ||
+		cluster.Status.Savepoint.State != v1beta1.SavepointStateInProgress {
 		return nil
 	}
 
 	// Get savepoint status in progress.
-	var savepointStatus = observed.cluster.Status.Savepoint
-	if savepointStatus != nil && savepointStatus.State == v1beta1.SavepointStateInProgress {
-		var flinkAPIBaseURL = getFlinkAPIBaseURL(observed.cluster)
-		var jobID = savepointStatus.JobID
-		var triggerID = savepointStatus.TriggerID
+	var flinkAPIBaseURL = getFlinkAPIBaseURL(cluster)
+	var recordedSavepoint = cluster.Status.Savepoint
+	var jobID = recordedSavepoint.JobID
+	var triggerID = recordedSavepoint.TriggerID
 
-		savepoint, err := observer.flinkClient.GetSavepointStatus(flinkAPIBaseURL, jobID, triggerID)
-		observed.savepoint = savepoint
-		if err == nil && len(savepoint.FailureCause.StackTrace) > 0 {
-			err = fmt.Errorf("%s", savepoint.FailureCause.StackTrace)
-		}
-		if err != nil {
-			observed.savepointErr = err
-			log.Info("Failed to get savepoint.", "error", err, "jobID", jobID, "triggerID", triggerID)
-		}
-		return err
-	}
-	return nil
+	savepointStatus, err := observer.flinkClient.GetSavepointStatus(flinkAPIBaseURL, jobID, triggerID)
+	savepoint.status = savepointStatus
+	savepoint.error = err
+
+	return err
 }
 
 func (observer *ClusterStateObserver) observeCluster(
@@ -463,7 +551,7 @@ func (observer *ClusterStateObserver) observeJobManagerIngress(
 		observedIngress)
 }
 
-func (observer *ClusterStateObserver) observeJobResource(
+func (observer *ClusterStateObserver) observeJobSubmitter(
 	observedJob *batchv1.Job) error {
 	var clusterNamespace = observer.request.Namespace
 	var clusterName = observer.request.Name
@@ -477,10 +565,9 @@ func (observer *ClusterStateObserver) observeJobResource(
 		observedJob)
 }
 
-// observeJobPod observes job submitter pod.
-func (observer *ClusterStateObserver) observeJobPod(
+// observeJobSubmitterPod observes job submitter pod.
+func (observer *ClusterStateObserver) observeJobSubmitterPod(
 	observedPod *corev1.Pod) error {
-	var log = observer.log
 	var clusterNamespace = observer.request.Namespace
 	var clusterName = observer.request.Name
 	var podSelector = labels.SelectorFromSet(map[string]string{"job-name": getJobName(clusterName)})
@@ -492,18 +579,14 @@ func (observer *ClusterStateObserver) observeJobPod(
 		client.InNamespace(clusterNamespace),
 		client.MatchingLabelsSelector{Selector: podSelector})
 	if err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			log.Error(err, "Failed to get job submitter pod list")
-			return err
-		}
-		log.Info("Observed job submitter pod list", "state", "nil")
-	} else {
-		log.Info("Observed job submitter pod list", "state", *podList)
+		return err
 	}
-
-	if podList != nil && len(podList.Items) > 0 {
+	if len(podList.Items) == 0 {
+		observedPod = nil
+	} else {
 		podList.Items[0].DeepCopyInto(observedPod)
 	}
+
 	return nil
 }
 
@@ -532,12 +615,6 @@ func (observer *ClusterStateObserver) observePersistentVolumeClaims(
 	return nil
 }
 
-type RevisionStatus struct {
-	currentRevision *appsv1.ControllerRevision
-	nextRevision    *appsv1.ControllerRevision
-	collisionCount  int32
-}
-
 // syncRevisionStatus synchronizes current FlinkCluster resource and its child ControllerRevision resources.
 // When FlinkCluster resource is edited, the operator creates new child ControllerRevision for it
 // and updates nextRevision in FlinkClusterStatus to the name of the new ControllerRevision.
@@ -553,20 +630,19 @@ func (observer *ClusterStateObserver) syncRevisionStatus(observed *ObservedClust
 		return nil
 	}
 
-	var revisions = observed.revisions
 	var cluster = observed.cluster
-	var recordedStatus = cluster.Status
+	var revisions = observed.revisions
+	var recorded = cluster.Status
 	var currentRevision, nextRevision *appsv1.ControllerRevision
 	var controllerHistory = observer.history
-	var revisionStatus = observed.revisionStatus
 
 	revisionCount := len(revisions)
 	history.SortControllerRevisions(revisions)
 
 	// Use a local copy of cluster.Status.CollisionCount to avoid modifying cluster.Status directly.
 	var collisionCount int32
-	if recordedStatus.CollisionCount != nil {
-		collisionCount = *recordedStatus.CollisionCount
+	if recorded.Revision.CollisionCount != nil {
+		collisionCount = *recorded.Revision.CollisionCount
 	}
 
 	// create a new revision from the current cluster
@@ -599,12 +675,12 @@ func (observer *ClusterStateObserver) syncRevisionStatus(observed *ObservedClust
 	}
 
 	// if the current revision is nil we initialize the history by setting it to the next revision
-	if recordedStatus.CurrentRevision == "" {
+	if recorded.Revision.CurrentRevision == "" {
 		currentRevision = nextRevision
 		// attempt to find the revision that corresponds to the current revision
 	} else {
 		for i := range revisions {
-			if revisions[i].Name == getCurrentRevisionName(recordedStatus) {
+			if revisions[i].Name == getCurrentRevisionName(&recorded.Revision) {
 				currentRevision = revisions[i]
 				break
 			}
@@ -614,12 +690,12 @@ func (observer *ClusterStateObserver) syncRevisionStatus(observed *ObservedClust
 		return fmt.Errorf("current ControlRevision resoucre not found")
 	}
 
-	// update revision status
-	revisionStatus = new(RevisionStatus)
-	revisionStatus.currentRevision = currentRevision.DeepCopy()
-	revisionStatus.nextRevision = nextRevision.DeepCopy()
-	revisionStatus.collisionCount = collisionCount
-	observed.revisionStatus = revisionStatus
+	// Update revision status.
+	observed.revision = Revision{
+		currentRevision: currentRevision.DeepCopy(),
+		nextRevision:    nextRevision.DeepCopy(),
+		collisionCount:  collisionCount,
+	}
 
 	// maintain the revision history limit
 	err = observer.truncateHistory(observed)

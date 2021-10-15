@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -27,6 +28,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+const MaxStateAgeToRestore = int32(60)
 
 func TestValidateCreate(t *testing.T) {
 	var jmReplicas int32 = 1
@@ -36,6 +39,7 @@ func TestValidateCreate(t *testing.T) {
 	var uiPort int32 = 8004
 	var dataPort int32 = 8005
 	var parallelism int32 = 2
+	var maxStateAgeToRestoreSeconds = int32(60)
 	var restartPolicy = JobRestartPolicyFromSavepointOnFailure
 	var memoryProcessRatio int32 = 25
 	var jobMode JobMode = JobModeDetached
@@ -74,9 +78,10 @@ func TestValidateCreate(t *testing.T) {
 				Resources:          resources,
 			},
 			Job: &JobSpec{
-				JarFile:       "gs://my-bucket/myjob.jar",
-				Parallelism:   &parallelism,
-				RestartPolicy: &restartPolicy,
+				JarFile:                     "gs://my-bucket/myjob.jar",
+				Parallelism:                 &parallelism,
+				MaxStateAgeToRestoreSeconds: &maxStateAgeToRestoreSeconds,
+				RestartPolicy:               &restartPolicy,
 				CleanupPolicy: &CleanupPolicy{
 					AfterJobSucceeds: CleanupActionKeepCluster,
 					AfterJobFails:    CleanupActionDeleteTaskManager,
@@ -369,6 +374,7 @@ func TestInvalidJobSpec(t *testing.T) {
 	var queryPort int32 = 8003
 	var uiPort int32 = 8004
 	var dataPort int32 = 8005
+	var maxStateAgeToRestoreSeconds int32 = 300
 	var restartPolicy = JobRestartPolicyFromSavepointOnFailure
 	var invalidRestartPolicy JobRestartPolicy = "XXX"
 	var validator = &Validator{}
@@ -413,8 +419,9 @@ func TestInvalidJobSpec(t *testing.T) {
 				Resources:          resources,
 			},
 			Job: &JobSpec{
-				JarFile:       "",
-				RestartPolicy: &restartPolicy,
+				JarFile:                     "",
+				RestartPolicy:               &restartPolicy,
+				MaxStateAgeToRestoreSeconds: &maxStateAgeToRestoreSeconds,
 			},
 		},
 	}
@@ -458,9 +465,10 @@ func TestInvalidJobSpec(t *testing.T) {
 				Resources:          resources,
 			},
 			Job: &JobSpec{
-				JarFile:       "gs://my-bucket/myjob.jar",
-				Parallelism:   &parallelism,
-				RestartPolicy: &invalidRestartPolicy,
+				JarFile:                     "gs://my-bucket/myjob.jar",
+				Parallelism:                 &parallelism,
+				RestartPolicy:               &invalidRestartPolicy,
+				MaxStateAgeToRestoreSeconds: &maxStateAgeToRestoreSeconds,
 			},
 		},
 	}
@@ -504,9 +512,10 @@ func TestInvalidJobSpec(t *testing.T) {
 				Resources:          resources,
 			},
 			Job: &JobSpec{
-				JarFile:       "gs://my-bucket/myjob.jar",
-				Parallelism:   &parallelism,
-				RestartPolicy: &restartPolicy,
+				JarFile:                     "gs://my-bucket/myjob.jar",
+				Parallelism:                 &parallelism,
+				RestartPolicy:               &restartPolicy,
+				MaxStateAgeToRestoreSeconds: &maxStateAgeToRestoreSeconds,
 				CleanupPolicy: &CleanupPolicy{
 					AfterJobSucceeds: "XXX",
 					AfterJobFails:    CleanupActionDeleteCluster,
@@ -602,47 +611,19 @@ func TestUpdateSavepointGeneration(t *testing.T) {
 
 func TestUpdateJob(t *testing.T) {
 	var validator = &Validator{}
-	var parallelism int32 = 2
-	var restartPolicy = JobRestartPolicyFromSavepointOnFailure
-	var savepointDir = "/savepoint_dir"
+	var tc = &TimeConverter{}
+	var maxStateAge = time.Duration(MaxStateAgeToRestore)
 
-	oldCluster := getSimpleFlinkCluster()
-	oldCluster.Spec.Job = &JobSpec{
-		JarFile:       "gs://my-bucket/myjob.jar",
-		Parallelism:   &parallelism,
-		RestartPolicy: &restartPolicy,
-		SavepointsDir: &savepointDir,
-		CleanupPolicy: &CleanupPolicy{
-			AfterJobSucceeds: CleanupActionKeepCluster,
-			AfterJobFails:    CleanupActionDeleteTaskManager,
-		},
-	}
-	newCluster := getSimpleFlinkCluster()
-	newCluster.Spec.Job = &JobSpec{
-		JarFile:       "gs://my-bucket/myjob.jar",
-		Parallelism:   &parallelism,
-		RestartPolicy: &restartPolicy,
-		SavepointsDir: nil,
-		CleanupPolicy: &CleanupPolicy{
-			AfterJobSucceeds: CleanupActionKeepCluster,
-			AfterJobFails:    CleanupActionDeleteTaskManager,
-		},
-	}
+	// cannot remove savepointsDir
+	var oldCluster = getSimpleFlinkCluster()
+	var newCluster = getSimpleFlinkCluster()
+	newCluster.Spec.Job.SavepointsDir = nil
 	err := validator.ValidateUpdate(&oldCluster, &newCluster)
 	expectedErr := "removing savepointsDir is not allowed"
 	assert.Equal(t, err.Error(), expectedErr)
 
+	// cannot change cluster type
 	oldCluster = getSimpleFlinkCluster()
-	oldCluster.Spec.Job = &JobSpec{
-		JarFile:       "gs://my-bucket/myjob.jar",
-		Parallelism:   &parallelism,
-		RestartPolicy: &restartPolicy,
-		SavepointsDir: &savepointDir,
-		CleanupPolicy: &CleanupPolicy{
-			AfterJobSucceeds: CleanupActionKeepCluster,
-			AfterJobFails:    CleanupActionDeleteTaskManager,
-		},
-	}
 	newCluster = getSimpleFlinkCluster()
 	newCluster.Spec.Job = nil
 	err = validator.ValidateUpdate(&oldCluster, &newCluster)
@@ -651,29 +632,111 @@ func TestUpdateJob(t *testing.T) {
 	expectedErr = fmt.Sprintf("you cannot change cluster type between session cluster and job cluster, old spec.job: %q, new spec.job: %q", oldJson, newJson)
 	assert.Equal(t, err.Error(), expectedErr)
 
+	// cannot update when savepointDir is not provided
 	oldCluster = getSimpleFlinkCluster()
-	oldCluster.Spec.Job = &JobSpec{
-		JarFile:       "gs://my-bucket/myjob-v1.jar",
-		Parallelism:   &parallelism,
-		RestartPolicy: &restartPolicy,
-		CleanupPolicy: &CleanupPolicy{
-			AfterJobSucceeds: CleanupActionKeepCluster,
-			AfterJobFails:    CleanupActionDeleteTaskManager,
-		},
-	}
+	oldCluster.Spec.Job.SavepointsDir = nil
 	newCluster = getSimpleFlinkCluster()
-	newCluster.Spec.Job = &JobSpec{
-		JarFile:       "gs://my-bucket/myjob-v2.jar",
-		Parallelism:   &parallelism,
-		RestartPolicy: &restartPolicy,
-		CleanupPolicy: &CleanupPolicy{
-			AfterJobSucceeds: CleanupActionKeepCluster,
-			AfterJobFails:    CleanupActionDeleteTaskManager,
-		},
-	}
+	newCluster.Spec.Job.SavepointsDir = nil
+	newCluster.Spec.Job.JarFile = "gs://my-bucket/myjob-v2.jar"
 	err = validator.ValidateUpdate(&oldCluster, &newCluster)
 	expectedErr = "updating job is not allowed when spec.job.savepointsDir was not provided"
 	assert.Equal(t, err.Error(), expectedErr)
+
+	// cannot update when takeSavepointOnUpdate is false and stale savepoint
+	var takeSavepointOnUpdateFalse = false
+	var savepointTime = time.Now().Add(-(maxStateAge + 10) * time.Second) // stale savepoint
+	oldCluster = getSimpleFlinkCluster()
+	oldCluster.Status.Components.Job = &JobStatus{
+		SavepointTime:     tc.ToString(savepointTime),
+		SavepointLocation: "gs://my-bucket/my-sp-123",
+		State:             JobStateRunning,
+	}
+	newCluster = getSimpleFlinkCluster()
+	newCluster.Spec.Job.JarFile = "gs://my-bucket/myjob-v2.jar"
+	newCluster.Spec.Job.TakeSavepointOnUpdate = &takeSavepointOnUpdateFalse
+	err = validator.ValidateUpdate(&oldCluster, &newCluster)
+	jobStatusJson, _ := json.Marshal(oldCluster.Status.Components.Job)
+	expectedErr = fmt.Sprintf("cannot update spec: taking savepoint is skipped but no up-to-date savepoint, "+
+		"spec.job.takeSavepointOnUpdate: false, spec.job.maxStateAgeToRestoreSeconds: 60, job status: %q", jobStatusJson)
+	assert.Equal(t, err.Error(), expectedErr)
+
+	// update when takeSavepointOnUpdate is false and savepoint is up-to-date
+	takeSavepointOnUpdateFalse = false
+	maxStateAge = time.Duration(*getSimpleFlinkCluster().Spec.Job.MaxStateAgeToRestoreSeconds)
+	savepointTime = time.Now().Add(-(maxStateAge - 10) * time.Second) // up-to-date savepoint
+	oldCluster = getSimpleFlinkCluster()
+	oldCluster.Status.Components.Job = &JobStatus{
+		SavepointTime:     tc.ToString(savepointTime),
+		SavepointLocation: "gs://my-bucket/my-sp-123",
+		State:             JobStateRunning,
+	}
+	newCluster = getSimpleFlinkCluster()
+	newCluster.Spec.Job.JarFile = "gs://my-bucket/myjob-v2.jar"
+	newCluster.Spec.Job.TakeSavepointOnUpdate = &takeSavepointOnUpdateFalse
+	err = validator.ValidateUpdate(&oldCluster, &newCluster)
+	assert.Equal(t, err, nil)
+
+	// spec update is allowed when takeSavepointOnUpdate is true and savepoint is not completed yet
+	oldCluster = getSimpleFlinkCluster()
+	oldCluster.Status.Components.Job = &JobStatus{
+		FinalSavepoint:    false,
+		SavepointLocation: "gs://my-bucket/my-sp-123",
+		State:             JobStateRunning,
+	}
+	newCluster = getSimpleFlinkCluster()
+	newCluster.Spec.Job.JarFile = "gs://my-bucket/myjob-v2.jar"
+	err = validator.ValidateUpdate(&oldCluster, &newCluster)
+	assert.Equal(t, err, nil)
+
+	// when job is stopped and no up-to-date savepoint
+	var jobCompletionTime = time.Now()
+	savepointTime = jobCompletionTime.Add(-(maxStateAge + 10) * time.Second) // stale savepoint
+	oldCluster = getSimpleFlinkCluster()
+	oldCluster.Status.Components.Job = &JobStatus{
+		SavepointTime:     tc.ToString(savepointTime),
+		SavepointLocation: "gs://my-bucket/my-sp-123",
+		State:             JobStateFailed,
+		CompletionTime:    &metav1.Time{Time: jobCompletionTime},
+	}
+	newCluster = getSimpleFlinkCluster()
+	newCluster.Spec.Job.JarFile = "gs://my-bucket/myjob-v2.jar"
+	err = validator.ValidateUpdate(&oldCluster, &newCluster)
+	jobStatusJson, _ = json.Marshal(oldCluster.Status.Components.Job)
+	expectedErr = fmt.Sprintf("cannot update spec: taking savepoint is skipped but no up-to-date savepoint, "+
+		"spec.job.takeSavepointOnUpdate: nil, spec.job.maxStateAgeToRestoreSeconds: 60, job status: %q", jobStatusJson)
+	assert.Equal(t, err.Error(), expectedErr)
+
+	// when job is stopped and savepoint is up-to-date
+	jobCompletionTime = time.Now()
+	savepointTime = jobCompletionTime.Add(-(maxStateAge - 10) * time.Second) // up-to-date savepoint
+	oldCluster = getSimpleFlinkCluster()
+	oldCluster.Status.Components.Job = &JobStatus{
+		SavepointTime:     tc.ToString(savepointTime),
+		SavepointLocation: "gs://my-bucket/my-sp-123",
+		State:             JobStateFailed,
+		CompletionTime:    &metav1.Time{Time: jobCompletionTime},
+	}
+	newCluster = getSimpleFlinkCluster()
+	newCluster.Spec.Job.JarFile = "gs://my-bucket/myjob-v2.jar"
+	err = validator.ValidateUpdate(&oldCluster, &newCluster)
+	assert.Equal(t, err, nil)
+
+	// when job is stopped and savepoint is stale, but fromSavepoint is provided
+	var fromSavepoint = "gs://my-bucket/sp-123"
+	jobCompletionTime = time.Now()
+	savepointTime = jobCompletionTime.Add(-(maxStateAge + 10) * time.Second) // stale savepoint
+	oldCluster = getSimpleFlinkCluster()
+	oldCluster.Status.Components.Job = &JobStatus{
+		SavepointTime:     tc.ToString(savepointTime),
+		SavepointLocation: "gs://my-bucket/my-sp-123",
+		State:             JobStateFailed,
+		CompletionTime:    &metav1.Time{Time: jobCompletionTime},
+	}
+	newCluster = getSimpleFlinkCluster()
+	newCluster.Spec.Job.JarFile = "gs://my-bucket/myjob-v2.jar"
+	newCluster.Spec.Job.FromSavepoint = &fromSavepoint
+	err = validator.ValidateUpdate(&oldCluster, &newCluster)
+	assert.Equal(t, err, nil)
 }
 
 func TestUpdateCluster(t *testing.T) {
@@ -801,7 +864,7 @@ func TestUserControlSavepoint(t *testing.T) {
 
 	var oldCluster1 = FlinkCluster{
 		Spec:   FlinkClusterSpec{Job: &JobSpec{}},
-		Status: FlinkClusterStatus{Control: &FlinkClusterControlStatus{State: ControlStateProgressing}},
+		Status: FlinkClusterStatus{Control: &FlinkClusterControlStatus{State: ControlStateInProgress}},
 	}
 	var err1 = validator.ValidateUpdate(&oldCluster1, &newCluster)
 	var expectedErr1 = "change is not allowed for control in progress, annotation: flinkclusters.flinkoperator.k8s.io/user-control"
@@ -852,7 +915,7 @@ func TestUserControlJobCancel(t *testing.T) {
 
 	var oldCluster1 = FlinkCluster{
 		Spec:   FlinkClusterSpec{Job: &JobSpec{}},
-		Status: FlinkClusterStatus{Control: &FlinkClusterControlStatus{State: ControlStateProgressing}},
+		Status: FlinkClusterStatus{Control: &FlinkClusterControlStatus{State: ControlStateInProgress}},
 	}
 	var err1 = validator.ValidateUpdate(&oldCluster1, &newCluster)
 	var expectedErr1 = "change is not allowed for control in progress, annotation: flinkclusters.flinkoperator.k8s.io/user-control"
@@ -869,16 +932,22 @@ func TestUserControlJobCancel(t *testing.T) {
 	assert.Equal(t, err3.Error(), expectedErr3)
 
 	var oldCluster4 = FlinkCluster{
-		Spec:   FlinkClusterSpec{Job: &JobSpec{}},
-		Status: FlinkClusterStatus{Components: FlinkClusterComponentsStatus{Job: &JobStatus{State: JobStateSucceeded}}},
+		Spec: FlinkClusterSpec{Job: &JobSpec{}},
+		Status: FlinkClusterStatus{Components: FlinkClusterComponentsStatus{Job: &JobStatus{
+			State:          JobStateSucceeded,
+			CompletionTime: &metav1.Time{Time: time.Now()},
+		}}},
 	}
 	var err4 = validator.ValidateUpdate(&oldCluster4, &newCluster)
 	var expectedErr4 = "job-cancel is not allowed because job is not started yet or already terminated, annotation: flinkclusters.flinkoperator.k8s.io/user-control"
 	assert.Equal(t, err4.Error(), expectedErr4)
 
 	var oldCluster5 = FlinkCluster{
-		Spec:   FlinkClusterSpec{Job: &JobSpec{RestartPolicy: &restartPolicy}},
-		Status: FlinkClusterStatus{Components: FlinkClusterComponentsStatus{Job: &JobStatus{State: JobStateFailed}}},
+		Spec: FlinkClusterSpec{Job: &JobSpec{RestartPolicy: &restartPolicy}},
+		Status: FlinkClusterStatus{Components: FlinkClusterComponentsStatus{
+			Job: &JobStatus{State: JobStateFailed,
+				CompletionTime: &metav1.Time{Time: time.Now()},
+			}}},
 	}
 	var err5 = validator.ValidateUpdate(&oldCluster5, &newCluster)
 	var expectedErr5 = "job-cancel is not allowed because job is not started yet or already terminated, annotation: flinkclusters.flinkoperator.k8s.io/user-control"
@@ -953,6 +1022,7 @@ func getSimpleFlinkCluster() FlinkCluster {
 	var memoryOffHeapRatio int32 = 25
 	var memoryOffHeapMin = resource.MustParse("600M")
 	var parallelism int32 = 2
+	var maxStateAge = MaxStateAgeToRestore
 	var restartPolicy = JobRestartPolicyFromSavepointOnFailure
 	var savepointDir = "/savepoint_dir"
 	var jobMode JobMode = JobModeDetached
@@ -993,10 +1063,11 @@ func getSimpleFlinkCluster() FlinkCluster {
 				Resources:          resources,
 			},
 			Job: &JobSpec{
-				JarFile:       "gs://my-bucket/myjob.jar",
-				Parallelism:   &parallelism,
-				RestartPolicy: &restartPolicy,
-				SavepointsDir: &savepointDir,
+				JarFile:                     "gs://my-bucket/myjob.jar",
+				Parallelism:                 &parallelism,
+				MaxStateAgeToRestoreSeconds: &maxStateAge,
+				RestartPolicy:               &restartPolicy,
+				SavepointsDir:               &savepointDir,
 				CleanupPolicy: &CleanupPolicy{
 					AfterJobSucceeds: CleanupActionKeepCluster,
 					AfterJobFails:    CleanupActionDeleteTaskManager,
