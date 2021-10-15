@@ -543,7 +543,7 @@ func getDesiredConfigMap(
 	}
 
 	if taskSlots, err := calTaskManagerTaskSlots(flinkCluster); err == nil {
-		flinkProps["taskmanager.numberOfTaskSlots"] = strconv.Itoa(taskSlots)
+		flinkProps["taskmanager.numberOfTaskSlots"] = strconv.Itoa(int(taskSlots))
 	}
 
 	// Add custom Flink properties.
