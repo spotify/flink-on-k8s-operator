@@ -34,7 +34,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -281,7 +281,7 @@ func getDesiredJobManagerService(
 
 // Gets the desired JobManager ingress spec from a cluster spec.
 func getDesiredJobManagerIngress(
-	flinkCluster *v1beta1.FlinkCluster) *extensionsv1beta1.Ingress {
+	flinkCluster *v1beta1.FlinkCluster) *networkingv1.Ingress {
 	var jobManagerIngressSpec = flinkCluster.Spec.JobManager.Ingress
 	if jobManagerIngressSpec == nil {
 		return nil
@@ -298,7 +298,7 @@ func getDesiredJobManagerIngress(
 	var ingressName = getJobManagerIngressName(clusterName)
 	var ingressAnnotations = jobManagerIngressSpec.Annotations
 	var ingressHost string
-	var ingressTLS []extensionsv1beta1.IngressTLS
+	var ingressTLS []networkingv1.IngressTLS
 	var labels = mergeLabels(
 		getComponentLabels(*flinkCluster, "jobmanager"),
 		getRevisionHashLabels(&flinkCluster.Status.Revision))
@@ -315,13 +315,13 @@ func getDesiredJobManagerIngress(
 			secretName = *jobManagerIngressSpec.TLSSecretName
 		}
 		if hosts != nil || secretName != "" {
-			ingressTLS = []extensionsv1beta1.IngressTLS{{
+			ingressTLS = []networkingv1.IngressTLS{{
 				Hosts:      hosts,
 				SecretName: secretName,
 			}}
 		}
 	}
-	var jobManagerIngress = &extensionsv1beta1.Ingress{
+	var jobManagerIngress = &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: clusterNamespace,
 			Name:      ingressName,
@@ -330,17 +330,22 @@ func getDesiredJobManagerIngress(
 			Labels:      labels,
 			Annotations: ingressAnnotations,
 		},
-		Spec: extensionsv1beta1.IngressSpec{
+		Spec: networkingv1.IngressSpec{
 			TLS: ingressTLS,
-			Rules: []extensionsv1beta1.IngressRule{{
+			Rules: []networkingv1.IngressRule{{
 				Host: ingressHost,
-				IngressRuleValue: extensionsv1beta1.IngressRuleValue{
-					HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
-						Paths: []extensionsv1beta1.HTTPIngressPath{{
+				IngressRuleValue: networkingv1.IngressRuleValue{
+					HTTP: &networkingv1.HTTPIngressRuleValue{
+						Paths: []networkingv1.HTTPIngressPath{{
 							Path: "/*",
-							Backend: extensionsv1beta1.IngressBackend{
-								ServiceName: jobManagerServiceName,
-								ServicePort: jobManagerServiceUIPort,
+							Backend: networkingv1.IngressBackend{
+								Service: &networkingv1.IngressServiceBackend{
+									Name: jobManagerServiceName,
+									Port: networkingv1.ServiceBackendPort{
+										Name:   jobManagerServiceName,
+										Number: jobManagerServiceUIPort.IntVal,
+									},
+								},
 							},
 						}},
 					},
