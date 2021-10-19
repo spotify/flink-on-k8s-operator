@@ -19,7 +19,7 @@ webhooks:
   - apiGroups:
     - flinkoperator.k8s.io
     apiVersions:
-    - v1
+    - v1beta1
     operations:
     - CREATE
     - UPDATE
@@ -47,7 +47,7 @@ webhooks:
   - apiGroups:
     - flinkoperator.k8s.io
     apiVersions:
-    - v1
+    - v1beta1
     operations:
     - CREATE
     - UPDATE
