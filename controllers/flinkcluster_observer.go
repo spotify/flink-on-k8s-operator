@@ -425,8 +425,6 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(observed *ObservedCl
 	if len(flinkJobsUnexpected) > 0 {
 		log.Info("More than one unexpected Flink job were found!")
 	}
-
-	return
 }
 
 func (observer *ClusterStateObserver) observeSavepoint(cluster *v1beta1.FlinkCluster, savepoint *Savepoint) error {

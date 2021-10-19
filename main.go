@@ -86,6 +86,11 @@ func main() {
 	}
 
 	cs, err := kubernetes.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		setupLog.Error(err, "Unable to create clientset")
+		os.Exit(1)
+	}
+
 	err = (&controllers.FlinkClusterReconciler{
 		Client:    mgr.GetClient(),
 		Clientset: cs,
@@ -99,8 +104,7 @@ func main() {
 	// Set up webhooks for the custom resource.
 	// Disable it with `FLINK_OPERATOR_ENABLE_WEBHOOKS=false` when we run locally.
 	if os.Getenv("FLINK_OPERATOR_ENABLE_WEBHOOKS") != "false" {
-		err = (&v1beta1.FlinkCluster{}).SetupWebhookWithManager(mgr)
-		if err != nil {
+		if err = (&v1beta1.FlinkCluster{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "Unable to setup webhooks", "webhook", "FlinkCluster")
 			os.Exit(1)
 		}

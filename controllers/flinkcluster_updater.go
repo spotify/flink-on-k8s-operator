@@ -601,9 +601,10 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 		switch {
 		case newJob.IsPending():
 			newJob.DeployTime = ""
-			if newJob.State == v1beta1.JobStateUpdating {
+			switch newJob.State {
+			case v1beta1.JobStateUpdating:
 				newJob.RestartCount = 0
-			} else if newJob.State == v1beta1.JobStateRestarting {
+			case v1beta1.JobStateRestarting:
 				newJob.RestartCount++
 			}
 		case newJob.State == v1beta1.JobStateRunning:
