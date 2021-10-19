@@ -47,14 +47,13 @@ spec:
           args:
             - --enable-leader-election
           image: controller:latest
-          imagePullPolicy: Never
           name: manager
           securityContext:
             allowPrivilegeEscalation: false
           resources:
             limits:
-              cpu: 1
-              memory: 1Gi
+              cpu: 100m
+              memory: 30Mi
             requests:
               cpu: 100m
               memory: 20Mi
