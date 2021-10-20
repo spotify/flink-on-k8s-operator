@@ -102,16 +102,18 @@ const (
 )
 
 // Savepoint status
+type SavepointReason string
+
 const (
 	SavepointStateInProgress    = "InProgress"
 	SavepointStateTriggerFailed = "TriggerFailed"
 	SavepointStateFailed        = "Failed"
 	SavepointStateSucceeded     = "Succeeded"
 
-	SavepointTriggerReasonUserRequested = "user requested"
-	SavepointTriggerReasonJobCancel     = "job cancel"
-	SavepointTriggerReasonScheduled     = "scheduled"
-	SavepointTriggerReasonUpdate        = "update"
+	SavepointReasonUserRequested SavepointReason = "user requested"
+	SavepointReasonJobCancel     SavepointReason = "job cancel"
+	SavepointReasonScheduled     SavepointReason = "scheduled"
+	SavepointReasonUpdate        SavepointReason = "update"
 )
 
 // ImageSpec defines Flink image of JobManager and TaskManager containers.
@@ -651,7 +653,7 @@ type SavepointStatus struct {
 	TriggerTime string `json:"triggerTime,omitempty"`
 
 	// Savepoint triggered reason.
-	TriggerReason string `json:"triggerReason,omitempty"`
+	TriggerReason SavepointReason `json:"triggerReason,omitempty"`
 
 	// Savepoint status update time.
 	UpdateTime string `json:"requestTime,omitempty"`

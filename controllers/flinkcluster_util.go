@@ -324,7 +324,7 @@ func getSavepointEvent(status v1beta1.SavepointStatus) (eventType string, eventR
 		msg = msg[:100] + "..."
 	}
 	var triggerReason = status.TriggerReason
-	if triggerReason == v1beta1.SavepointTriggerReasonJobCancel || triggerReason == v1beta1.SavepointTriggerReasonUpdate {
+	if triggerReason == v1beta1.SavepointReasonJobCancel || triggerReason == v1beta1.SavepointReasonUpdate {
 		triggerReason = "for " + triggerReason
 	}
 	switch status.State {
@@ -450,8 +450,8 @@ func isFlinkAPIReady(list *flink.JobsOverview) bool {
 // jobStateFinalized returns true, if job state is saved so that it can be resumed later.
 func finalSavepointRequested(jobID string, s *v1beta1.SavepointStatus) bool {
 	return s != nil && s.JobID == jobID &&
-		(s.TriggerReason == v1beta1.SavepointTriggerReasonUpdate ||
-			s.TriggerReason == v1beta1.SavepointTriggerReasonJobCancel)
+		(s.TriggerReason == v1beta1.SavepointReasonUpdate ||
+			s.TriggerReason == v1beta1.SavepointReasonJobCancel)
 }
 
 func getUpdateState(observed *ObservedClusterState) UpdateState {

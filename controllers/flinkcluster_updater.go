@@ -870,7 +870,7 @@ func (updater *ClusterStatusUpdater) deriveSavepointStatus(
 	// https://github.com/kubernetes/apimachinery/blob/57f2a0733447cfd41294477d833cce6580faaca3/pkg/apis/meta/v1/types.go#L1376
 	// Make up message.
 	if errMsg != "" {
-		if s.TriggerReason == v1beta1.SavepointTriggerReasonUpdate {
+		if s.TriggerReason == v1beta1.SavepointReasonUpdate {
 			errMsg =
 				"Failed to take savepoint for update. " +
 					"The update process is being postponed until a savepoint is available. " + errMsg
@@ -910,14 +910,14 @@ func deriveControlStatus(
 			} else if newJob.IsStopped() {
 				c.Message = "Aborted job cancellation: savepoint is not completed, but job is stopped already."
 				c.State = v1beta1.ControlStateFailed
-			} else if newSavepoint.IsFailed() && newSavepoint.TriggerReason == v1beta1.SavepointTriggerReasonJobCancel {
+			} else if newSavepoint.IsFailed() && newSavepoint.TriggerReason == v1beta1.SavepointReasonJobCancel {
 				c.Message = "Aborted job cancellation: failed to take savepoint."
 				c.State = v1beta1.ControlStateFailed
 			}
 		case v1beta1.ControlNameSavepoint:
 			if newSavepoint.State == v1beta1.SavepointStateSucceeded {
 				c.State = v1beta1.ControlStateSucceeded
-			} else if newSavepoint.IsFailed() && newSavepoint.TriggerReason == v1beta1.SavepointTriggerReasonUserRequested {
+			} else if newSavepoint.IsFailed() && newSavepoint.TriggerReason == v1beta1.SavepointReasonUserRequested {
 				c.State = v1beta1.ControlStateFailed
 			}
 		}
