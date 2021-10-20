@@ -540,9 +540,11 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 		newJob = oldJob.DeepCopy()
 	} else {
 		newJob = new(v1beta1.JobStatus)
+		if observedSubmitter.job != nil {
+			newJob.SubmitterName = observedSubmitter.job.Name
+		}
 	}
 	var newJobState string
-	var newJobID string
 	switch {
 	case oldJob == nil:
 		newJobState = v1beta1.JobStatePending
@@ -561,7 +563,8 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 		if newJobState == "" {
 			panic(fmt.Sprintf("Unknown Flink job status: %s", observedFlinkJob.State))
 		}
-		newJobID = observedFlinkJob.Id
+		newJob.ID = observedFlinkJob.Id
+		newJob.Name = observedFlinkJob.Name
 	// When Flink job not found in JobManager or JobManager is unavailable
 	case isFlinkAPIReady(observed.flinkJob.list):
 		if oldJob.State == v1beta1.JobStateRunning {
@@ -591,9 +594,6 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 	}
 	// Update State
 	newJob.State = newJobState
-	if newJobID != "" {
-		newJob.ID = newJobID
-	}
 
 	// Derived new job status if the state is changed.
 	if oldJob == nil || oldJob.State != newJob.State {
