@@ -540,10 +540,12 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 		newJob = oldJob.DeepCopy()
 	} else {
 		newJob = new(v1beta1.JobStatus)
-		if observedSubmitter.job != nil {
-			newJob.SubmitterName = observedSubmitter.job.Name
-		}
 	}
+
+	if observedSubmitter.job != nil {
+		newJob.SubmitterName = observedSubmitter.job.Name
+	}
+
 	var newJobState string
 	switch {
 	case oldJob == nil:
