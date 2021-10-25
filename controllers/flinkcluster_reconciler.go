@@ -561,13 +561,13 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 
 		// Trigger savepoint if required.
 		if len(jobID) > 0 {
-			var savepointTriggerReason = reconciler.shouldTakeSavepoint()
-			if savepointTriggerReason != "" {
-				newSavepointStatus, err = reconciler.triggerSavepoint(jobID, savepointTriggerReason, false)
+			var savepointReason = reconciler.shouldTakeSavepoint()
+			if savepointReason != "" {
+				newSavepointStatus, err = reconciler.triggerSavepoint(jobID, savepointReason, false)
 			}
 			// Get new control status when the savepoint reason matches the requested control.
 			var userControl = getNewControlRequest(observed.cluster)
-			if userControl == v1beta1.ControlNameSavepoint && savepointTriggerReason == v1beta1.SavepointTriggerReasonUserRequested {
+			if userControl == v1beta1.ControlNameSavepoint && savepointReason == v1beta1.SavepointReasonUserRequested {
 				newControlStatus = getControlStatus(userControl, v1beta1.ControlStateInProgress)
 			}
 			return requeueResult, err
@@ -646,7 +646,7 @@ func (reconciler *ClusterReconciler) trySuspendJob() (*v1beta1.SavepointStatus, 
 	var canSuspend = reconciler.canSuspendJob(jobID, recorded.Savepoint)
 	if canSuspend {
 		log.Info("Triggering savepoint for suspending job")
-		var newSavepointStatus, err = reconciler.triggerSavepoint(jobID, v1beta1.SavepointTriggerReasonUpdate, true)
+		var newSavepointStatus, err = reconciler.triggerSavepoint(jobID, v1beta1.SavepointReasonUpdate, true)
 		if err != nil {
 			log.Info("Failed to trigger savepoint", "jobID", jobID, "triggerID", newSavepointStatus.TriggerID, "error", err)
 		} else {
@@ -766,7 +766,7 @@ func (reconciler *ClusterReconciler) canSuspendJob(jobID string, s *v1beta1.Save
 	return retryTimeArrived
 }
 
-func (reconciler *ClusterReconciler) shouldTakeSavepoint() string {
+func (reconciler *ClusterReconciler) shouldTakeSavepoint() v1beta1.SavepointReason {
 	var observed = reconciler.observed
 	var cluster = observed.cluster
 	var jobSpec = observed.cluster.Spec.Job
@@ -783,7 +783,7 @@ func (reconciler *ClusterReconciler) shouldTakeSavepoint() string {
 	// TODO: spec.job.cancelRequested will be deprecated
 	// Should stop job with savepoint by user requested control
 	case newRequestedControl == v1beta1.ControlNameJobCancel || (jobSpec.CancelRequested != nil && *jobSpec.CancelRequested):
-		return v1beta1.SavepointTriggerReasonJobCancel
+		return v1beta1.SavepointReasonJobCancel
 	// Take savepoint by user request
 	case newRequestedControl == v1beta1.ControlNameSavepoint:
 		fallthrough
@@ -793,14 +793,14 @@ func (reconciler *ClusterReconciler) shouldTakeSavepoint() string {
 		// When previous savepoint is failed, savepoint trigger by spec.job.savepointGeneration is not possible
 		// because the field cannot be increased more.
 		// Note: checkSavepointGeneration in flinkcluster_validate.go
-		return v1beta1.SavepointTriggerReasonUserRequested
+		return v1beta1.SavepointReasonUserRequested
 	// Scheduled auto savepoint
 	case jobSpec.AutoSavepointSeconds != nil:
 		// When previous try was failed, check retry interval.
-		if savepoint.IsFailed() && savepoint.TriggerReason == v1beta1.SavepointTriggerReasonScheduled {
+		if savepoint.IsFailed() && savepoint.TriggerReason == v1beta1.SavepointReasonScheduled {
 			var nextRetryTime = getTime(savepoint.UpdateTime).Add(SavepointRetryIntervalSeconds * time.Second)
 			if time.Now().After(nextRetryTime) {
-				return v1beta1.SavepointTriggerReasonScheduled
+				return v1beta1.SavepointReasonScheduled
 			} else {
 				return ""
 			}
@@ -814,14 +814,14 @@ func (reconciler *ClusterReconciler) shouldTakeSavepoint() string {
 		}
 		var nextTime = getTimeAfterAddedSeconds(compareTime, int64(*jobSpec.AutoSavepointSeconds))
 		if time.Now().After(nextTime) {
-			return v1beta1.SavepointTriggerReasonScheduled
+			return v1beta1.SavepointReasonScheduled
 		}
 	}
 	return ""
 }
 
 // Trigger savepoint for a job then return savepoint status to update.
-func (reconciler *ClusterReconciler) triggerSavepoint(jobID string, triggerReason string, cancel bool) (*v1beta1.SavepointStatus, error) {
+func (reconciler *ClusterReconciler) triggerSavepoint(jobID string, triggerReason v1beta1.SavepointReason, cancel bool) (*v1beta1.SavepointStatus, error) {
 	var log = reconciler.log
 	var cluster = reconciler.observed.cluster
 	var apiBaseURL = getFlinkAPIBaseURL(reconciler.observed.cluster)
@@ -958,7 +958,7 @@ func (reconciler *ClusterReconciler) updateJobDeployStatus() error {
 }
 
 // getNewSavepointStatus returns newly triggered savepoint status.
-func (reconciler *ClusterReconciler) getNewSavepointStatus(triggerID string, triggerReason string, message string, triggerSuccess bool) *v1beta1.SavepointStatus {
+func (reconciler *ClusterReconciler) getNewSavepointStatus(triggerID string, triggerReason v1beta1.SavepointReason, message string, triggerSuccess bool) *v1beta1.SavepointStatus {
 	var jobID = reconciler.getFlinkJobID()
 	var savepointState string
 	var now string
