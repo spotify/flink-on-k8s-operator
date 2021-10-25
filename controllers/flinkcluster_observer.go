@@ -276,8 +276,7 @@ func (observer *ClusterStateObserver) observeJob(
 
 	// Extract the log stream from pod only when the job state is Deploying.
 	var recordedJob = recorded.Components.Job
-	var extractLog = recordedJob != nil && recordedJob.State == v1beta1.JobStateDeploying
-	err = observer.observeSubmitter(extractLog, &submitter)
+	err = observer.observeSubmitter(recordedJob, &submitter)
 	if err != nil {
 		log.Error(err, "Failed to get the status of the job submitter")
 	}
@@ -300,7 +299,7 @@ func (observer *ClusterStateObserver) observeJob(
 	return nil
 }
 
-func (observer *ClusterStateObserver) observeSubmitter(extractLog bool, submitter *FlinkJobSubmitter) error {
+func (observer *ClusterStateObserver) observeSubmitter(recordedJob *v1beta1.JobStatus, submitter *FlinkJobSubmitter) error {
 	var log = observer.log
 	var err error
 
@@ -344,8 +343,10 @@ func (observer *ClusterStateObserver) observeSubmitter(extractLog bool, submitte
 	}
 	submitter.pod = pod
 
-	// Extract submission result.
-	if !extractLog {
+	// Extract submission result only when it is in deployment progress.
+	// It is not necessary to get the log stream from the submitter pod always.
+	var jobDeployInProgress = recordedJob != nil && recordedJob.State == v1beta1.JobStateDeploying
+	if !jobDeployInProgress {
 		return nil
 	}
 	log.Info("Extracting the result of job submission because it is completed")
