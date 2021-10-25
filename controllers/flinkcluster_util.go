@@ -21,7 +21,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/spotify/flink-on-k8s-operator/controllers/flink"
 	"io"
 	"os"
 	"regexp"
@@ -29,12 +28,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/spotify/flink-on-k8s-operator/controllers/flink"
+
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/api/v1beta1"
 	"github.com/spotify/flink-on-k8s-operator/controllers/history"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -390,7 +391,7 @@ func isComponentUpdated(component runtime.Object, cluster *v1beta1.FlinkCluster)
 		if o == nil {
 			return cluster.Spec.Job == nil
 		}
-	case *extensionsv1beta1.Ingress:
+	case *networkingv1.Ingress:
 		if o == nil {
 			return cluster.Spec.JobManager.Ingress == nil
 		}

@@ -37,7 +37,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -344,7 +344,7 @@ func (reconciler *ClusterReconciler) reconcileJobManagerIngress() error {
 }
 
 func (reconciler *ClusterReconciler) createIngress(
-	ingress *extensionsv1beta1.Ingress, component string) error {
+	ingress *networkingv1.Ingress, component string) error {
 	var context = reconciler.context
 	var log = reconciler.log.WithValues("component", component)
 	var k8sClient = reconciler.k8sClient
@@ -360,7 +360,7 @@ func (reconciler *ClusterReconciler) createIngress(
 }
 
 func (reconciler *ClusterReconciler) deleteIngress(
-	ingress *extensionsv1beta1.Ingress, component string) error {
+	ingress *networkingv1.Ingress, component string) error {
 	var context = reconciler.context
 	var log = reconciler.log.WithValues("component", component)
 	var k8sClient = reconciler.k8sClient

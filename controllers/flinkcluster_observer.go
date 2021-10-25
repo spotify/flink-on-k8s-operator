@@ -29,7 +29,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -55,7 +55,7 @@ type ObservedClusterState struct {
 	configMap              *corev1.ConfigMap
 	jmStatefulSet          *appsv1.StatefulSet
 	jmService              *corev1.Service
-	jmIngress              *extensionsv1beta1.Ingress
+	jmIngress              *networkingv1.Ingress
 	tmStatefulSet          *appsv1.StatefulSet
 	persistentVolumeClaims *corev1.PersistentVolumeClaimList
 	flinkJob               FlinkJob
@@ -205,7 +205,7 @@ func (observer *ClusterStateObserver) observe(
 	}
 
 	// (Optional) JobManager ingress.
-	var observedJmIngress = new(extensionsv1beta1.Ingress)
+	var observedJmIngress = new(networkingv1.Ingress)
 	err = observer.observeJobManagerIngress(observedJmIngress)
 	if err != nil {
 		if client.IgnoreNotFound(err) != nil {
@@ -537,7 +537,7 @@ func (observer *ClusterStateObserver) observeJobManagerService(
 }
 
 func (observer *ClusterStateObserver) observeJobManagerIngress(
-	observedIngress *extensionsv1beta1.Ingress) error {
+	observedIngress *networkingv1.Ingress) error {
 	var clusterNamespace = observer.request.Namespace
 	var clusterName = observer.request.Name
 
