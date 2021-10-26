@@ -858,10 +858,7 @@ func (updater *ClusterStatusUpdater) deriveSavepointStatus(
 		case newJobStatus.IsStopped():
 			errMsg = "Flink job is stopped: " + errMsg
 			s.State = v1beta1.SavepointStateFailed
-		case flinkJobID == nil:
-			errMsg = "Flink job is not identified: " + errMsg
-			s.State = v1beta1.SavepointStateFailed
-		case flinkJobID != nil && (recordedSavepointStatus.TriggerID != "" && *flinkJobID != recordedSavepointStatus.JobID):
+		case flinkJobID == nil || *flinkJobID != recordedSavepointStatus.JobID:
 			errMsg = "Savepoint triggered Flink job is lost: " + errMsg
 			s.State = v1beta1.SavepointStateFailed
 		}
