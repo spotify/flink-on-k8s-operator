@@ -468,7 +468,7 @@ func getUpdateState(observed *ObservedClusterState) UpdateState {
 		return ""
 	}
 	switch {
-	case !job.UpdateReady(jobSpec, observed.observeTime):
+	case jobSpec != nil && !job.UpdateReady(jobSpec, observed.observeTime):
 		return UpdateStatePreparing
 	case !isClusterUpdateToDate(observed):
 		return UpdateStateInProgress
