@@ -839,30 +839,27 @@ func (updater *ClusterStatusUpdater) deriveSavepointStatus(
 	var errMsg string
 
 	// Update the savepoint status when observed savepoint is found.
-	if s.State == v1beta1.SavepointStateInProgress && observedSavepoint != nil {
+	if s.State == v1beta1.SavepointStateInProgress {
+		// Derive the state from the observed savepoint in JobManager.
+		status := observedSavepoint.status
 		switch {
-		case observedSavepoint.status.IsSuccessful():
+		case status != nil && status.IsSuccessful():
 			s.State = v1beta1.SavepointStateSucceeded
-		case observedSavepoint.status.IsFailed():
+		case status != nil && status.IsFailed():
 			s.State = v1beta1.SavepointStateFailed
 			errMsg = fmt.Sprintf("Savepoint error: %v", observedSavepoint.status.FailureCause.StackTrace)
 		case observedSavepoint.error != nil:
 			s.State = v1beta1.SavepointStateFailed
 			errMsg = fmt.Sprintf("Failed to get savepoint status: %v", observedSavepoint.error)
 		}
-	}
-
-	// Check failure conditions of savepoint in progress.
-	if s.State == v1beta1.SavepointStateInProgress {
+		// Derive the failure state from Flink job status.
+		// Append additional error message if it already exists.
 		switch {
 		case newJobStatus.IsStopped():
-			errMsg = "Flink job is stopped."
+			errMsg = "Flink job is stopped: " + errMsg
 			s.State = v1beta1.SavepointStateFailed
-		case flinkJobID == nil:
-			errMsg = "Flink job is not identified."
-			s.State = v1beta1.SavepointStateFailed
-		case flinkJobID != nil && (recordedSavepointStatus.TriggerID != "" && *flinkJobID != recordedSavepointStatus.JobID):
-			errMsg = "Savepoint triggered Flink job is lost."
+		case flinkJobID == nil || *flinkJobID != recordedSavepointStatus.JobID:
+			errMsg = "Savepoint triggered Flink job is lost: " + errMsg
 			s.State = v1beta1.SavepointStateFailed
 		}
 	}

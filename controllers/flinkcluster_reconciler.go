@@ -826,12 +826,13 @@ func (reconciler *ClusterReconciler) triggerSavepoint(jobID string, triggerReaso
 	var cluster = reconciler.observed.cluster
 	var apiBaseURL = getFlinkAPIBaseURL(reconciler.observed.cluster)
 	var triggerSuccess bool
-	var triggerID *flink.SavepointTriggerID
+	var savepointTriggerID *flink.SavepointTriggerID
+	var triggerID string
 	var message string
 	var err error
 
 	log.Info(fmt.Sprintf("Trigger savepoint for %s", triggerReason), "jobID", jobID)
-	triggerID, err = reconciler.flinkClient.TriggerSavepoint(apiBaseURL, jobID, *cluster.Spec.Job.SavepointsDir, cancel)
+	savepointTriggerID, err = reconciler.flinkClient.TriggerSavepoint(apiBaseURL, jobID, *cluster.Spec.Job.SavepointsDir, cancel)
 	if err != nil {
 		// limit message size to 1KiB
 		if message = err.Error(); len(message) > 1024 {
@@ -841,9 +842,10 @@ func (reconciler *ClusterReconciler) triggerSavepoint(jobID string, triggerReaso
 		log.Info("Failed to trigger savepoint", "jobID", jobID, "triggerID", triggerID, "error", err)
 	} else {
 		triggerSuccess = true
+		triggerID = savepointTriggerID.RequestID
 		log.Info("Successfully savepoint triggered", "jobID", jobID, "triggerID", triggerID)
 	}
-	newSavepointStatus := reconciler.getNewSavepointStatus(triggerID.RequestID, triggerReason, message, triggerSuccess)
+	newSavepointStatus := reconciler.getNewSavepointStatus(triggerID, triggerReason, message, triggerSuccess)
 
 	return newSavepointStatus, err
 }
