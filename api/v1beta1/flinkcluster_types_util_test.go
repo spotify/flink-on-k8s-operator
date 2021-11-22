@@ -17,10 +17,11 @@ limitations under the License.
 package v1beta1
 
 import (
-	"gotest.tools/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
 	"time"
+
+	"gotest.tools/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestIsSavepointUpToDate(t *testing.T) {
