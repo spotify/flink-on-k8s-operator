@@ -501,7 +501,7 @@ func (v *Validator) validateJob(jobSpec *JobSpec) error {
 		return fmt.Errorf("invalid job restartPolicy: %v", *jobSpec.RestartPolicy)
 	}
 
-	if jobSpec.TakeSavepointOnUpdate != nil && *jobSpec.TakeSavepointOnUpdate == false &&
+	if jobSpec.TakeSavepointOnUpdate != nil && !*jobSpec.TakeSavepointOnUpdate &&
 		jobSpec.MaxStateAgeToRestoreSeconds == nil {
 		return fmt.Errorf("maxStateAgeToRestoreSeconds must be specified when takeSavepointOnUpdate is set as false")
 	}

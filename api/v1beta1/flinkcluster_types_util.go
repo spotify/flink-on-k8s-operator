@@ -53,10 +53,7 @@ func (j *JobStatus) IsSavepointUpToDate(spec *JobSpec, compareTime time.Time) bo
 	}
 
 	var stateMaxAge = int(*spec.MaxStateAgeToRestoreSeconds)
-	if !hasTimeElapsed(j.SavepointTime, compareTime, stateMaxAge) {
-		return true
-	}
-	return false
+	return !hasTimeElapsed(j.SavepointTime, compareTime, stateMaxAge)
 }
 
 // ShouldRestart returns true if the controller should restart failed job.
@@ -134,10 +131,7 @@ func hasTimeElapsed(timeToCheckStr string, now time.Time, intervalSec int) bool 
 	tc := &TimeConverter{}
 	timeToCheck := tc.FromString(timeToCheckStr)
 	intervalPassedTime := timeToCheck.Add(time.Duration(int64(intervalSec) * int64(time.Second)))
-	if now.After(intervalPassedTime) {
-		return true
-	}
-	return false
+	return now.After(intervalPassedTime)
 }
 
 func isBlank(s *string) bool {
