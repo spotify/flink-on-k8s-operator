@@ -20,7 +20,6 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
-	"time"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/api/v1beta1"
@@ -304,7 +303,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 	}
 
 	// Run.
-	var desiredState = getDesiredClusterState(observed, time.Now())
+	var desiredState = getDesiredClusterState(observed)
 
 	// Verify.
 
@@ -1048,7 +1047,7 @@ func TestSecurityContext(t *testing.T) {
 		},
 	}
 
-	var desired = getDesiredClusterState(observed, time.Now())
+	var desired = getDesiredClusterState(observed)
 
 	assert.DeepEqual(t, desired.Job.Spec.Template.Spec.SecurityContext, &securityContext)
 	assert.DeepEqual(t, desired.JmStatefulSet.Spec.Template.Spec.SecurityContext, &securityContext)
@@ -1086,7 +1085,7 @@ func TestSecurityContext(t *testing.T) {
 		},
 	}
 
-	var desired2 = getDesiredClusterState(observed2, time.Now())
+	var desired2 = getDesiredClusterState(observed2)
 
 	assert.Assert(t, desired2.Job.Spec.Template.Spec.SecurityContext == nil)
 	assert.Assert(t, desired2.JmStatefulSet.Spec.Template.Spec.SecurityContext == nil)

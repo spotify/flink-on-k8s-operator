@@ -101,16 +101,15 @@ func (reconciler *FlinkClusterReconciler) SetupWithManager(
 // FlinkClusterHandler holds the context and state for a
 // reconcile request.
 type FlinkClusterHandler struct {
-	k8sClient         client.Client
-	k8sClientset      *kubernetes.Clientset
-	flinkClient       *flink.Client
-	request           ctrl.Request
-	context           context.Context
-	log               logr.Logger
-	recorder          record.EventRecorder
-	observed          ObservedClusterState
-	controllerHistory history.Interface
-	desired           model.DesiredClusterState
+	k8sClient    client.Client
+	k8sClientset *kubernetes.Clientset
+	flinkClient  *flink.Client
+	request      ctrl.Request
+	context      context.Context
+	log          logr.Logger
+	recorder     record.EventRecorder
+	observed     ObservedClusterState
+	desired      model.DesiredClusterState
 }
 
 func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
@@ -178,7 +177,7 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 
 	log.Info("---------- 3. Compute the desired state ----------")
 
-	*desired = getDesiredClusterState(observed, time.Now())
+	*desired = getDesiredClusterState(observed)
 	if desired.ConfigMap != nil {
 		log.Info("Desired state", "ConfigMap", *desired.ConfigMap)
 	} else {
