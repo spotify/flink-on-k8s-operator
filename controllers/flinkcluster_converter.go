@@ -24,7 +24,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -66,9 +65,7 @@ var (
 )
 
 // Gets the desired state of a cluster.
-func getDesiredClusterState(
-	observed *ObservedClusterState,
-	now time.Time) model.DesiredClusterState {
+func getDesiredClusterState(observed *ObservedClusterState) model.DesiredClusterState {
 	var cluster = observed.cluster
 
 	// The cluster has been deleted, all resources should be cleaned up.
