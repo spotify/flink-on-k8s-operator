@@ -41,7 +41,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 	var jmBlobPort int32 = 6124
 	var jmQueryPort int32 = 6125
 	var jmUIPort int32 = 8081
-	var useTLS bool = true
+	var useTLS = true
 	var tmDataPort int32 = 6121
 	var tmRPCPort int32 = 6122
 	var tmQueryPort int32 = 6125

@@ -586,7 +586,7 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 
 	// When the job should be stopped, keep that state unless update is triggered or the job must to be restarted.
 	if (shouldStopJob(flinkCluster) || jobStatus.IsStopped()) &&
-		!(shouldUpdateJob(observed) || jobStatus.ShouldRestart(jobSpec)) {
+		(!shouldUpdateJob(observed) && !jobStatus.ShouldRestart(jobSpec)) {
 		return nil
 	}
 
