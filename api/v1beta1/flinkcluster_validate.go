@@ -485,7 +485,6 @@ func (v *Validator) validateJob(jobSpec *JobSpec) error {
 	} else if jobSpec.JarFile != nil && jobSpec.Python != nil {
 		return fmt.Errorf("instead of specifing job jarFile and python, must be specified only one")
 	}
-	// TODO test python file
 
 	if jobSpec.Parallelism != nil && *jobSpec.Parallelism < 1 {
 		return fmt.Errorf("job parallelism must be >= 1")
