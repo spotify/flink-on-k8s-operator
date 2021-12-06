@@ -38,6 +38,7 @@ func TestValidateCreate(t *testing.T) {
 	var queryPort int32 = 8003
 	var uiPort int32 = 8004
 	var dataPort int32 = 8005
+	var jarFile = "gs://my-bucket/myjob.jar"
 	var parallelism int32 = 2
 	var maxStateAgeToRestoreSeconds = int32(60)
 	var restartPolicy = JobRestartPolicyFromSavepointOnFailure
@@ -78,7 +79,7 @@ func TestValidateCreate(t *testing.T) {
 				Resources:          resources,
 			},
 			Job: &JobSpec{
-				JarFile:                     "gs://my-bucket/myjob.jar",
+				JarFile:                     &jarFile,
 				Parallelism:                 &parallelism,
 				MaxStateAgeToRestoreSeconds: &maxStateAgeToRestoreSeconds,
 				RestartPolicy:               &restartPolicy,
@@ -375,6 +376,8 @@ func TestInvalidJobSpec(t *testing.T) {
 	var uiPort int32 = 8004
 	var dataPort int32 = 8005
 	var maxStateAgeToRestoreSeconds int32 = 300
+	var jarFile = "gs://my-bucket/myjob.jar"
+	var python = "gs://my-bucket/mypython.py"
 	var restartPolicy = JobRestartPolicyFromSavepointOnFailure
 	var invalidRestartPolicy JobRestartPolicy = "XXX"
 	var validator = &Validator{}
@@ -419,14 +422,13 @@ func TestInvalidJobSpec(t *testing.T) {
 				Resources:          resources,
 			},
 			Job: &JobSpec{
-				JarFile:                     "",
 				RestartPolicy:               &restartPolicy,
 				MaxStateAgeToRestoreSeconds: &maxStateAgeToRestoreSeconds,
 			},
 		},
 	}
 	var err = validator.ValidateCreate(&cluster)
-	var expectedErr = "job jarFile is unspecified"
+	var expectedErr = "job jarFile or python is unspecified"
 	assert.Equal(t, err.Error(), expectedErr)
 
 	cluster = FlinkCluster{
@@ -465,7 +467,54 @@ func TestInvalidJobSpec(t *testing.T) {
 				Resources:          resources,
 			},
 			Job: &JobSpec{
-				JarFile:                     "gs://my-bucket/myjob.jar",
+				JarFile:                     &jarFile,
+				Python:                      &python,
+				RestartPolicy:               &restartPolicy,
+				MaxStateAgeToRestoreSeconds: &maxStateAgeToRestoreSeconds,
+			},
+		},
+	}
+	err = validator.ValidateCreate(&cluster)
+	expectedErr = "instead of specifing job jarFile and python, must be specified only one"
+	assert.Equal(t, err.Error(), expectedErr)
+
+	cluster = FlinkCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mycluster",
+			Namespace: "default",
+		},
+		Spec: FlinkClusterSpec{
+			FlinkVersion: "1.8",
+			Image: ImageSpec{
+				Name:       "flink:1.8.1",
+				PullPolicy: corev1.PullPolicy("Always"),
+			},
+			JobManager: JobManagerSpec{
+				Replicas:    &jmReplicas,
+				AccessScope: AccessScopeVPC,
+				Ports: JobManagerPorts{
+					RPC:   &rpcPort,
+					Blob:  &blobPort,
+					Query: &queryPort,
+					UI:    &uiPort,
+				},
+				MemoryOffHeapRatio: &memoryOffHeapRatio,
+				MemoryOffHeapMin:   memoryOffHeapMin,
+				Resources:          resources,
+			},
+			TaskManager: TaskManagerSpec{
+				Replicas: 3,
+				Ports: TaskManagerPorts{
+					RPC:   &rpcPort,
+					Data:  &dataPort,
+					Query: &queryPort,
+				},
+				MemoryOffHeapRatio: &memoryOffHeapRatio,
+				MemoryOffHeapMin:   memoryOffHeapMin,
+				Resources:          resources,
+			},
+			Job: &JobSpec{
+				JarFile:                     &jarFile,
 				Parallelism:                 &parallelism,
 				RestartPolicy:               &invalidRestartPolicy,
 				MaxStateAgeToRestoreSeconds: &maxStateAgeToRestoreSeconds,
@@ -512,7 +561,7 @@ func TestInvalidJobSpec(t *testing.T) {
 				Resources:          resources,
 			},
 			Job: &JobSpec{
-				JarFile:                     "gs://my-bucket/myjob.jar",
+				JarFile:                     &jarFile,
 				Parallelism:                 &parallelism,
 				RestartPolicy:               &restartPolicy,
 				MaxStateAgeToRestoreSeconds: &maxStateAgeToRestoreSeconds,
@@ -540,12 +589,14 @@ func TestUpdateStatusAllowed(t *testing.T) {
 
 func TestUpdateSavepointGeneration(t *testing.T) {
 	var validator = &Validator{}
+	var jarFile = "gs://my-bucket/myjob.jar"
+	var jarFileNew = "gs://my-bucket/myjob-v2.jar"
 	var parallelism int32 = 2
 	var restartPolicy = JobRestartPolicyFromSavepointOnFailure
 	var savepointDir = "/savepoint_dir"
 	oldCluster := getSimpleFlinkCluster()
 	oldCluster.Spec.Job = &JobSpec{
-		JarFile:       "gs://my-bucket/myjob.jar",
+		JarFile:       &jarFile,
 		Parallelism:   &parallelism,
 		RestartPolicy: &restartPolicy,
 		SavepointsDir: &savepointDir,
@@ -564,7 +615,7 @@ func TestUpdateSavepointGeneration(t *testing.T) {
 	newCluster := getSimpleFlinkCluster()
 	newCluster.Spec.Job = &JobSpec{
 		SavepointGeneration: 4,
-		JarFile:             "gs://my-bucket/myjob.jar",
+		JarFile:             &jarFile,
 		Parallelism:         &parallelism,
 		RestartPolicy:       &restartPolicy,
 		SavepointsDir:       nil,
@@ -580,7 +631,7 @@ func TestUpdateSavepointGeneration(t *testing.T) {
 	newCluster = getSimpleFlinkCluster()
 	newCluster.Spec.Job = &JobSpec{
 		SavepointGeneration: 3,
-		JarFile:             "gs://my-bucket/myjob-v2.jar",
+		JarFile:             &jarFileNew,
 		Parallelism:         &parallelism,
 		RestartPolicy:       &restartPolicy,
 		SavepointsDir:       &savepointDir,
@@ -596,7 +647,7 @@ func TestUpdateSavepointGeneration(t *testing.T) {
 	newCluster = getSimpleFlinkCluster()
 	newCluster.Spec.Job = &JobSpec{
 		SavepointGeneration: 3,
-		JarFile:             "gs://my-bucket/myjob.jar",
+		JarFile:             &jarFile,
 		Parallelism:         &parallelism,
 		RestartPolicy:       &restartPolicy,
 		SavepointsDir:       &savepointDir,
@@ -613,6 +664,7 @@ func TestUpdateJob(t *testing.T) {
 	var validator = &Validator{}
 	var tc = &TimeConverter{}
 	var maxStateAge = time.Duration(MaxStateAgeToRestore)
+	var jarFileNew = "gs://my-bucket/myjob-v2.jar"
 
 	// cannot remove savepointsDir
 	var oldCluster = getSimpleFlinkCluster()
@@ -637,7 +689,7 @@ func TestUpdateJob(t *testing.T) {
 	oldCluster.Spec.Job.SavepointsDir = nil
 	newCluster = getSimpleFlinkCluster()
 	newCluster.Spec.Job.SavepointsDir = nil
-	newCluster.Spec.Job.JarFile = "gs://my-bucket/myjob-v2.jar"
+	newCluster.Spec.Job.JarFile = &jarFileNew
 	err = validator.ValidateUpdate(&oldCluster, &newCluster)
 	expectedErr = "updating job is not allowed when spec.job.savepointsDir was not provided"
 	assert.Equal(t, err.Error(), expectedErr)
@@ -652,7 +704,7 @@ func TestUpdateJob(t *testing.T) {
 		State:             JobStateRunning,
 	}
 	newCluster = getSimpleFlinkCluster()
-	newCluster.Spec.Job.JarFile = "gs://my-bucket/myjob-v2.jar"
+	newCluster.Spec.Job.JarFile = &jarFileNew
 	newCluster.Spec.Job.TakeSavepointOnUpdate = &takeSavepointOnUpdateFalse
 	err = validator.ValidateUpdate(&oldCluster, &newCluster)
 	jobStatusJson, _ := json.Marshal(oldCluster.Status.Components.Job)
@@ -671,7 +723,7 @@ func TestUpdateJob(t *testing.T) {
 		State:             JobStateRunning,
 	}
 	newCluster = getSimpleFlinkCluster()
-	newCluster.Spec.Job.JarFile = "gs://my-bucket/myjob-v2.jar"
+	newCluster.Spec.Job.JarFile = &jarFileNew
 	newCluster.Spec.Job.TakeSavepointOnUpdate = &takeSavepointOnUpdateFalse
 	err = validator.ValidateUpdate(&oldCluster, &newCluster)
 	assert.Equal(t, err, nil)
@@ -684,7 +736,7 @@ func TestUpdateJob(t *testing.T) {
 		State:             JobStateRunning,
 	}
 	newCluster = getSimpleFlinkCluster()
-	newCluster.Spec.Job.JarFile = "gs://my-bucket/myjob-v2.jar"
+	newCluster.Spec.Job.JarFile = &jarFileNew
 	err = validator.ValidateUpdate(&oldCluster, &newCluster)
 	assert.Equal(t, err, nil)
 
@@ -699,7 +751,7 @@ func TestUpdateJob(t *testing.T) {
 		CompletionTime:    &metav1.Time{Time: jobCompletionTime},
 	}
 	newCluster = getSimpleFlinkCluster()
-	newCluster.Spec.Job.JarFile = "gs://my-bucket/myjob-v2.jar"
+	newCluster.Spec.Job.JarFile = &jarFileNew
 	err = validator.ValidateUpdate(&oldCluster, &newCluster)
 	jobStatusJson, _ = json.Marshal(oldCluster.Status.Components.Job)
 	expectedErr = fmt.Sprintf("cannot update spec: taking savepoint is skipped but no up-to-date savepoint, "+
@@ -717,7 +769,7 @@ func TestUpdateJob(t *testing.T) {
 		CompletionTime:    &metav1.Time{Time: jobCompletionTime},
 	}
 	newCluster = getSimpleFlinkCluster()
-	newCluster.Spec.Job.JarFile = "gs://my-bucket/myjob-v2.jar"
+	newCluster.Spec.Job.JarFile = &jarFileNew
 	err = validator.ValidateUpdate(&oldCluster, &newCluster)
 	assert.Equal(t, err, nil)
 
@@ -733,7 +785,7 @@ func TestUpdateJob(t *testing.T) {
 		CompletionTime:    &metav1.Time{Time: jobCompletionTime},
 	}
 	newCluster = getSimpleFlinkCluster()
-	newCluster.Spec.Job.JarFile = "gs://my-bucket/myjob-v2.jar"
+	newCluster.Spec.Job.JarFile = &jarFileNew
 	newCluster.Spec.Job.FromSavepoint = &fromSavepoint
 	err = validator.ValidateUpdate(&oldCluster, &newCluster)
 	assert.Equal(t, err, nil)
@@ -1021,6 +1073,7 @@ func getSimpleFlinkCluster() FlinkCluster {
 	var dataPort int32 = 8005
 	var memoryOffHeapRatio int32 = 25
 	var memoryOffHeapMin = resource.MustParse("600M")
+	var jarFile = "gs://my-bucket/myjob.jar"
 	var parallelism int32 = 2
 	var maxStateAge = MaxStateAgeToRestore
 	var restartPolicy = JobRestartPolicyFromSavepointOnFailure
@@ -1063,7 +1116,7 @@ func getSimpleFlinkCluster() FlinkCluster {
 				Resources:          resources,
 			},
 			Job: &JobSpec{
-				JarFile:                     "gs://my-bucket/myjob.jar",
+				JarFile:                     &jarFile,
 				Parallelism:                 &parallelism,
 				MaxStateAgeToRestoreSeconds: &maxStateAge,
 				RestartPolicy:               &restartPolicy,

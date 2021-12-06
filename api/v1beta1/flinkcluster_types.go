@@ -365,10 +365,13 @@ type CleanupPolicy struct {
 // JobSpec defines properties of a Flink job.
 type JobSpec struct {
 	// JAR file of the job.
-	JarFile string `json:"jarFile"`
+	JarFile *string `json:"jarFile,omitempty"`
 
 	// Fully qualified Java class name of the job.
 	ClassName *string `json:"className,omitempty"`
+
+	// Python file of the job.
+	Python *string `json:"python,omitempty"`
 
 	// Args of the job.
 	Args []string `json:"args,omitempty"`

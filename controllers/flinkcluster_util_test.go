@@ -65,6 +65,7 @@ func TestNewRevision(t *testing.T) {
 	var dataPort int32 = 8005
 	var memoryOffHeapRatio int32 = 25
 	var memoryOffHeapMin = resource.MustParse("600M")
+	var jarFile = "gs://my-bucket/myjob.jar"
 	var parallelism int32 = 2
 	var savepointDir = "/savepoint_dir"
 	var flinkCluster = v1beta1.FlinkCluster{
@@ -100,7 +101,7 @@ func TestNewRevision(t *testing.T) {
 				MemoryOffHeapMin:   memoryOffHeapMin,
 			},
 			Job: &v1beta1.JobSpec{
-				JarFile:       "gs://my-bucket/myjob.jar",
+				JarFile:       &jarFile,
 				Parallelism:   &parallelism,
 				SavepointsDir: &savepointDir,
 			},

@@ -766,6 +766,8 @@ spec:
                       additionalProperties:
                         type: string
                       type: object
+                    python:
+                      type: string
                     resources:
                       properties:
                         limits:
@@ -1576,7 +1578,6 @@ spec:
                         type: object
                       type: array
                   required:
-                    - jarFile
                     - restartPolicy
                   type: object
                 jobManager:

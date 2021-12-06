@@ -45,5 +45,19 @@ if [[ -n "${FLINK_JOB_JAR_URI}" ]]; then
   fi
 fi
 
+# Download remote job python file.
+if [[ -n "${FLINK_JOB_PYTHON_URI}" ]]; then
+  mkdir -p ${FLINK_HOME}/job
+  echo "Downloading job python ${FLINK_JOB_PYTHON_URI} to ${FLINK_HOME}/job/"
+  if [[ "${FLINK_JOB_PYTHON_URI}" == gs://* ]]; then
+    gsutil cp "${FLINK_JOB_PYTHON_URI}" "${FLINK_HOME}/job/"
+  elif [[ "${FLINK_JOB_PYTHON_URI}" == http://* || "${FLINK_JOB_PYTHON_URI}" == https://* ]]; then
+    wget -nv -P "${FLINK_HOME}/job/" "${FLINK_JOB_PYTHON_URI}"
+  else
+    echo "Unsupported protocol for ${FLINK_JOB_PYTHON_URI}"
+    exit 1
+  fi
+fi
+
 # Handover to Flink base image's entrypoint.
 exec "/docker-entrypoint.sh" "$@"
