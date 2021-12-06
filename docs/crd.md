@@ -17,6 +17,9 @@ FlinkCluster
         |__ pullPolicy
         |__ pullSecrets
     |__ batchSchedulerName
+    |__ batchScheduler
+        |__ name
+        |__ queue
     |__ serviceAccountName
     |__ jobManager
         |__ accessScope
