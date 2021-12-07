@@ -625,6 +625,7 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 			if newJob.State == v1beta1.JobStateLost && oldJob.FinalSavepoint {
 				newJob.FinalSavepoint = false
 			}
+			fallthrough
 		case newJob.IsFailed():
 			if len(newJob.FailureReasons) == 0 {
 				newJob.FailureReasons = []string{}
