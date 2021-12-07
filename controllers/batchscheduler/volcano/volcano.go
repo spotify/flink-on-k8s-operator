@@ -65,31 +65,33 @@ func (v *VolcanoBatchScheduler) Name() string {
 // Schedule reconciles batch scheduling
 func (v *VolcanoBatchScheduler) Schedule(cluster *v1beta1.FlinkCluster, state *model.DesiredClusterState) error {
 	res, size := getClusterResource(state)
-	if err := v.syncPodGroup(cluster, size, res); err != nil {
+	pg, err := v.syncPodGroup(cluster, size, res)
+	if err != nil {
 		return err
 	}
-	v.setSchedulerMeta(cluster, state)
+	v.setSchedulerMeta(pg, state)
 	return nil
 }
 
-func (v *VolcanoBatchScheduler) setSchedulerMeta(cluster *v1beta1.FlinkCluster, state *model.DesiredClusterState) {
-	podgroupName := v.getPodGroupName(cluster)
-	if state.TmStatefulSet != nil {
-		state.TmStatefulSet.Spec.Template.Spec.SchedulerName = v.Name()
-		if state.TmStatefulSet.Spec.Template.Annotations == nil {
-			state.TmStatefulSet.Spec.Template.Annotations = make(map[string]string)
+func (v *VolcanoBatchScheduler) setSchedulerMeta(pg *scheduling.PodGroup, state *model.DesiredClusterState) {
+	setMeta := func(podTemplateSpec *corev1.PodTemplateSpec) {
+		if podTemplateSpec != nil {
+			podTemplateSpec.Spec.SchedulerName = v.Name()
+			if podTemplateSpec.Annotations == nil {
+				podTemplateSpec.Annotations = make(map[string]string)
+			}
+			podTemplateSpec.Annotations[scheduling.KubeGroupNameAnnotationKey] = pg.Name
 		}
-		state.TmStatefulSet.Spec.Template.Annotations[scheduling.KubeGroupNameAnnotationKey] = podgroupName
+	}
+
+	if state.TmStatefulSet != nil {
+		setMeta(&state.TmStatefulSet.Spec.Template)
 	}
 	if state.JmStatefulSet != nil {
-		state.JmStatefulSet.Spec.Template.Spec.SchedulerName = v.Name()
-		if state.JmStatefulSet.Spec.Template.Annotations == nil {
-			state.JmStatefulSet.Spec.Template.Annotations = make(map[string]string)
-		}
-		state.JmStatefulSet.Spec.Template.Annotations[scheduling.KubeGroupNameAnnotationKey] = podgroupName
+		setMeta(&state.JmStatefulSet.Spec.Template)
 	}
 	if state.Job != nil {
-		state.Job.Spec.Template.Spec.SchedulerName = v.Name()
+		setMeta(&state.Job.Spec.Template)
 	}
 }
 
@@ -109,14 +111,15 @@ func newOwnerReference(flinkCluster *v1beta1.FlinkCluster) metav1.OwnerReference
 	}
 }
 
-func (v *VolcanoBatchScheduler) syncPodGroup(cluster *v1beta1.FlinkCluster, size int32, minResource corev1.ResourceList) error {
-	var err error
-	var pg *scheduling.PodGroup
-
+func (v *VolcanoBatchScheduler) syncPodGroup(cluster *v1beta1.FlinkCluster, size int32, minResource corev1.ResourceList) (*scheduling.PodGroup, error) {
 	podGroupName := v.getPodGroupName(cluster)
-	if pg, err = v.volcanoClient.SchedulingV1beta1().PodGroups(cluster.Namespace).Get(context.TODO(), podGroupName, metav1.GetOptions{}); err != nil {
+	pg, err := v.volcanoClient.
+		SchedulingV1beta1().
+		PodGroups(cluster.Namespace).
+		Get(context.TODO(), podGroupName, metav1.GetOptions{})
+	if err != nil {
 		if !errors.IsNotFound(err) {
-			return err
+			return nil, err
 		}
 		pg := scheduling.PodGroup{
 			ObjectMeta: metav1.ObjectMeta{
@@ -130,17 +133,21 @@ func (v *VolcanoBatchScheduler) syncPodGroup(cluster *v1beta1.FlinkCluster, size
 			},
 		}
 
-		_, err = v.volcanoClient.SchedulingV1beta1().PodGroups(pg.Namespace).Create(context.TODO(), &pg, metav1.CreateOptions{})
-	} else {
-		if pg.Spec.MinMember != size {
-			pg.Spec.MinMember = size
-			_, err = v.volcanoClient.SchedulingV1beta1().PodGroups(pg.Namespace).Update(context.TODO(), pg, metav1.UpdateOptions{})
-		}
+		return v.volcanoClient.
+			SchedulingV1beta1().
+			PodGroups(pg.Namespace).
+			Create(context.TODO(), &pg, metav1.CreateOptions{})
 	}
-	if err != nil {
-		return fmt.Errorf("failed to sync PodGroup with error: %s. Abandon schedule pods via volcano", err)
+
+	if pg.Spec.MinMember != size {
+		pg.Spec.MinMember = size
+		return v.volcanoClient.
+			SchedulingV1beta1().
+			PodGroups(pg.Namespace).
+			Update(context.TODO(), pg, metav1.UpdateOptions{})
 	}
-	return nil
+
+	return pg, nil
 }
 
 func getClusterResource(state *model.DesiredClusterState) (corev1.ResourceList, int32) {
