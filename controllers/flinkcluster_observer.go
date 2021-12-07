@@ -108,12 +108,12 @@ func (s *FlinkJobSubmitter) getState() JobSubmitState {
 	// Ongoing job submission.
 	case s.job.Status.Succeeded == 0 && s.job.Status.Failed == 0:
 		fallthrough
-	// Finished, but failed to extract log.
-	case s.log == nil:
-		return JobDeployStateInProgress
 	// Failed and job ID not found.
 	case s.job.Status.Failed > 0:
 		return JobDeployStateFailed
+	// Finished, but failed to extract log.
+	case s.log == nil:
+		return JobDeployStateInProgress
 	}
 	// Abnormal case: successfully finished but job ID not found.
 	return JobDeployStateUnknown
