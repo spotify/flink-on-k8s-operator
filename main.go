@@ -30,8 +30,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/spotify/flink-on-k8s-operator/api/v1beta1"
-	"github.com/spotify/flink-on-k8s-operator/controllers"
+	"github.com/moonsub-kim/flink-on-k8s-operator/api/v1beta1"
+	"github.com/moonsub-kim/flink-on-k8s-operator/controllers"
 	// +kubebuilder:scaffold:imports
 )
 

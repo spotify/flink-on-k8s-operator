@@ -23,7 +23,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	v1beta1 "github.com/spotify/flink-on-k8s-operator/api/v1beta1"
+	v1beta1 "github.com/moonsub-kim/flink-on-k8s-operator/api/v1beta1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"

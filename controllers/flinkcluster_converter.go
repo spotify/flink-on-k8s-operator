@@ -27,8 +27,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	v1beta1 "github.com/spotify/flink-on-k8s-operator/api/v1beta1"
-	"github.com/spotify/flink-on-k8s-operator/controllers/model"
+	v1beta1 "github.com/moonsub-kim/flink-on-k8s-operator/api/v1beta1"
+	"github.com/moonsub-kim/flink-on-k8s-operator/controllers/model"
 
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"

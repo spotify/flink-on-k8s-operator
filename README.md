@@ -1,7 +1,7 @@
-[![Build Status](https://github.com/spotify/flink-on-k8s-operator/actions/workflows/ci.yml/badge.svg)](https://github.com/spotify/flink-on-k8s-operator/actions/workflows/ci.yml)
-[![GoDoc](https://godoc.org/github.com/spotify/flink-on-k8s-operator?status.svg)](https://godoc.org/github.com/spotify/flink-on-k8s-operator)
+[![Build Status](https://github.com/moonsub-kim/flink-on-k8s-operator/actions/workflows/ci.yml/badge.svg)](https://github.com/moonsub-kim/flink-on-k8s-operator/actions/workflows/ci.yml)
+[![GoDoc](https://godoc.org/github.com/moonsub-kim/flink-on-k8s-operator?status.svg)](https://godoc.org/github.com/moonsub-kim/flink-on-k8s-operator)
 [![License](https://img.shields.io/badge/LICENSE-Apache2.0-ff69b4.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
-[![Go Report Card](https://goreportcard.com/badge/github.com/spotify/flink-on-k8s-operator)](https://goreportcard.com/report/github.com/spotify/flink-on-k8s-operator)
+[![Go Report Card](https://goreportcard.com/badge/github.com/moonsub-kim/flink-on-k8s-operator)](https://goreportcard.com/report/github.com/moonsub-kim/flink-on-k8s-operator)
 
 # Kubernetes Operator for Apache Flink
 

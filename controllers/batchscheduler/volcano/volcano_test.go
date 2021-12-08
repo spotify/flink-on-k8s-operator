@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/spotify/flink-on-k8s-operator/controllers/model"
+	"github.com/moonsub-kim/flink-on-k8s-operator/controllers/model"
 )
 
 func TestGetClusterResource(t *testing.T) {

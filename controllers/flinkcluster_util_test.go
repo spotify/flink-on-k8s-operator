@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	v1beta1 "github.com/spotify/flink-on-k8s-operator/api/v1beta1"
+	v1beta1 "github.com/moonsub-kim/flink-on-k8s-operator/api/v1beta1"
 	"gotest.tools/assert"
 )
 

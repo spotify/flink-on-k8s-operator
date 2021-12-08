@@ -36,10 +36,10 @@ following 3 ways:
 
 - **Option 1: Using `kubectl`**
 
-  Pick a version at [https://github.com/spotify/flink-on-k8s-operator/releases](https://github.com/spotify/flink-on-k8s-operator/releases) and
+  Pick a version at [https://github.com/moonsub-kim/flink-on-k8s-operator/releases](https://github.com/moonsub-kim/flink-on-k8s-operator/releases) and
 
   ```bash
-  kubectl apply -f https://github.com/spotify/flink-on-k8s-operator/releases/download/$VERSION/flink-operator.yaml
+  kubectl apply -f https://github.com/moonsub-kim/flink-on-k8s-operator/releases/download/$VERSION/flink-operator.yaml
   ```
 
 - **Option 2: `make deploy`**
@@ -61,7 +61,7 @@ following 3 ways:
       [WATCH_NAMESPACE=<namespace-to-watch>]
   ```
 
-  - `IMG`: The Flink Operator image. The default value is `ghcr.io/spotify/flink-operator:latest`.
+  - `IMG`: The Flink Operator image. The default value is `ghcr.io/moonsub-kim/flink-operator:latest`.
   - `FLINK_OPERATOR_NAMESPACE`: the namespace of the operator. The default value is
     `flink-operator-system`.
   - `RESOURCE_PREFIX`: the prefix to avoid conflict of cluster-scoped resources.

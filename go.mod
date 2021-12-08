@@ -1,4 +1,4 @@
-module github.com/spotify/flink-on-k8s-operator
+module github.com/moonsub-kim/flink-on-k8s-operator
 
 go 1.17
 

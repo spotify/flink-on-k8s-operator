@@ -27,9 +27,9 @@ import (
 	scheduling "volcano.sh/apis/pkg/apis/scheduling/v1beta1"
 	volcanoclient "volcano.sh/apis/pkg/client/clientset/versioned"
 
-	"github.com/spotify/flink-on-k8s-operator/api/v1beta1"
-	schedulerinterface "github.com/spotify/flink-on-k8s-operator/controllers/batchscheduler/interface"
-	"github.com/spotify/flink-on-k8s-operator/controllers/model"
+	"github.com/moonsub-kim/flink-on-k8s-operator/api/v1beta1"
+	schedulerinterface "github.com/moonsub-kim/flink-on-k8s-operator/controllers/batchscheduler/interface"
+	"github.com/moonsub-kim/flink-on-k8s-operator/controllers/model"
 )
 
 const (

@@ -7,7 +7,7 @@ jobs:
     name: Push Docker image to GitHub Packages
     runs-on: ubuntu-latest
     env:
-      DOCKER_REPO: ghcr.io/spotify/flink-operator
+      DOCKER_REPO: ghcr.io/moonsub-kim/flink-operator
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
