@@ -61,7 +61,7 @@ following 3 ways:
       [WATCH_NAMESPACE=<namespace-to-watch>]
   ```
 
-  - `IMG`: The Flink Operator image. The default value is `moonsub-kim/flink-operator:latest`.
+  - `IMG`: The Flink Operator image. The default value is `gos16052/flink-operator:latest`.
   - `FLINK_OPERATOR_NAMESPACE`: the namespace of the operator. The default value is
     `flink-operator-system`.
   - `RESOURCE_PREFIX`: the prefix to avoid conflict of cluster-scoped resources.
