@@ -667,7 +667,7 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 				Value: *jobSpec.Python,
 			})
 		}
-		jobArgs = append(jobArgs, pythonPath)
+		jobArgs = append(jobArgs, "--python", pythonPath)
 	}
 
 	envVars = append(envVars,
