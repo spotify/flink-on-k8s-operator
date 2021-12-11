@@ -592,8 +592,8 @@ func (in *JobSpec) DeepCopyInto(out *JobSpec) {
 		*out = new(string)
 		**out = **in
 	}
-	if in.Python != nil {
-		in, out := &in.Python, &out.Python
+	if in.PythonFile != nil {
+		in, out := &in.PythonFile, &out.PythonFile
 		*out = new(string)
 		**out = **in
 	}

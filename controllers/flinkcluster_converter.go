@@ -654,17 +654,17 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 			})
 		}
 		jobArgs = append(jobArgs, jarPath)
-	} else if jobSpec.Python != nil {
+	} else if jobSpec.PythonFile != nil {
 		// If the python file is remote, put the URI in the env variable
 		// FLINK_JOB_PYTHON_URI and rewrite the python path to a local path. The entrypoint
 		// script of the container will download it before submitting it to Flink.
-		var pythonPath = *jobSpec.Python
-		if strings.Contains(*jobSpec.Python, "://") {
-			var parts = strings.Split(*jobSpec.Python, "/")
+		var pythonPath = *jobSpec.PythonFile
+		if strings.Contains(*jobSpec.PythonFile, "://") {
+			var parts = strings.Split(*jobSpec.PythonFile, "/")
 			pythonPath = path.Join("/opt/flink/job", parts[len(parts)-1])
 			envVars = append(envVars, corev1.EnvVar{
 				Name:  "FLINK_JOB_PYTHON_URI",
-				Value: *jobSpec.Python,
+				Value: *jobSpec.PythonFile,
 			})
 		}
 		jobArgs = append(jobArgs, "--python", pythonPath)

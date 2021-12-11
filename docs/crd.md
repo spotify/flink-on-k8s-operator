@@ -72,7 +72,7 @@ FlinkCluster
     |__ job
         |__ jarFile
         |__ className
-        |__ python
+        |__ pythonFile
         |__ args
         |__ fromSavepoint
         |__ allowNonRestoredState
@@ -271,10 +271,10 @@ FlinkCluster
     - **job** (optional): Job spec. If specified, the cluster is a Flink job cluster; otherwise, it is a Flink
       session cluster.
       - **jarFile** (optional): JAR file of the job. It could be a local file or remote URI, depending on which
-        protocols (e.g., `https://`, `gs://`) are supported by the Flink image. `jarFile` or `python` is required
+        protocols (e.g., `https://`, `gs://`) are supported by the Flink image. `jarFile` or `pythonFile` is required
       - **className** (optional): Fully qualified Java class name of the job.
-      - **python** (optional): python file of the job. It could be a local file or remote URI, depending on which
-        protocols (e.g., `https://`, `gs://`) are supported by the Flink image. `jarFile` or `python` is required
+      - **pythonFile** (optional): Python file of the job. It could be a local file or remote URI, depending on which
+        protocols (e.g., `https://`, `gs://`) are supported by the Flink image. `jarFile` or `pythonFile` is required
       - **args** (optional): Command-line args of the job.
       - **fromSavepoint** (optional): Savepoint where to restore the job from.
         If Flink job must be restored from the latest available savepoint when Flink job updating,

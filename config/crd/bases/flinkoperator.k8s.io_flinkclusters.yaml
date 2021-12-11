@@ -766,7 +766,7 @@ spec:
                       additionalProperties:
                         type: string
                       type: object
-                    python:
+                    pythonFile:
                       type: string
                     resources:
                       properties:

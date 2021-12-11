@@ -377,7 +377,7 @@ func TestInvalidJobSpec(t *testing.T) {
 	var dataPort int32 = 8005
 	var maxStateAgeToRestoreSeconds int32 = 300
 	var jarFile = "gs://my-bucket/myjob.jar"
-	var python = "gs://my-bucket/mypython.py"
+	var pythonFile = "gs://my-bucket/mypython.py"
 	var restartPolicy = JobRestartPolicyFromSavepointOnFailure
 	var invalidRestartPolicy JobRestartPolicy = "XXX"
 	var validator = &Validator{}
@@ -428,7 +428,7 @@ func TestInvalidJobSpec(t *testing.T) {
 		},
 	}
 	var err = validator.ValidateCreate(&cluster)
-	var expectedErr = "job jarFile or python is unspecified"
+	var expectedErr = "job jarFile or pythonFile is unspecified"
 	assert.Equal(t, err.Error(), expectedErr)
 
 	cluster = FlinkCluster{
@@ -468,14 +468,14 @@ func TestInvalidJobSpec(t *testing.T) {
 			},
 			Job: &JobSpec{
 				JarFile:                     &jarFile,
-				Python:                      &python,
+				PythonFile:                  &pythonFile,
 				RestartPolicy:               &restartPolicy,
 				MaxStateAgeToRestoreSeconds: &maxStateAgeToRestoreSeconds,
 			},
 		},
 	}
 	err = validator.ValidateCreate(&cluster)
-	expectedErr = "instead of specifing job jarFile and python, must be specified only one"
+	expectedErr = "instead of specifing job jarFile and pythonFile, must be specified only one"
 	assert.Equal(t, err.Error(), expectedErr)
 
 	cluster = FlinkCluster{
