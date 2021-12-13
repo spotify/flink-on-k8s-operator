@@ -464,7 +464,7 @@ type BatchSchedulerSpec struct {
 	// Queue defines the queue in which resources will be allocates; if queue is
 	// not specified, resources will be allocated in the schedulers default queue.
 	// +optional
-	Queue string `json:"queue"`
+	Queue string `json:"queue,omitempty"`
 
 	// If specified, indicates the PodGroup's priority. "system-node-critical" and
 	// "system-cluster-critical" are two special keywords which indicate the
@@ -473,7 +473,7 @@ type BatchSchedulerSpec struct {
 	// If not specified, the priority will be default or zero if there is no
 	// default.
 	// +optional
-	PriorityClassName string `json:"priorityClassName"`
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
 // FlinkClusterSpec defines the desired state of FlinkCluster
