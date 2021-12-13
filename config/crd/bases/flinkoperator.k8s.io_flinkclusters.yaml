@@ -42,6 +42,8 @@ spec:
                   properties:
                     name:
                       type: string
+                    priorityClassName:
+                      type: string
                     queue:
                       type: string
                   required:
