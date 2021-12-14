@@ -1,9 +1,9 @@
 # Integration with Volcano for Batch Scheduling
 
-[Volcano](https://github.com/volcano-sh/volcano) is a batch system built on Kubernetes. It provides a suite of mechanisms
+[Volcano](https://volcano.sh) is a batch system built on Kubernetes. It provides a suite of mechanisms
 currently missing from Kubernetes that are commonly required by many classes
 of batch & elastic workloads.
-With the integration with Volcano, Flink job and task managers can be scheduled simultaneously, which is particularly suitable for 
+With the integration with Volcano, Flink job and task managers can be scheduled simultaneously, which is particularly suitable for
 clusters with resource shortage.
 
 ## Prerequisites
@@ -12,14 +12,15 @@ clusters with resource shortage.
 
 - Install from provided demo
 
-Run the following 
+Run the following
+
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/volcano-sh/volcano/master/installer/volcano-development.yaml
 ```
 
 - Install with advanced settings
 
-Please refer to [Volcano Official Guide](https://volcano.sh/docs/getting-started/)
+Please refer to [Volcano Official Guide](https://volcano.sh/en/docs/)
 
 ### Verify Volcano is up and running
 
@@ -32,7 +33,7 @@ pod/volcano-controllers-d87bdbd7c-q6ds6   1/1     Running     0          52s
 pod/volcano-scheduler-5476779fd9-8rslv    1/1     Running     0          52s
 
 ```
- 
+
 ## Install Flink Operator
 
 Please refer to [Deploy the operator to a Kubernetes cluster](./user_guide.md#deploy-the-operator-to-a-kubernetes-cluster)
