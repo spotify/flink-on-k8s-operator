@@ -40,6 +40,13 @@ func _SetDefault(cluster *FlinkCluster) {
 		cluster.Spec.RecreateOnUpdate = new(bool)
 		*cluster.Spec.RecreateOnUpdate = true
 	}
+
+	if cluster.Spec.BatchSchedulerName != nil {
+		cluster.Spec.BatchScheduler = &BatchSchedulerSpec{
+			Name: *cluster.Spec.BatchSchedulerName,
+		}
+	}
+
 	_SetImageDefault(&cluster.Spec.Image)
 	flinkVersion, _ := version.NewVersion(cluster.Spec.FlinkVersion)
 	_SetJobManagerDefault(&cluster.Spec.JobManager, flinkVersion)
