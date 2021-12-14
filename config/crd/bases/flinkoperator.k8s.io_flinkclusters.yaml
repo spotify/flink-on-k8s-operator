@@ -38,6 +38,17 @@ spec:
               type: object
             spec:
               properties:
+                batchScheduler:
+                  properties:
+                    name:
+                      type: string
+                    priorityClassName:
+                      type: string
+                    queue:
+                      type: string
+                  required:
+                    - name
+                  type: object
                 batchSchedulerName:
                   type: string
                 envFrom:

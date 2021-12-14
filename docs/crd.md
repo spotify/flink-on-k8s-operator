@@ -17,6 +17,10 @@ FlinkCluster
         |__ pullPolicy
         |__ pullSecrets
     |__ batchSchedulerName
+    |__ batchScheduler
+        |__ name
+        |__ queue
+        |__ priorityClassName
     |__ serviceAccountName
     |__ jobManager
         |__ accessScope
@@ -161,8 +165,16 @@ FlinkCluster
       - **name** (required): Image name.
       - **pullPolicy** (optional): Image pull policy.
       - **pullSecrets** (optional): Secrets for image pull.
-    - **batchSchedulerName** (optional): BatchSchedulerName specifies the batch scheduler name for JobManager, TaskManager.
+    - **batchSchedulerName (deprecated)** (optional): BatchSchedulerName specifies the batch scheduler name for JobManager, TaskManager.
       If empty, no batch scheduling is enabled.
+    - **batchScheduler** (optional): BatchScheduler specifies the batch scheduler properties for Job, JobManager, TaskManager.
+      If empty, no batch scheduling is enabled.
+      - **name** (required): Scheduler name.
+      - **queue** (optional): Queue name in which resources will be allocates.
+      - **priorityClassName** (optional): If specified, indicates the PodGroup's priority.
+        "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority.
+        Any other name must be defined by creating a PriorityClass object with that name.
+        If not specified, the priority will be default or zero if there is no default.
     - **serviceAccountName** (optional): the name of the service account(which must already exist in the namespace).
       If empty, the default service account in the namespace will be used.
     - **jobManager** (required): JobManager spec.

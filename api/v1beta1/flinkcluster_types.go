@@ -458,6 +458,24 @@ type JobSpec struct {
 	Mode *JobMode `json:"mode,omitempty"`
 }
 
+type BatchSchedulerSpec struct {
+	Name string `json:"name"`
+
+	// Queue defines the queue in which resources will be allocates; if queue is
+	// not specified, resources will be allocated in the schedulers default queue.
+	// +optional
+	Queue string `json:"queue,omitempty"`
+
+	// If specified, indicates the PodGroup's priority. "system-node-critical" and
+	// "system-cluster-critical" are two special keywords which indicate the
+	// highest priorities with the former being the highest priority. Any other
+	// name must be defined by creating a PriorityClass object with that name.
+	// If not specified, the priority will be default or zero if there is no
+	// default.
+	// +optional
+	PriorityClassName string `json:"priorityClassName,omitempty"`
+}
+
 // FlinkClusterSpec defines the desired state of FlinkCluster
 type FlinkClusterSpec struct {
 	// The version of Flink to be managed. This version must match the version in the image.
@@ -469,9 +487,13 @@ type FlinkClusterSpec struct {
 	// The service account assigned to JobManager, TaskManager and Job submitter Pods. If empty, the default service account in the namespace will be used.
 	ServiceAccountName *string `json:"serviceAccountName,omitempty"`
 
-	// BatchSchedulerName specifies the batch scheduler name for JobManager, TaskManager.
+	// Deprecated: BatchSchedulerName specifies the batch scheduler name for JobManager, TaskManager.
 	// If empty, no batch scheduling is enabled.
 	BatchSchedulerName *string `json:"batchSchedulerName,omitempty"`
+
+	// BatchScheduler specifies the batch scheduler for JobManager, TaskManager.
+	// If empty, no batch scheduling is enabled.
+	BatchScheduler *BatchSchedulerSpec `json:"batchScheduler,omitempty"`
 
 	// Flink JobManager spec.
 	JobManager JobManagerSpec `json:"jobManager"`

@@ -72,18 +72,10 @@ func (reconciler *ClusterReconciler) reconcile() (ctrl.Result, error) {
 	if shouldUpdateCluster(&reconciler.observed) {
 		reconciler.log.Info("The cluster update is in progress")
 	}
-	// If batch-scheduling enabled
-	if reconciler.observed.cluster.Spec.BatchSchedulerName != nil &&
-		*reconciler.observed.cluster.Spec.BatchSchedulerName != "" {
-		scheduler, err := batchscheduler.GetScheduler(*reconciler.observed.cluster.Spec.BatchSchedulerName)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
 
-		err = scheduler.Schedule(reconciler.observed.cluster, &reconciler.desired)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
+	err = reconciler.reconcileBatchScheduler()
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	err = reconciler.reconcileConfigMap()
@@ -122,6 +114,31 @@ func (reconciler *ClusterReconciler) reconcile() (ctrl.Result, error) {
 	}
 
 	return result, nil
+}
+
+func (reconciler *ClusterReconciler) reconcileBatchScheduler() error {
+	var batchSchedulerName string
+	if reconciler.observed.cluster.Spec.BatchSchedulerName != nil {
+		batchSchedulerName = *reconciler.observed.cluster.Spec.BatchSchedulerName
+	}
+	if reconciler.observed.cluster.Spec.BatchScheduler != nil {
+		batchSchedulerName = reconciler.observed.cluster.Spec.BatchScheduler.Name
+	}
+	if batchSchedulerName == "" {
+		return nil
+	}
+
+	scheduler, err := batchscheduler.GetScheduler(batchSchedulerName)
+	if err != nil {
+		return err
+	}
+
+	err = scheduler.Schedule(reconciler.observed.cluster, &reconciler.desired)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (reconciler *ClusterReconciler) reconcileJobManagerStatefulSet() error {
