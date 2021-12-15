@@ -427,7 +427,7 @@ func TestInvalidJobSpec(t *testing.T) {
 		},
 	}
 	var err = validator.ValidateCreate(&cluster)
-	var expectedErr = "job jarFile or pythonFile is unspecified"
+	var expectedErr = "job jarFile or pythonFile or pythonModule is unspecified"
 	assert.Equal(t, err.Error(), expectedErr)
 
 	cluster = FlinkCluster{
