@@ -679,11 +679,11 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 				Value: *jobSpec.PythonFiles,
 			})
 		}
-		jobArgs = append(jobArgs, "--pythonFiles", pythonFilesPath)
+		jobArgs = append(jobArgs, "--pyFiles", pythonFilesPath)
 	}
 
 	if jobSpec.PythonModule != nil {
-		jobArgs = append(jobArgs, "--pythonModule", *jobSpec.PythonModule)
+		jobArgs = append(jobArgs, "--pyModule", *jobSpec.PythonModule)
 	}
 
 	envVars = append(envVars,
