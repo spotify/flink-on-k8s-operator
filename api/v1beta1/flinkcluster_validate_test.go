@@ -377,7 +377,6 @@ func TestInvalidJobSpec(t *testing.T) {
 	var dataPort int32 = 8005
 	var maxStateAgeToRestoreSeconds int32 = 300
 	var jarFile = "gs://my-bucket/myjob.jar"
-	var pythonFile = "gs://my-bucket/mypython.py"
 	var restartPolicy = JobRestartPolicyFromSavepointOnFailure
 	var invalidRestartPolicy JobRestartPolicy = "XXX"
 	var validator = &Validator{}
@@ -429,53 +428,6 @@ func TestInvalidJobSpec(t *testing.T) {
 	}
 	var err = validator.ValidateCreate(&cluster)
 	var expectedErr = "job jarFile or pythonFile is unspecified"
-	assert.Equal(t, err.Error(), expectedErr)
-
-	cluster = FlinkCluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster",
-			Namespace: "default",
-		},
-		Spec: FlinkClusterSpec{
-			FlinkVersion: "1.8",
-			Image: ImageSpec{
-				Name:       "flink:1.8.1",
-				PullPolicy: corev1.PullPolicy("Always"),
-			},
-			JobManager: JobManagerSpec{
-				Replicas:    &jmReplicas,
-				AccessScope: AccessScopeVPC,
-				Ports: JobManagerPorts{
-					RPC:   &rpcPort,
-					Blob:  &blobPort,
-					Query: &queryPort,
-					UI:    &uiPort,
-				},
-				MemoryOffHeapRatio: &memoryOffHeapRatio,
-				MemoryOffHeapMin:   memoryOffHeapMin,
-				Resources:          resources,
-			},
-			TaskManager: TaskManagerSpec{
-				Replicas: 3,
-				Ports: TaskManagerPorts{
-					RPC:   &rpcPort,
-					Data:  &dataPort,
-					Query: &queryPort,
-				},
-				MemoryOffHeapRatio: &memoryOffHeapRatio,
-				MemoryOffHeapMin:   memoryOffHeapMin,
-				Resources:          resources,
-			},
-			Job: &JobSpec{
-				JarFile:                     &jarFile,
-				PythonFile:                  &pythonFile,
-				RestartPolicy:               &restartPolicy,
-				MaxStateAgeToRestoreSeconds: &maxStateAgeToRestoreSeconds,
-			},
-		},
-	}
-	err = validator.ValidateCreate(&cluster)
-	expectedErr = "instead of specifing job jarFile and pythonFile, must be specified only one"
 	assert.Equal(t, err.Error(), expectedErr)
 
 	cluster = FlinkCluster{

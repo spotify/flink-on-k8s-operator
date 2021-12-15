@@ -480,10 +480,8 @@ func (v *Validator) validateJob(jobSpec *JobSpec) error {
 		return nil
 	}
 
-	if jobSpec.JarFile == nil && jobSpec.PythonFile == nil {
-		return fmt.Errorf("job jarFile or pythonFile is unspecified")
-	} else if jobSpec.JarFile != nil && jobSpec.PythonFile != nil {
-		return fmt.Errorf("instead of specifing job jarFile and pythonFile, must be specified only one")
+	if jobSpec.JarFile == nil && jobSpec.PythonFile == nil && jobSpec.PythonModule == nil {
+		return fmt.Errorf("job jarFile or pythonFile or pythonModule is unspecified")
 	}
 
 	if jobSpec.Parallelism != nil && *jobSpec.Parallelism < 1 {

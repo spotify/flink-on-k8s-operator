@@ -768,6 +768,10 @@ spec:
                       type: object
                     pythonFile:
                       type: string
+                    pythonFiles:
+                      type: string
+                    pythonModule:
+                      type: string
                     resources:
                       properties:
                         limits:
