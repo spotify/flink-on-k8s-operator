@@ -371,7 +371,13 @@ type JobSpec struct {
 	ClassName *string `json:"className,omitempty"`
 
 	// Python file of the job.
-	Python *string `json:"python,omitempty"`
+	PythonFile *string `json:"pythonFile,omitempty"`
+
+	// Python directory of the job.
+	PythonFiles *string `json:"pythonFiles,omitempty"`
+
+	// Python module path of the job.
+	PythonModule *string `json:"pythonModule,omitempty"`
 
 	// Args of the job.
 	Args []string `json:"args,omitempty"`

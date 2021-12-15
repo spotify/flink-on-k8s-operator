@@ -640,10 +640,10 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 
 	var envVars []corev1.EnvVar
 
+	// If the JAR file (or Python file or Python files) is remote, put the URI in the env variable
+	// FLINK_JOB_JAR_URI (or FLINK_JOB_PYTHON_URI or FLINK_JOB_PYTHON_FILES_URI) or and rewrite the path to a local
+	// path. The entrypoint script of the container will download it before submitting it to Flink.
 	if jobSpec.JarFile != nil {
-		// If the JAR file is remote, put the URI in the env variable
-		// FLINK_JOB_JAR_URI and rewrite the JAR path to a local path. The entrypoint
-		// script of the container will download it before submitting it to Flink.
 		var jarPath = *jobSpec.JarFile
 		if strings.Contains(*jobSpec.JarFile, "://") {
 			var parts = strings.Split(*jobSpec.JarFile, "/")
@@ -654,20 +654,28 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 			})
 		}
 		jobArgs = append(jobArgs, jarPath)
-	} else if jobSpec.Python != nil {
-		// If the python file is remote, put the URI in the env variable
-		// FLINK_JOB_PYTHON_URI and rewrite the python path to a local path. The entrypoint
-		// script of the container will download it before submitting it to Flink.
-		var pythonPath = *jobSpec.Python
-		if strings.Contains(*jobSpec.Python, "://") {
-			var parts = strings.Split(*jobSpec.Python, "/")
+	} else if jobSpec.PythonFile != nil {
+		var pythonPath = *jobSpec.PythonFile
+		if strings.Contains(*jobSpec.PythonFile, "://") {
+			var parts = strings.Split(*jobSpec.PythonFile, "/")
 			pythonPath = path.Join("/opt/flink/job", parts[len(parts)-1])
 			envVars = append(envVars, corev1.EnvVar{
 				Name:  "FLINK_JOB_PYTHON_URI",
-				Value: *jobSpec.Python,
+				Value: *jobSpec.PythonFile,
 			})
 		}
 		jobArgs = append(jobArgs, "--python", pythonPath)
+	} else if jobSpec.PythonFiles != nil {
+		var pythonFilesPath = *jobSpec.PythonFiles
+		if strings.Contains(*jobSpec.PythonFiles, "://") {
+			var parts = strings.Split(*jobSpec.PythonFiles, "/")
+			pythonFilesPath = path.Join("/opt/flink/job", parts[len(parts)-1])
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  "FLINK_JOB_PYTHON_FILES_URI",
+				Value: *jobSpec.PythonFiles,
+			})
+		}
+		jobArgs = append(jobArgs, "--pythonFiles", pythonFilesPath)
 	}
 
 	envVars = append(envVars,

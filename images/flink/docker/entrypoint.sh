@@ -31,32 +31,37 @@ if [[ -n "${FLINK_PROPERTIES}" ]]; then
   echo "${FLINK_PROPERTIES}" >>${FLINK_CONF_FILE}
 fi
 
+download_remote_files()
+{
+  URI=$1
+  DIR=$2
+  echo "Downloading $URI to $DIR"
+  if [[ "$URI" == gs://* ]]; then
+    gsutil cp -r "$URI" "$DIR"
+  elif [[ "$URI" == http://* || "$URI" == https://* ]]; then
+    wget -nv -P "$DIR" "$URI"
+  else
+    echo "Unsupported protocol for $URI"
+    exit 1
+  fi
+}
+
 # Download remote job JAR file.
 if [[ -n "${FLINK_JOB_JAR_URI}" ]]; then
   mkdir -p ${FLINK_HOME}/job
-  echo "Downloading job JAR ${FLINK_JOB_JAR_URI} to ${FLINK_HOME}/job/"
-  if [[ "${FLINK_JOB_JAR_URI}" == gs://* ]]; then
-    gsutil cp "${FLINK_JOB_JAR_URI}" "${FLINK_HOME}/job/"
-  elif [[ "${FLINK_JOB_JAR_URI}" == http://* || "${FLINK_JOB_JAR_URI}" == https://* ]]; then
-    wget -nv -P "${FLINK_HOME}/job/" "${FLINK_JOB_JAR_URI}"
-  else
-    echo "Unsupported protocol for ${FLINK_JOB_JAR_URI}"
-    exit 1
-  fi
+  download_remote_files "${FLINK_JOB_JAR_URI}" "${FLINK_HOME}/job/"
 fi
 
 # Download remote job python file.
 if [[ -n "${FLINK_JOB_PYTHON_URI}" ]]; then
   mkdir -p ${FLINK_HOME}/job
-  echo "Downloading job python ${FLINK_JOB_PYTHON_URI} to ${FLINK_HOME}/job/"
-  if [[ "${FLINK_JOB_PYTHON_URI}" == gs://* ]]; then
-    gsutil cp "${FLINK_JOB_PYTHON_URI}" "${FLINK_HOME}/job/"
-  elif [[ "${FLINK_JOB_PYTHON_URI}" == http://* || "${FLINK_JOB_PYTHON_URI}" == https://* ]]; then
-    wget -nv -P "${FLINK_HOME}/job/" "${FLINK_JOB_PYTHON_URI}"
-  else
-    echo "Unsupported protocol for ${FLINK_JOB_PYTHON_URI}"
-    exit 1
-  fi
+  download_remote_files "${FLINK_JOB_PYTHON_FILES_URI}" "${FLINK_HOME}/job/"
+fi
+
+# Download remote job python files.
+if [[ -n "${FLINK_JOB_PYTHON_FILES_URI}" ]]; then
+  mkdir -p ${FLINK_HOME}/job
+  download_remote_files "${FLINK_JOB_PYTHON_FILES_URI}" "${FLINK_HOME}/job/"
 fi
 
 # Handover to Flink base image's entrypoint.
