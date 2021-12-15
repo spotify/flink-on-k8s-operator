@@ -654,7 +654,9 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 			})
 		}
 		jobArgs = append(jobArgs, jarPath)
-	} else if jobSpec.PythonFile != nil {
+	}
+
+	if jobSpec.PythonFile != nil {
 		var pythonPath = *jobSpec.PythonFile
 		if strings.Contains(*jobSpec.PythonFile, "://") {
 			var parts = strings.Split(*jobSpec.PythonFile, "/")
@@ -665,7 +667,9 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 			})
 		}
 		jobArgs = append(jobArgs, "--python", pythonPath)
-	} else if jobSpec.PythonFiles != nil {
+	}
+
+	if jobSpec.PythonFiles != nil {
 		var pythonFilesPath = *jobSpec.PythonFiles
 		if strings.Contains(*jobSpec.PythonFiles, "://") {
 			var parts = strings.Split(*jobSpec.PythonFiles, "/")
@@ -676,6 +680,10 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 			})
 		}
 		jobArgs = append(jobArgs, "--pythonFiles", pythonFilesPath)
+	}
+
+	if jobSpec.PythonModule != nil {
+		jobArgs = append(jobArgs, "--pythonModule", *jobSpec.PythonModule)
 	}
 
 	envVars = append(envVars,
