@@ -13,8 +13,8 @@ The instructions to install the Flink operator chart:
     * `export IMG=<image-name>` - Operator image, defaults to `flink-operator:latest`
     * `export NS=<namespace-name>` - Namespace to install the operator in, defaults to `flink-operator-system`
 
-3. Register CRD - Don't manually register CRD unless helm install below fails (You can skip this step if your helm version is v3). 
-    
+3. Register CRD - Don't manually register CRD unless helm install below fails (You can skip this step if your helm version is v3).
+
     ```bash
    kubectl create -f https://raw.githubusercontent.com/GoogleCloudPlatform/flink-on-k8s-operator/master/config/crd/bases/flinkoperator.k8s.io_flinkclusters.yaml
    ```
@@ -34,7 +34,7 @@ The instructions to install the Flink operator chart:
     If you're installing the chart into a preexisting namespace, make sure to set the namespace name and instruct the chart not create one like so:  
 
     ```bash
-    helm install --name [RELEASE_NAME] . --set operatorImage.name=[IMAGE_NAME],flinkOperatorNamespace.name=[NAMESPACE_NAME],flinkOperatorNamespace.create=false
+    helm install --name [RELEASE_NAME] . --set operatorImage.name=[IMAGE_NAME],flinkOperatorNamespace.name=[NAMESPACE_NAME]
     ```
 ## Uninstalling the Chart
 
