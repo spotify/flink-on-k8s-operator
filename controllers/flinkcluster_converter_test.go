@@ -50,6 +50,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 	var restartPolicy = v1beta1.JobRestartPolicyFromSavepointOnFailure
 	var className = "org.apache.flink.examples.java.wordcount.WordCount"
 	var serviceAccount = "default"
+	var jarFile = "/cache/my-job.jar"
 	var hostFormat = "{{$clusterName}}.example.com"
 	var memoryOffHeapRatio int32 = 25
 	var memoryOffHeapMin = resource.MustParse("600M")
@@ -140,7 +141,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 				Job: &v1beta1.JobSpec{
 					Args:        []string{"--input", "./README.txt"},
 					ClassName:   &className,
-					JarFile:     "/cache/my-job.jar",
+					JarFile:     &jarFile,
 					Parallelism: &parallelism,
 					Resources: corev1.ResourceRequirements{
 						Requests: map[corev1.ResourceName]resource.Quantity{
