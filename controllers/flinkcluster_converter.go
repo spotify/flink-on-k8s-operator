@@ -657,11 +657,29 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 	}
 
 	if jobSpec.PythonFile != nil {
-		jobArgs = append(jobArgs, "--python", *jobSpec.PythonFile)
+		var pythonPath = *jobSpec.PythonFile
+		if strings.Contains(*jobSpec.PythonFile, "://") {
+			var parts = strings.Split(*jobSpec.PythonFile, "/")
+			pythonPath = path.Join("/opt/flink/job", parts[len(parts)-1])
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  "FLINK_JOB_PYTHON_URI",
+				Value: *jobSpec.PythonFile,
+			})
+		}
+		jobArgs = append(jobArgs, "--python", pythonPath)
 	}
 
 	if jobSpec.PythonFiles != nil {
-		jobArgs = append(jobArgs, "--pyFiles", *jobSpec.PythonFiles)
+		var pythonPath = *jobSpec.PythonFiles
+		if strings.Contains(*jobSpec.PythonFiles, "://") {
+			var parts = strings.Split(*jobSpec.PythonFiles, "/")
+			pythonPath = path.Join("/opt/flink/job", parts[len(parts)-1])
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  "FLINK_JOB_PYTHON_FILES_URI",
+				Value: *jobSpec.PythonFiles,
+			})
+		}
+		jobArgs = append(jobArgs, "--pyFiles", pythonPath)
 	}
 
 	if jobSpec.PythonModule != nil {
