@@ -186,6 +186,12 @@ func getClusterResource(state *model.DesiredClusterState) (corev1.ResourceList, 
 		}
 	}
 
+	if state.Job != nil {
+		size += 1
+		jobResource := getPodResource(&state.Job.Spec.Template.Spec)
+		addResourceList(resource, jobResource, nil)
+	}
+
 	return resource, size
 }
 
