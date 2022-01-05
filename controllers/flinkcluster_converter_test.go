@@ -257,6 +257,15 @@ func TestGetDesiredClusterState(t *testing.T) {
 						{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "pvc-test",
+								OwnerReferences: []metav1.OwnerReference{
+									{
+										APIVersion:         "flinkoperator.k8s.io/v1beta1",
+										Kind:               "FlinkCluster",
+										Name:               "flinkjobcluster-sample",
+										Controller:         &controller,
+										BlockOwnerDeletion: &blockOwnerDeletion,
+									},
+								},
 							},
 							Spec: corev1.PersistentVolumeClaimSpec{
 								AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -607,6 +616,15 @@ func TestGetDesiredClusterState(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "pvc-test",
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								APIVersion:         "flinkoperator.k8s.io/v1beta1",
+								Kind:               "FlinkCluster",
+								Name:               "flinkjobcluster-sample",
+								Controller:         &controller,
+								BlockOwnerDeletion: &blockOwnerDeletion,
+							},
+						},
 					},
 					Spec: corev1.PersistentVolumeClaimSpec{
 						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
