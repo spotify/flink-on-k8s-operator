@@ -1,13 +1,23 @@
 # K8s namespace where Flink operator to be deployed
-flinkOperatorNamespace: 
+flinkOperatorNamespace:
   name: "flink-operator-system"
-  create: true
 
 # Watch custom resources in the namespace, ignore other namespaces. If empty, all namespaces will be watched.
 watchNamespace:
+  - flink-job
 
 # The number of replicas of the operator Deployment
 replicas: 1
+
+
+serviceAccount:
+  flinkoperator:
+    # -- Create a service account for the operator
+    create: true
+    # -- Optional name for the operator service account
+    name: ""
+    # -- Optional annotations for the operator service account
+    annotations: {}
 
 # Create RBAC resources if true
 rbac:
@@ -15,15 +25,8 @@ rbac:
 
 # The defination of the operator image
 operatorImage:
-  name:
+  name: ghcr.io/spotify/flink-operator:v0.3.1
   pullPolicy: IfNotPresent
-
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: true
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name:
 
 
 # Defines security context for operator container
@@ -40,8 +43,8 @@ resources:
     cpu: 100m
     memory: 128Mi
   requests:
-    cpu: 100m
-    memory: 128Mi
+    cpu: 2
+    memory: 2Gi
 
 # Annotations to be added to pods
 podAnnotations: {}
