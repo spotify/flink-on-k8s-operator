@@ -2,7 +2,6 @@ include properties
 
 all: build
 
-
 # Build the docker image
 build:
 	cd docker
