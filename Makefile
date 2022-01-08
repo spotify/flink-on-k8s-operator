@@ -40,6 +40,9 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./api/v1beta1/..."
 
+generate-crd-docs: crd-ref-docs
+	$(CRD_REF_DOCS) --source-path=./api/v1beta1 --config=docs/config.yaml --renderer=markdown --output-path=docs/crd.md
+
 tidy: ## Run go mod tidy
 	go mod tidy
 
@@ -120,6 +123,10 @@ controller-gen: ## Download controller-gen locally if necessary.
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.
 	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v3@v3.8.7)
+
+CRD_REF_DOCS = $(shell pwd)/bin/crd-ref-docs
+crd-ref-docs:
+	$(call go-get-tool,$(CRD_REF_DOCS),github.com/elastic/crd-ref-docs@master)
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
