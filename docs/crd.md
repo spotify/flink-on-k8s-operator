@@ -10,7 +10,6 @@ Package v1beta1 contains API Schema definitions for the flinkoperator v1beta1 AP
 
 ### Resource Types
 - [FlinkCluster](#flinkcluster)
-- [FlinkClusterList](#flinkclusterlist)
 
 
 
@@ -52,8 +51,7 @@ _Appears in:_
 
 FlinkCluster is the Schema for the flinkclusters API
 
-_Appears in:_
-- [FlinkClusterList](#flinkclusterlist)
+
 
 | Field | Description |
 | --- | --- |
@@ -113,22 +111,6 @@ _Appears in:_
 | `state` _string_ | State |
 | `message` _string_ | Message |
 | `updateTime` _string_ | State update time |
-
-
-#### FlinkClusterList
-
-
-
-FlinkClusterList contains a list of FlinkCluster
-
-
-
-| Field | Description |
-| --- | --- |
-| `apiVersion` _string_ | `flinkoperator.k8s.io/v1beta1`
-| `kind` _string_ | `FlinkClusterList`
-| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |
-| `items` _[FlinkCluster](#flinkcluster)_ |  |
 
 
 #### FlinkClusterSpec
