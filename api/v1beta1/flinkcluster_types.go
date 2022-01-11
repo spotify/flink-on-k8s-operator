@@ -118,7 +118,7 @@ const (
 
 // ImageSpec defines Flink image of JobManager and TaskManager containers.
 type ImageSpec struct {
-	// _(Required)_ Flink image name.
+	// Flink image name.
 	Name string `json:"name"`
 
 	// Image pull policy. One of `Always, Never, IfNotPresent`, default: `Always``.
@@ -126,19 +126,19 @@ type ImageSpec struct {
 	// [More info](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy)
 	PullPolicy corev1.PullPolicy `json:"pullPolicy,omitempty"`
 
-	// Secrets for image pull.
+	// _(Optional)_ Secrets for image pull.
 	// [More info](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/#create-a-pod-that-uses-your-secret)
 	PullSecrets []corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
 }
 
 // NamedPort defines the container port properties.
 type NamedPort struct {
-	// If specified, this must be an IANA_SVC_NAME and unique within the pod. Each
+	// _(Optional)_ If specified, this must be an IANA_SVC_NAME and unique within the pod. Each
 	// named port in a pod must have a unique name. Name for the port that can be
 	// referred to by services.
 	Name string `json:"name,omitempty"`
 
-	// _(Required)_ Number of port to expose on the pod's IP address.
+	// Number of port to expose on the pod's IP address.
 	// This must be a valid port number, 0 < x < 65536.
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=65535
@@ -167,17 +167,17 @@ type JobManagerPorts struct {
 
 // JobManagerIngressSpec defines ingress of JobManager
 type JobManagerIngressSpec struct {
-	// Ingress host format. ex) {{$clusterName}}.example.com
+	// _(Optional)_ Ingress host format. ex) {{$clusterName}}.example.com
 	HostFormat *string `json:"hostFormat,omitempty"`
 
-	// Annotations for ingress configuration.
+	// _(Optional)_Annotations for ingress configuration.
 	// [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/)
 	Annotations map[string]string `json:"annotations,omitempty"`
 
 	// TLS use, default: `false`.
 	UseTLS *bool `json:"useTls,omitempty"`
 
-	// TLS secret name.
+	// _(Optional)_TLS secret name.
 	TLSSecretName *string `json:"tlsSecretName,omitempty"`
 }
 
@@ -195,13 +195,13 @@ type JobManagerSpec struct {
 	// Currently `VPC, External` are only available for GKE.
 	AccessScope string `json:"accessScope"`
 
-	// Provide external access to JobManager UI/API.
+	// _(Optional)_ Provide external access to JobManager UI/API.
 	Ingress *JobManagerIngressSpec `json:"ingress,omitempty"`
 
 	// Ports that JobManager listening on.
 	Ports JobManagerPorts `json:"ports,omitempty"`
 
-	// Extra ports to be exposed. For example, Flink metrics reporter ports: Prometheus, JMX and so on.
+	// _(Optional)_ Extra ports to be exposed. For example, Flink metrics reporter ports: Prometheus, JMX and so on.
 	// Each port number and name must be unique among ports and extraPorts.
 	ExtraPorts []NamedPort `json:"extraPorts,omitempty"`
 
@@ -222,45 +222,45 @@ type JobManagerSpec struct {
 	// For Flink 1.10+. Percentage of memory process, as a safety margin to avoid OOM kill, default: 80
 	MemoryProcessRatio *int32 `json:"memoryProcessRatio,omitempty"`
 
-	// Volumes in the JobManager pod.
+	// _(Optional)_ Volumes in the JobManager pod.
 	// [More info](https://kubernetes.io/docs/concepts/storage/volumes/)
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 
-	// Volume mounts in the JobManager container.
+	// _(Optional)_ Volume mounts in the JobManager container.
 	// [More info](https://kubernetes.io/docs/concepts/storage/volumes/)
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 
-	// A template for persistent volume claim each requested and mounted to JobManager pod,
+	// _(Optional)_ A template for persistent volume claim each requested and mounted to JobManager pod,
 	// This can be used to mount an external volume with a specific storageClass or larger captivity (for larger/faster state backend).
 	// [More info](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims)
 	VolumeClaimTemplates []corev1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 
-	// Init containers of the Job Manager pod.
+	// _(Optional)_ Init containers of the Job Manager pod.
 	// [More info](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/)
 	InitContainers []corev1.Container `json:"initContainers,omitempty"`
 
-	// Selector which must match a node's labels for the JobManager pod to be
+	// _(Optional)_ Selector which must match a node's labels for the JobManager pod to be
 	// scheduled on that node.
 	// [More info](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/)
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
-	// Defines the node affinity of the pod
+	// _(Optional)_ Defines the node affinity of the pod
 	// [More info](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 
-	// Sidecar containers running alongside with the JobManager container in the pod.
+	// _(Optional)_ Sidecar containers running alongside with the JobManager container in the pod.
 	// [More info](https://kubernetes.io/docs/concepts/containers/)
 	Sidecars []corev1.Container `json:"sidecars,omitempty"`
 
-	// JobManager StatefulSet pod template annotations.
+	// _(Optional)_ JobManager StatefulSet pod template annotations.
 	// [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/)
 	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
 
-	// SecurityContext of the JobManager pod.
+	// _(Optional)_ SecurityContext of the JobManager pod.
 	// [More info](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
 	SecurityContext *corev1.PodSecurityContext `json:"securityContext,omitempty"`
 
-	// JobManager StatefulSet pod template labels.
+	// _(Optional)_ JobManager StatefulSet pod template labels.
 	// [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/)
 	PodLabels map[string]string `json:"podLabels,omitempty"`
 
@@ -295,7 +295,7 @@ type TaskManagerSpec struct {
 	// Ports that TaskManager listening on.
 	Ports TaskManagerPorts `json:"ports,omitempty"`
 
-	// Extra ports to be exposed. For example, Flink metrics reporter ports: Prometheus, JMX and so on.
+	// _(Optional)_ Extra ports to be exposed. For example, Flink metrics reporter ports: Prometheus, JMX and so on.
 	ExtraPorts []NamedPort `json:"extraPorts,omitempty"`
 
 	// Compute resources required by each TaskManager container.
@@ -317,45 +317,45 @@ type TaskManagerSpec struct {
 	// For Flink 1.10+. Percentage of process memory, as a safety margin to avoid OOM kill, default: 20
 	MemoryProcessRatio *int32 `json:"memoryProcessRatio,omitempty"`
 
-	// Volumes in the TaskManager pods.
+	// _(Optional)_ Volumes in the TaskManager pods.
 	// [More info](https://kubernetes.io/docs/concepts/storage/volumes/)
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 
-	// Volume mounts in the TaskManager containers.
+	// _(Optional)_ Volume mounts in the TaskManager containers.
 	// [More info](https://kubernetes.io/docs/concepts/storage/volumes/)
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 
-	// A template for persistent volume claim each requested and mounted to JobManager pod,
+	// _(Optional)_ A template for persistent volume claim each requested and mounted to JobManager pod,
 	// This can be used to mount an external volume with a specific storageClass or larger captivity (for larger/faster state backend).
 	// [More info](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims)
 	VolumeClaimTemplates []corev1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 
-	// Init containers of the Task Manager pod.
+	// _(Optional)_ Init containers of the Task Manager pod.
 	// [More info](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/)
 	InitContainers []corev1.Container `json:"initContainers,omitempty"`
 
-	// Selector which must match a node's labels for the TaskManager pod to be
+	// _(Optional)_ Selector which must match a node's labels for the TaskManager pod to be
 	// scheduled on that node.
 	// [More info](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/)
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
-	// Defines the node affinity of the pod
+	// _(Optional)_ Defines the node affinity of the pod
 	// [More info](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 
-	// Sidecar containers running alongside with the TaskManager container in the pod.
+	// _(Optional)_ Sidecar containers running alongside with the TaskManager container in the pod.
 	// [More info](https://kubernetes.io/docs/concepts/containers/)
 	Sidecars []corev1.Container `json:"sidecars,omitempty"`
 
-	// TaskManager StatefulSet pod template annotations.
+	// _(Optional)_ TaskManager StatefulSet pod template annotations.
 	// [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/)
 	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
 
-	// SecurityContext of the TaskManager pod.
+	// _(Optional)_ SecurityContext of the TaskManager pod.
 	// [More info](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
 	SecurityContext *corev1.PodSecurityContext `json:"securityContext,omitempty"`
 
-	// TaskManager StatefulSet pod template labels.
+	// _(Optional)_ TaskManager StatefulSet pod template labels.
 	// [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/)
 	PodLabels map[string]string `json:"podLabels,omitempty"`
 
@@ -395,27 +395,27 @@ type CleanupPolicy struct {
 
 // JobSpec defines properties of a Flink job.
 type JobSpec struct {
-	// JAR file of the job. It could be a local file or remote URI,
+	// _(Optional)_ JAR file of the job. It could be a local file or remote URI,
 	// depending on which protocols (e.g., `https://, gs://`) are supported by the Flink image.
 	JarFile *string `json:"jarFile,omitempty"`
 
-	// Fully qualified Java class name of the job.
+	// _(Optional)_ Fully qualified Java class name of the job.
 	ClassName *string `json:"className,omitempty"`
 
-	// Python file of the job. It should be a local file.
+	// _(Optional)_ Python file of the job. It should be a local file.
 	PyFile *string `json:"pyFile,omitempty"`
 
-	// Python files of the job. It should be a local file (with .py/.egg/.zip/.whl) or directory.
+	// _(Optional)_ Python files of the job. It should be a local file (with .py/.egg/.zip/.whl) or directory.
 	// See the Flink argument `--pyFiles` for the detail.
 	PyFiles *string `json:"pyFiles,omitempty"`
 
-	// Python module path of the job entry point. Must use with pythonFiles.
+	// _(Optional)_ Python module path of the job entry point. Must use with pythonFiles.
 	PyModule *string `json:"pyModule,omitempty"`
 
-	// Command-line args of the job.
+	// _(Optional)_ Command-line args of the job.
 	Args []string `json:"args,omitempty"`
 
-	// FromSavepoint where to restore the job from
+	// _(Optional)_ FromSavepoint where to restore the job from
 	// Savepoint where to restore the job from (e.g., gs://my-savepoint/1234).
 	// If flink job must be restored from the latest available savepoint when Flink job updating, this field must be unspecified.
 	FromSavepoint *string `json:"fromSavepoint,omitempty"`
@@ -423,24 +423,24 @@ type JobSpec struct {
 	// Allow non-restored state, default: false.
 	AllowNonRestoredState *bool `json:"allowNonRestoredState,omitempty"`
 
-	// Savepoints dir where to store savepoints of the job.
+	// _(Optional)_ Savepoints dir where to store savepoints of the job.
 	SavepointsDir *string `json:"savepointsDir,omitempty"`
 
-	// Should take savepoint before updating job, default: true.
+	// _(Optional)_ Should take savepoint before updating job, default: true.
 	// If this is set as false, maxStateAgeToRestoreSeconds must be provided to limit the savepoint age to restore.
 	TakeSavepointOnUpdate *bool `json:"takeSavepointOnUpdate,omitempty"`
 
-	// Maximum age of the savepoint that allowed to restore state..
+	// _(Optional)_ Maximum age of the savepoint that allowed to restore state.
 	// This is applied to auto restart on failure, update from stopped state and update without taking savepoint.
 	// If nil, job can be restarted only when the latest savepoint is the final job state (created by "stop with savepoint")
 	// - that is, only when job can be resumed from the suspended state.
 	// +kubebuilder:validation:Minimum=0
 	MaxStateAgeToRestoreSeconds *int32 `json:"maxStateAgeToRestoreSeconds,omitempty"`
 
-	// Automatically take a savepoint to the `savepointsDir` every n seconds.
+	// _(Optional)_ Automatically take a savepoint to the `savepointsDir` every n seconds.
 	AutoSavepointSeconds *int32 `json:"autoSavepointSeconds,omitempty"`
 
-	// Update this field to `jobStatus.savepointGeneration + 1` for a running job
+	// _(Optional)_ Update this field to `jobStatus.savepointGeneration + 1` for a running job
 	// cluster to trigger a new savepoint to `savepointsDir` on demand.
 	SavepointGeneration int32 `json:"savepointGeneration,omitempty"`
 
@@ -450,15 +450,15 @@ type JobSpec struct {
 	// No logging output to STDOUT, default: false.
 	NoLoggingToStdout *bool `json:"noLoggingToStdout,omitempty"`
 
-	// Volumes in the Job pod.
+	// _(Optional)_ Volumes in the Job pod.
 	// [More info](https://kubernetes.io/docs/concepts/storage/volumes/)
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 
-	// Volume mounts in the Job container.
+	// _(Optional)_ Volume mounts in the Job container.
 	// [More info](https://kubernetes.io/docs/concepts/storage/volumes/)
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 
-	// Init containers of the Job pod. A typical use case could be using an init
+	// _(Optional)_ Init containers of the Job pod. A typical use case could be using an init
 	// container to download a remote job jar to a local path which is
 	// referenced by the `jarFile` property.
 	// [More info](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/)
@@ -477,26 +477,26 @@ type JobSpec struct {
 	// The action to take after job finishes.
 	CleanupPolicy *CleanupPolicy `json:"cleanupPolicy,omitempty"`
 
-	// Request the job to be cancelled. Only applies to running jobs. If
+	// _(Optional)_ Request the job to be cancelled. Only applies to running jobs. If
 	// `savePointsDir` is provided, a savepoint will be taken before stopping the
 	// job.
 	CancelRequested *bool `json:"cancelRequested,omitempty"`
 
-	// Job pod template annotations.
+	// _(Optional)_ Job pod template annotations.
 	// [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/)
 	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
 
-	// Job pod template labels.
+	// _(Optional)_ Job pod template labels.
 	// [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/)
 	PodLabels map[string]string `json:"podLabels,omitempty"`
 
-	// Compute resources required by each Job container.
+	// _(Optional)_ Compute resources required by each Job container.
 	// If omitted, a default value will be used.
 	// It Cannot be updated.
 	// More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
 
-	// SecurityContext of the Job pod.
+	// _(Optional)_ SecurityContext of the Job pod.
 	// [More info](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
 	SecurityContext *corev1.PodSecurityContext `json:"securityContext,omitempty"`
 
@@ -508,12 +508,12 @@ type BatchSchedulerSpec struct {
 	// BatchScheduler name.
 	Name string `json:"name"`
 
-	// Queue defines the queue in which resources will be allocates; if queue is
+	// _(Optional)_ Queue defines the queue in which resources will be allocates; if queue is
 	// not specified, resources will be allocated in the schedulers default queue.
 	// +optional
 	Queue string `json:"queue,omitempty"`
 
-	// If specified, indicates the PodGroup's priority. "system-node-critical" and
+	// _(Optional)_ If specified, indicates the PodGroup's priority. "system-node-critical" and
 	// "system-cluster-critical" are two special keywords which indicate the
 	// highest priorities with the former being the highest priority. Any other
 	// name must be defined by creating a PriorityClass object with that name.
@@ -525,54 +525,54 @@ type BatchSchedulerSpec struct {
 
 // FlinkClusterSpec defines the desired state of FlinkCluster
 type FlinkClusterSpec struct {
-	// _(Required)_ The version of Flink to be managed. This version must match the version in the image.
+	// The version of Flink to be managed. This version must match the version in the image.
 	FlinkVersion string `json:"flinkVersion"`
 
-	// _(Required)_ Flink image for JobManager, TaskManager and job containers.
+	// Flink image for JobManager, TaskManager and job containers.
 	Image ImageSpec `json:"image"`
 
-	// The service account assigned to JobManager, TaskManager and Job submitter Pods. If empty, the default service account in the namespace will be used.
+	// _(Optional)_ The service account assigned to JobManager, TaskManager and Job submitter Pods. If empty, the default service account in the namespace will be used.
 	ServiceAccountName *string `json:"serviceAccountName,omitempty"`
 
 	// _*(Deprecated)*_ BatchSchedulerName specifies the batch scheduler name for JobManager, TaskManager.
 	// If empty, no batch scheduling is enabled.
 	BatchSchedulerName *string `json:"batchSchedulerName,omitempty"`
 
-	// BatchScheduler specifies the batch scheduler for JobManager, TaskManager.
+	// _(Optional)_ BatchScheduler specifies the batch scheduler for JobManager, TaskManager.
 	// If empty, no batch scheduling is enabled.
 	BatchScheduler *BatchSchedulerSpec `json:"batchScheduler,omitempty"`
 
-	// _(Required)_ Flink JobManager spec.
+	// Flink JobManager spec.
 	JobManager JobManagerSpec `json:"jobManager"`
 
-	// _(Required)_ Flink TaskManager spec.
+	// Flink TaskManager spec.
 	TaskManager TaskManagerSpec `json:"taskManager"`
 
-	// Job spec. If specified, this cluster is an ephemeral Job
+	// _(Optional)_ Job spec. If specified, this cluster is an ephemeral Job
 	// Cluster, which will be automatically terminated after the job finishes;
 	// otherwise, it is a long-running Session Cluster.
 	Job *JobSpec `json:"job,omitempty"`
 
-	// Environment variables shared by all JobManager, TaskManager and job
+	// _(Optional)_ Environment variables shared by all JobManager, TaskManager and job
 	// containers.
 	// [More info](https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/)
 	EnvVars []corev1.EnvVar `json:"envVars,omitempty"`
 
-	// Environment variables injected from a source, shared by all JobManager,
+	// _(Optional)_ Environment variables injected from a source, shared by all JobManager,
 	// TaskManager and job containers.
 	// [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#configure-all-key-value-pairs-in-a-configmap-as-container-environment-variables)
 	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty"`
 
-	// Flink properties which are appened to flink-conf.yaml.
+	// _(Optional)_ Flink properties which are appened to flink-conf.yaml.
 	FlinkProperties map[string]string `json:"flinkProperties,omitempty"`
 
-	// Config for Hadoop.
+	// _(Optional)_ Config for Hadoop.
 	HadoopConfig *HadoopConfig `json:"hadoopConfig,omitempty"`
 
-	// Config for GCP.
+	// _(Optional)_ Config for GCP.
 	GCPConfig *GCPConfig `json:"gcpConfig,omitempty"`
 
-	// The logging configuration, which should have keys 'log4j-console.properties' and 'logback-console.xml'.
+	// _(Optional)_ The logging configuration, which should have keys 'log4j-console.properties' and 'logback-console.xml'.
 	// These will end up in the 'flink-config-volume' ConfigMap, which gets mounted at /opt/flink/conf.
 	// If not provided, defaults that log to console only will be used.
 	// <br> - log4j-console.properties: The contents of the log4j properties file to use. If not provided, a default that logs only to stdout will be provided.
@@ -781,10 +781,10 @@ type JobManagerServiceStatus struct {
 	// The state of the component.
 	State string `json:"state"`
 
-	// The node port, present when `accessScope` is `NodePort`.
+	// (Optional) The node port, present when `accessScope` is `NodePort`.
 	NodePort int32 `json:"nodePort,omitempty"`
 
-	// The load balancer ingress, present when `accessScope` is `VPC` or `External`
+	// (Optional) The load balancer ingress, present when `accessScope` is `VPC` or `External`
 	LoadBalancerIngress []corev1.LoadBalancerIngress `json:"loadBalancerIngress,omitempty"`
 }
 
