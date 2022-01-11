@@ -24,7 +24,7 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `name` _string_ |  |
+| `name` _string_ | BatchScheduler name. |
 | `queue` _string_ | Queue defines the queue in which resources will be allocates; if queue is not specified, resources will be allocated in the schedulers default queue. |
 | `priorityClassName` _string_ | If specified, indicates the PodGroup's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the priority will be default or zero if there is no default. |
 
@@ -33,16 +33,16 @@ _Appears in:_
 
 
 
-CleanupPolicy defines the action to take after job finishes.
+CleanupPolicy defines the action to take after job finishes. Use one of `"KeepCluster", "DeleteCluster", "DeleteTaskManager"` for the below fields.
 
 _Appears in:_
 - [JobSpec](#jobspec)
 
 | Field | Description |
 | --- | --- |
-| `afterJobSucceeds` _CleanupAction_ | Action to take after job succeeds. |
-| `afterJobFails` _CleanupAction_ | Action to take after job fails. |
-| `afterJobCancelled` _CleanupAction_ | Action to take after job is cancelled. |
+| `afterJobSucceeds` _CleanupAction_ | Action to take after job succeeds, default: `"DeleteCluster"`. |
+| `afterJobFails` _CleanupAction_ | Action to take after job fails, default: `"KeepCluster"`. |
+| `afterJobCancelled` _CleanupAction_ | Action to take after job is cancelled, default: `"DeleteCluster"`. |
 
 
 #### FlinkCluster
@@ -124,20 +124,20 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `flinkVersion` _string_ | The version of Flink to be managed. This version must match the version in the image. |
-| `image` _[ImageSpec](#imagespec)_ | Flink image spec for the cluster's components. |
+| `flinkVersion` _string_ | _(Required)_ The version of Flink to be managed. This version must match the version in the image. |
+| `image` _[ImageSpec](#imagespec)_ | _(Required)_ Flink image for JobManager, TaskManager and job containers. |
 | `serviceAccountName` _string_ | The service account assigned to JobManager, TaskManager and Job submitter Pods. If empty, the default service account in the namespace will be used. |
-| `batchSchedulerName` _string_ | Deprecated: BatchSchedulerName specifies the batch scheduler name for JobManager, TaskManager. If empty, no batch scheduling is enabled. |
+| `batchSchedulerName` _string_ | _(Deprecated)_ BatchSchedulerName specifies the batch scheduler name for JobManager, TaskManager. If empty, no batch scheduling is enabled. |
 | `batchScheduler` _[BatchSchedulerSpec](#batchschedulerspec)_ | BatchScheduler specifies the batch scheduler for JobManager, TaskManager. If empty, no batch scheduling is enabled. |
-| `jobManager` _[JobManagerSpec](#jobmanagerspec)_ | Flink JobManager spec. |
-| `taskManager` _[TaskManagerSpec](#taskmanagerspec)_ | Flink TaskManager spec. |
+| `jobManager` _[JobManagerSpec](#jobmanagerspec)_ | _(Required)_ Flink JobManager spec. |
+| `taskManager` _[TaskManagerSpec](#taskmanagerspec)_ | _(Required)_ Flink TaskManager spec. |
 | `job` _[JobSpec](#jobspec)_ | (Optional) Job spec. If specified, this cluster is an ephemeral Job Cluster, which will be automatically terminated after the job finishes; otherwise, it is a long-running Session Cluster. |
-| `envVars` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#envvar-v1-core)_ | Environment variables shared by all JobManager, TaskManager and job containers. |
-| `envFrom` _[EnvFromSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#envfromsource-v1-core)_ | Environment variables injected from a source, shared by all JobManager, TaskManager and job containers. |
+| `envVars` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#envvar-v1-core)_ | Environment variables shared by all JobManager, TaskManager and job containers. [More info](https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/) |
+| `envFrom` _[EnvFromSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#envfromsource-v1-core)_ | Environment variables injected from a source, shared by all JobManager, TaskManager and job containers. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#configure-all-key-value-pairs-in-a-configmap-as-container-environment-variables) |
 | `flinkProperties` _object (keys:string, values:string)_ | Flink properties which are appened to flink-conf.yaml. |
 | `hadoopConfig` _[HadoopConfig](#hadoopconfig)_ | Config for Hadoop. |
 | `gcpConfig` _[GCPConfig](#gcpconfig)_ | Config for GCP. |
-| `logConfig` _object (keys:string, values:string)_ | The logging configuration, which should have keys 'log4j-console.properties' and 'logback-console.xml'. These will end up in the 'flink-config-volume' ConfigMap, which gets mounted at /opt/flink/conf. If not provided, defaults that log to console only will be used. |
+| `logConfig` _object (keys:string, values:string)_ | The logging configuration, which should have keys 'log4j-console.properties' and 'logback-console.xml'. These will end up in the 'flink-config-volume' ConfigMap, which gets mounted at /opt/flink/conf. If not provided, defaults that log to console only will be used. - log4j-console.properties: The contents of the log4j properties file to use. If not provided, a default that logs only to stdout will be provided. - logback-console.xml: The contents of the logback XML file to use. If not provided, a default that logs only to stdout will be provided. - Other arbitrary keys are also allowed, and will become part of the ConfigMap. |
 | `revisionHistoryLimit` _integer_ | The maximum number of revision history to keep, default: 10. |
 | `recreateOnUpdate` _boolean_ | Recreate components when updating flinkcluster, default: true. |
 
@@ -186,7 +186,7 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `configMapName` _string_ | The name of the ConfigMap which contains the Hadoop config files. The ConfigMap must be in the same namespace as the FlinkCluster. |
-| `mountPath` _string_ | The path where to mount the Volume of the ConfigMap. |
+| `mountPath` _string_ | The path where to mount the Volume of the ConfigMap. default: `/etc/hadoop/conf`. |
 
 
 #### ImageSpec
@@ -200,9 +200,9 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `name` _string_ | Flink image name. |
-| `pullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#pullpolicy-v1-core)_ | Image pull policy. One of Always, Never, IfNotPresent. Defaults to Always if :latest tag is specified, or IfNotPresent otherwise. |
-| `pullSecrets` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#localobjectreference-v1-core) array_ | Secrets for image pull. |
+| `name` _string_ | _(Required)_ Flink image name. |
+| `pullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#pullpolicy-v1-core)_ | Image pull policy. One of `Always, Never, IfNotPresent`, default: `Always``. if :latest tag is specified, or IfNotPresent otherwise. [More info](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy) |
+| `pullSecrets` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#localobjectreference-v1-core) array_ | Secrets for image pull. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/#create-a-pod-that-uses-your-secret) |
 
 
 #### JobManagerIngressSpec
@@ -217,8 +217,8 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `hostFormat` _string_ | Ingress host format. ex) {{$clusterName}}.example.com |
-| `annotations` _object (keys:string, values:string)_ | Ingress annotations. |
-| `useTls` _boolean_ | TLS use. |
+| `annotations` _object (keys:string, values:string)_ | Annotations for ingress configuration. [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/) |
+| `useTls` _boolean_ | TLS use, default: `false`. |
 | `tlsSecretName` _string_ | TLS secret name. |
 
 
@@ -283,27 +283,27 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `replicas` _integer_ | The number of replicas. |
-| `accessScope` _string_ | Access scope, enum("Cluster", "VPC", "External"). |
-| `ingress` _[JobManagerIngressSpec](#jobmanageringressspec)_ | (Optional) Ingress. |
-| `ports` _[JobManagerPorts](#jobmanagerports)_ | Ports. |
-| `extraPorts` _[NamedPort](#namedport)_ | Extra ports to be exposed. For example, Flink metrics reporter ports: Prometheus, JMX and so on. |
-| `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#resourcerequirements-v1-core)_ | Compute resources required by each JobManager container. If omitted, a default value will be used. Cannot be updated. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
+| `replicas` _integer_ | The number of JobManager replicas, default: 1 |
+| `accessScope` _string_ | Access scope, default: `Cluster`. `Cluster`: accessible from within the same cluster. `VPC`: accessible from within the same VPC. `External`: accessible from the internet. `NodePort`: accessible through node port. `Headless`: pod IPs assumed to be routable and advertised directly with `clusterIP: None``. Currently `VPC, External` are only available for GKE. |
+| `ingress` _[JobManagerIngressSpec](#jobmanageringressspec)_ | Provide external access to JobManager UI/API. |
+| `ports` _[JobManagerPorts](#jobmanagerports)_ | Ports that JobManager listening on. |
+| `extraPorts` _[NamedPort](#namedport)_ | Extra ports to be exposed. For example, Flink metrics reporter ports: Prometheus, JMX and so on. Each port number and name must be unique among ports and extraPorts. |
+| `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#resourcerequirements-v1-core)_ | Compute resources required by each JobManager container. default: 2 CPUs with 2Gi Memory. It Cannot be updated. [More info](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/) |
 | `memoryOffHeapRatio` _integer_ | Percentage of off-heap memory in containers, as a safety margin to avoid OOM kill, default: 25 |
-| `memoryOffHeapMin` _Quantity_ | Minimum amount of off-heap memory in containers, as a safety margin to avoid OOM kill, default: 600M You can express this value like 600M, 572Mi and 600e6 More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory |
+| `memoryOffHeapMin` _Quantity_ | Minimum amount of off-heap memory in containers, as a safety margin to avoid OOM kill, default: 600M You can express this value like 600M, 572Mi and 600e6 [More info](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory) |
 | `memoryProcessRatio` _integer_ | For Flink 1.10+. Percentage of memory process, as a safety margin to avoid OOM kill, default: 80 |
-| `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volume-v1-core) array_ | Volumes in the JobManager pod. |
-| `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volumemount-v1-core) array_ | Volume mounts in the JobManager container. |
-| `volumeClaimTemplates` _[PersistentVolumeClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#persistentvolumeclaim-v1-core) array_ |  |
-| `initContainers` _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#container-v1-core) array_ | Init containers of the Job Manager pod. |
-| `nodeSelector` _object (keys:string, values:string)_ | Selector which must match a node's labels for the JobManager pod to be scheduled on that node. More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/ |
-| `tolerations` _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#toleration-v1-core) array_ | Defines the node affinity of the pod More info: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/ |
-| `sidecars` _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#container-v1-core)_ | Sidecar containers running alongside with the JobManager container in the pod. |
-| `podAnnotations` _object (keys:string, values:string)_ | JobManager StatefulSet pod template annotations. |
-| `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#podsecuritycontext-v1-core)_ | SecurityContext of the JM pod. |
-| `podLabels` _object (keys:string, values:string)_ | JobManager StatefulSet pod template labels. |
-| `livenessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core)_ | Container liveness probe If omitted, a default value will be used. |
-| `readinessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core)_ | Container readiness probe If omitted, a default value will be used. |
+| `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volume-v1-core) array_ | Volumes in the JobManager pod. [More info](https://kubernetes.io/docs/concepts/storage/volumes/) |
+| `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volumemount-v1-core) array_ | Volume mounts in the JobManager container. [More info](https://kubernetes.io/docs/concepts/storage/volumes/) |
+| `volumeClaimTemplates` _[PersistentVolumeClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#persistentvolumeclaim-v1-core) array_ | A template for persistent volume claim each requested and mounted to JobManager pod, This can be used to mount an external volume with a specific storageClass or larger captivity (for larger/faster state backend). [More info](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims) |
+| `initContainers` _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#container-v1-core) array_ | Init containers of the Job Manager pod. [More info](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/) |
+| `nodeSelector` _object (keys:string, values:string)_ | Selector which must match a node's labels for the JobManager pod to be scheduled on that node. [More info](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/) |
+| `tolerations` _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#toleration-v1-core) array_ | Defines the node affinity of the pod [More info](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) |
+| `sidecars` _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#container-v1-core)_ | Sidecar containers running alongside with the JobManager container in the pod. [More info](https://kubernetes.io/docs/concepts/containers/) |
+| `podAnnotations` _object (keys:string, values:string)_ | JobManager StatefulSet pod template annotations. [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/) |
+| `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#podsecuritycontext-v1-core)_ | SecurityContext of the JobManager pod. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod) |
+| `podLabels` _object (keys:string, values:string)_ | JobManager StatefulSet pod template labels. [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/) |
+| `livenessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core)_ | Container liveness probe If omitted, a [default value](https://github.com/spotify/flink-on-k8s-operator/blob/a88ed2b/api/v1beta1/flinkcluster_default.go#L113-L123) will be used. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) |
+| `readinessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core)_ | Container readiness probe If omitted, a [default value](https://github.com/spotify/flink-on-k8s-operator/blob/a88ed2b/api/v1beta1/flinkcluster_default.go#L129-L139) will be used. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) |
 
 
 #### JobSpec
@@ -317,13 +317,13 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `jarFile` _string_ | JAR file of the job. |
+| `jarFile` _string_ | JAR file of the job. It could be a local file or remote URI, depending on which protocols (e.g., `https://, gs://`) are supported by the Flink image. |
 | `className` _string_ | Fully qualified Java class name of the job. |
-| `pythonFile` _string_ | Python file of the job. |
-| `pythonFiles` _string_ | Python directory of the job. |
-| `pythonModule` _string_ | Python module path of the job. |
-| `args` _string array_ | Args of the job. |
-| `fromSavepoint` _string_ | FromSavepoint where to restore the job from (e.g., gs://my-savepoint/1234). |
+| `pythonFile` _string_ | Python file of the job. It should be a local file. |
+| `pythonFiles` _string_ | Python files of the job. It should be a local file (with .py/.egg/.zip/.whl) or directory. See the Flink argument `--pyFiles` for the detail. |
+| `pythonModule` _string_ | Python module path of the job entry point. Must use with pythonFiles. |
+| `args` _string array_ | Command-line args of the job. |
+| `fromSavepoint` _string_ | FromSavepoint where to restore the job from Savepoint where to restore the job from (e.g., gs://my-savepoint/1234). If flink job must be restored from the latest available savepoint when Flink job updating, this field must be unspecified. |
 | `allowNonRestoredState` _boolean_ | Allow non-restored state, default: false. |
 | `savepointsDir` _string_ | Savepoints dir where to store savepoints of the job. |
 | `takeSavepointOnUpdate` _boolean_ | Should take savepoint before updating job, default: true. If this is set as false, maxStateAgeToRestoreSeconds must be provided to limit the savepoint age to restore. |
@@ -332,19 +332,17 @@ _Appears in:_
 | `savepointGeneration` _integer_ | Update this field to `jobStatus.savepointGeneration + 1` for a running job cluster to trigger a new savepoint to `savepointsDir` on demand. |
 | `parallelism` _integer_ | Job parallelism, default: 1. |
 | `noLoggingToStdout` _boolean_ | No logging output to STDOUT, default: false. |
-| `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volume-v1-core)_ | Volumes in the Job pod. More info: https://kubernetes.io/docs/concepts/storage/volumes/ |
-| `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volumemount-v1-core)_ | Volume mounts in the Job container. More info: https://kubernetes.io/docs/concepts/storage/volumes/ |
-| `initContainers` _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#container-v1-core)_ | Init containers of the Job pod. A typical use case could be using an init container to download a remote job jar to a local path which is referenced by the `jarFile` property. More info: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/ |
-| `restartPolicy` _JobRestartPolicy_ | Restart policy when the job fails, "Never" or "FromSavepointOnFailure", default: "Never". 
- "Never" means the operator will never try to restart a failed job, manual cleanup and restart is required. 
- "FromSavepointOnFailure" means the operator will try to restart the failed job from the savepoint recorded in the job status if available; otherwise, the job will stay in failed state. This option is usually used together with `autoSavepointSeconds` and `savepointsDir`. |
+| `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volume-v1-core)_ | Volumes in the Job pod. [More info](https://kubernetes.io/docs/concepts/storage/volumes/) |
+| `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volumemount-v1-core)_ | Volume mounts in the Job container. [More info](https://kubernetes.io/docs/concepts/storage/volumes/) |
+| `initContainers` _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#container-v1-core)_ | Init containers of the Job pod. A typical use case could be using an init container to download a remote job jar to a local path which is referenced by the `jarFile` property. [More info](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/) |
+| `restartPolicy` _JobRestartPolicy_ | Restart policy when the job fails, one of `Never, FromSavepointOnFailure`, default: `Never`. `Never` means the operator will never try to restart a failed job, manual cleanup and restart is required. `FromSavepointOnFailure` means the operator will try to restart the failed job from the savepoint recorded in the job status if available; otherwise, the job will stay in failed state. This option is usually used together with `autoSavepointSeconds` and `savepointsDir`. |
 | `cleanupPolicy` _[CleanupPolicy](#cleanuppolicy)_ | The action to take after job finishes. |
 | `cancelRequested` _boolean_ | Request the job to be cancelled. Only applies to running jobs. If `savePointsDir` is provided, a savepoint will be taken before stopping the job. |
-| `podAnnotations` _object (keys:string, values:string)_ | Job pod template annotations. |
-| `podLabels` _object (keys:string, values:string)_ | Job pod template labels. |
-| `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#resourcerequirements-v1-core)_ | Compute resources required by each Job container. If omitted, a default value will be used. Cannot be updated. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
-| `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#podsecuritycontext-v1-core)_ |  |
-| `mode` _JobMode_ | Job running mode |
+| `podAnnotations` _object (keys:string, values:string)_ | Job pod template annotations. [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/) |
+| `podLabels` _object (keys:string, values:string)_ | Job pod template labels. [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/) |
+| `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#resourcerequirements-v1-core)_ | Compute resources required by each Job container. If omitted, a default value will be used. It Cannot be updated. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
+| `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#podsecuritycontext-v1-core)_ | SecurityContext of the Job pod. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod) |
+| `mode` _JobMode_ | Job running mode, `"Blocking", "Detached"`, default: `"Detached"` |
 
 
 #### JobStatus
@@ -387,8 +385,8 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `name` _string_ | If specified, this must be an IANA_SVC_NAME and unique within the pod. Each named port in a pod must have a unique name. Name for the port that can be referred to by services. |
-| `containerPort` _integer_ | Number of port to expose on the pod's IP address. This must be a valid port number, 0 < x < 65536. |
-| `protocol` _string_ | Protocol for port. Must be UDP, TCP, or SCTP. Defaults to "TCP". |
+| `containerPort` _integer_ | _(Required)_ Number of port to expose on the pod's IP address. This must be a valid port number, 0 < x < 65536. |
+| `protocol` _string_ | Protocol for port. Must be UDP, TCP, or SCTP, default: "TCP". |
 
 
 #### RevisionStatus
@@ -440,7 +438,7 @@ _Appears in:_
 | --- | --- |
 | `data` _integer_ | Data port, default: 6121. |
 | `rpc` _integer_ | RPC port, default: 6122. |
-| `query` _integer_ | Query port. |
+| `query` _integer_ | Query port, default: 6125. |
 
 
 #### TaskManagerSpec
@@ -455,24 +453,24 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `replicas` _integer_ | The number of replicas. |
-| `ports` _[TaskManagerPorts](#taskmanagerports)_ | Ports. |
+| `ports` _[TaskManagerPorts](#taskmanagerports)_ | Ports that TaskManager listening on. |
 | `extraPorts` _[NamedPort](#namedport)_ | Extra ports to be exposed. For example, Flink metrics reporter ports: Prometheus, JMX and so on. |
-| `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#resourcerequirements-v1-core)_ | Compute resources required by each TaskManager container. If omitted, a default value will be used. Cannot be updated. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
+| `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#resourcerequirements-v1-core)_ | Compute resources required by each TaskManager container. default: 2 CPUs with 2Gi Memory. It Cannot be updated. [More info](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/) |
 | `memoryOffHeapRatio` _integer_ | Percentage of off-heap memory in containers, as a safety margin to avoid OOM kill, default: 25 |
-| `memoryOffHeapMin` _Quantity_ | Minimum amount of off-heap memory in containers, as a safety margin to avoid OOM kill, default: 600M You can express this value like 600M, 572Mi and 600e6 More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory |
+| `memoryOffHeapMin` _Quantity_ | Minimum amount of off-heap memory in containers, as a safety margin to avoid OOM kill, default: 600M You can express this value like 600M, 572Mi and 600e6 [More info](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory) |
 | `memoryProcessRatio` _integer_ | For Flink 1.10+. Percentage of process memory, as a safety margin to avoid OOM kill, default: 20 |
-| `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volume-v1-core)_ | Volumes in the TaskManager pods. More info: https://kubernetes.io/docs/concepts/storage/volumes/ |
-| `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volumemount-v1-core)_ | Volume mounts in the TaskManager containers. More info: https://kubernetes.io/docs/concepts/storage/volumes/ |
-| `volumeClaimTemplates` _[PersistentVolumeClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#persistentvolumeclaim-v1-core)_ |  |
-| `initContainers` _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#container-v1-core)_ | Init containers of the Task Manager pod. |
-| `nodeSelector` _object (keys:string, values:string)_ | Selector which must match a node's labels for the TaskManager pod to be scheduled on that node. More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/ |
-| `tolerations` _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#toleration-v1-core)_ | Defines the node affinity of the pod More info: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/ |
-| `sidecars` _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#container-v1-core)_ | Sidecar containers running alongside with the TaskManager container in the pod. |
-| `podAnnotations` _object (keys:string, values:string)_ | TaskManager StatefulSet pod template annotations. |
-| `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#podsecuritycontext-v1-core)_ | SecurityContext of the TM pod. |
-| `podLabels` _object (keys:string, values:string)_ | TaskManager StatefulSet pod template labels. |
-| `livenessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core)_ | Container liveness probe If omitted, a default value will be used. |
-| `readinessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core)_ | Container readiness probe If omitted, a default value will be used. |
+| `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volume-v1-core)_ | Volumes in the TaskManager pods. [More info](https://kubernetes.io/docs/concepts/storage/volumes/) |
+| `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volumemount-v1-core)_ | Volume mounts in the TaskManager containers. [More info](https://kubernetes.io/docs/concepts/storage/volumes/) |
+| `volumeClaimTemplates` _[PersistentVolumeClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#persistentvolumeclaim-v1-core)_ | A template for persistent volume claim each requested and mounted to JobManager pod, This can be used to mount an external volume with a specific storageClass or larger captivity (for larger/faster state backend). [More info](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims) |
+| `initContainers` _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#container-v1-core)_ | Init containers of the Task Manager pod. [More info](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/) |
+| `nodeSelector` _object (keys:string, values:string)_ | Selector which must match a node's labels for the TaskManager pod to be scheduled on that node. [More info](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/) |
+| `tolerations` _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#toleration-v1-core)_ | Defines the node affinity of the pod [More info](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) |
+| `sidecars` _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#container-v1-core)_ | Sidecar containers running alongside with the TaskManager container in the pod. [More info](https://kubernetes.io/docs/concepts/containers/) |
+| `podAnnotations` _object (keys:string, values:string)_ | TaskManager StatefulSet pod template annotations. [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/) |
+| `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#podsecuritycontext-v1-core)_ | SecurityContext of the TaskManager pod. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod) |
+| `podLabels` _object (keys:string, values:string)_ | TaskManager StatefulSet pod template labels. [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/) |
+| `livenessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core)_ | Container liveness probe If omitted, a [default value](https://github.com/spotify/flink-on-k8s-operator/blob/a88ed2b/api/v1beta1/flinkcluster_default.go#L177-L187) will be used. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) |
+| `readinessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core)_ | Container readiness probe If omitted, a [default value](https://github.com/spotify/flink-on-k8s-operator/blob/a88ed2b/api/v1beta1/flinkcluster_default.go#L193-L203) will be used. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) |
 
 
 

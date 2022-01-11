@@ -40,7 +40,7 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./api/v1beta1/..."
 
-generate-crd-docs: crd-ref-docs
+generate-crd-docs: crd-ref-docs ## Generate CRD documentation to docs/crd.md
 	$(CRD_REF_DOCS) --source-path=./api/v1beta1 --config=docs/config.yaml --renderer=markdown --output-path=docs/crd.md
 
 tidy: ## Run go mod tidy
