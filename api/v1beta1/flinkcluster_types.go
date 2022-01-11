@@ -403,14 +403,14 @@ type JobSpec struct {
 	ClassName *string `json:"className,omitempty"`
 
 	// Python file of the job. It should be a local file.
-	PythonFile *string `json:"pythonFile,omitempty"`
+	PyFile *string `json:"pyFile,omitempty"`
 
 	// Python files of the job. It should be a local file (with .py/.egg/.zip/.whl) or directory.
 	// See the Flink argument `--pyFiles` for the detail.
-	PythonFiles *string `json:"pythonFiles,omitempty"`
+	PyFiles *string `json:"pyFiles,omitempty"`
 
 	// Python module path of the job entry point. Must use with pythonFiles.
-	PythonModule *string `json:"pythonModule,omitempty"`
+	PyModule *string `json:"pyModule,omitempty"`
 
 	// Command-line args of the job.
 	Args []string `json:"args,omitempty"`

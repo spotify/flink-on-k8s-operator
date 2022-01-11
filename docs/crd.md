@@ -127,7 +127,7 @@ _Appears in:_
 | `flinkVersion` _string_ | _(Required)_ The version of Flink to be managed. This version must match the version in the image. |
 | `image` _[ImageSpec](#imagespec)_ | _(Required)_ Flink image for JobManager, TaskManager and job containers. |
 | `serviceAccountName` _string_ | The service account assigned to JobManager, TaskManager and Job submitter Pods. If empty, the default service account in the namespace will be used. |
-| `batchSchedulerName` _string_ | _(Deprecated)_ BatchSchedulerName specifies the batch scheduler name for JobManager, TaskManager. If empty, no batch scheduling is enabled. |
+| `batchSchedulerName` _string_ | _*(Deprecated)*_ BatchSchedulerName specifies the batch scheduler name for JobManager, TaskManager. If empty, no batch scheduling is enabled. |
 | `batchScheduler` _[BatchSchedulerSpec](#batchschedulerspec)_ | BatchScheduler specifies the batch scheduler for JobManager, TaskManager. If empty, no batch scheduling is enabled. |
 | `jobManager` _[JobManagerSpec](#jobmanagerspec)_ | _(Required)_ Flink JobManager spec. |
 | `taskManager` _[TaskManagerSpec](#taskmanagerspec)_ | _(Required)_ Flink TaskManager spec. |
@@ -319,9 +319,9 @@ _Appears in:_
 | --- | --- |
 | `jarFile` _string_ | JAR file of the job. It could be a local file or remote URI, depending on which protocols (e.g., `https://, gs://`) are supported by the Flink image. |
 | `className` _string_ | Fully qualified Java class name of the job. |
-| `pythonFile` _string_ | Python file of the job. It should be a local file. |
-| `pythonFiles` _string_ | Python files of the job. It should be a local file (with .py/.egg/.zip/.whl) or directory. See the Flink argument `--pyFiles` for the detail. |
-| `pythonModule` _string_ | Python module path of the job entry point. Must use with pythonFiles. |
+| `pyFile` _string_ | Python file of the job. It should be a local file. |
+| `pyFiles` _string_ | Python files of the job. It should be a local file (with .py/.egg/.zip/.whl) or directory. See the Flink argument `--pyFiles` for the detail. |
+| `pyModule` _string_ | Python module path of the job entry point. Must use with pythonFiles. |
 | `args` _string array_ | Command-line args of the job. |
 | `fromSavepoint` _string_ | FromSavepoint where to restore the job from Savepoint where to restore the job from (e.g., gs://my-savepoint/1234). If flink job must be restored from the latest available savepoint when Flink job updating, this field must be unspecified. |
 | `allowNonRestoredState` _boolean_ | Allow non-restored state, default: false. |
