@@ -319,9 +319,9 @@ _Appears in:_
 | --- | --- |
 | `jarFile` _string_ | JAR file of the job. |
 | `className` _string_ | Fully qualified Java class name of the job. |
-| `pythonFile` _string_ | Python file of the job. |
-| `pythonFiles` _string_ | Python directory of the job. |
-| `pythonModule` _string_ | Python module path of the job. |
+| `pyFile` _string_ | Python file of the job. |
+| `pyFiles` _string_ | Python directory of the job. |
+| `pyModule` _string_ | Python module path of the job. |
 | `args` _string array_ | Args of the job. |
 | `fromSavepoint` _string_ | FromSavepoint where to restore the job from (e.g., gs://my-savepoint/1234). |
 | `allowNonRestoredState` _boolean_ | Allow non-restored state, default: false. |
