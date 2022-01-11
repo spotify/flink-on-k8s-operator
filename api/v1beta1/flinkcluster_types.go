@@ -548,7 +548,7 @@ type FlinkClusterSpec struct {
 	// _(Required)_ Flink TaskManager spec.
 	TaskManager TaskManagerSpec `json:"taskManager"`
 
-	// (Optional) Job spec. If specified, this cluster is an ephemeral Job
+	// Job spec. If specified, this cluster is an ephemeral Job
 	// Cluster, which will be automatically terminated after the job finishes;
 	// otherwise, it is a long-running Session Cluster.
 	Job *JobSpec `json:"job,omitempty"`
@@ -575,9 +575,9 @@ type FlinkClusterSpec struct {
 	// The logging configuration, which should have keys 'log4j-console.properties' and 'logback-console.xml'.
 	// These will end up in the 'flink-config-volume' ConfigMap, which gets mounted at /opt/flink/conf.
 	// If not provided, defaults that log to console only will be used.
-	// - log4j-console.properties: The contents of the log4j properties file to use. If not provided, a default that logs only to stdout will be provided.
-	// - logback-console.xml: The contents of the logback XML file to use. If not provided, a default that logs only to stdout will be provided.
-	// - Other arbitrary keys are also allowed, and will become part of the ConfigMap.
+	// <br> - log4j-console.properties: The contents of the log4j properties file to use. If not provided, a default that logs only to stdout will be provided.
+	// <br> - logback-console.xml: The contents of the logback XML file to use. If not provided, a default that logs only to stdout will be provided.
+	// <br> - Other arbitrary keys are also allowed, and will become part of the ConfigMap.
 	LogConfig map[string]string `json:"logConfig,omitempty"`
 
 	// The maximum number of revision history to keep, default: 10.
@@ -781,10 +781,10 @@ type JobManagerServiceStatus struct {
 	// The state of the component.
 	State string `json:"state"`
 
-	// (Optional) The node port, present when `accessScope` is `NodePort`.
+	// The node port, present when `accessScope` is `NodePort`.
 	NodePort int32 `json:"nodePort,omitempty"`
 
-	// (Optional) The load balancer ingress, present when `accessScope` is `VPC` or `External`
+	// The load balancer ingress, present when `accessScope` is `VPC` or `External`
 	LoadBalancerIngress []corev1.LoadBalancerIngress `json:"loadBalancerIngress,omitempty"`
 }
 

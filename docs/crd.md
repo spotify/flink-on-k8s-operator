@@ -131,13 +131,13 @@ _Appears in:_
 | `batchScheduler` _[BatchSchedulerSpec](#batchschedulerspec)_ | BatchScheduler specifies the batch scheduler for JobManager, TaskManager. If empty, no batch scheduling is enabled. |
 | `jobManager` _[JobManagerSpec](#jobmanagerspec)_ | _(Required)_ Flink JobManager spec. |
 | `taskManager` _[TaskManagerSpec](#taskmanagerspec)_ | _(Required)_ Flink TaskManager spec. |
-| `job` _[JobSpec](#jobspec)_ | (Optional) Job spec. If specified, this cluster is an ephemeral Job Cluster, which will be automatically terminated after the job finishes; otherwise, it is a long-running Session Cluster. |
+| `job` _[JobSpec](#jobspec)_ | Job spec. If specified, this cluster is an ephemeral Job Cluster, which will be automatically terminated after the job finishes; otherwise, it is a long-running Session Cluster. |
 | `envVars` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#envvar-v1-core)_ | Environment variables shared by all JobManager, TaskManager and job containers. [More info](https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/) |
 | `envFrom` _[EnvFromSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#envfromsource-v1-core)_ | Environment variables injected from a source, shared by all JobManager, TaskManager and job containers. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#configure-all-key-value-pairs-in-a-configmap-as-container-environment-variables) |
 | `flinkProperties` _object (keys:string, values:string)_ | Flink properties which are appened to flink-conf.yaml. |
 | `hadoopConfig` _[HadoopConfig](#hadoopconfig)_ | Config for Hadoop. |
 | `gcpConfig` _[GCPConfig](#gcpconfig)_ | Config for GCP. |
-| `logConfig` _object (keys:string, values:string)_ | The logging configuration, which should have keys 'log4j-console.properties' and 'logback-console.xml'. These will end up in the 'flink-config-volume' ConfigMap, which gets mounted at /opt/flink/conf. If not provided, defaults that log to console only will be used. - log4j-console.properties: The contents of the log4j properties file to use. If not provided, a default that logs only to stdout will be provided. - logback-console.xml: The contents of the logback XML file to use. If not provided, a default that logs only to stdout will be provided. - Other arbitrary keys are also allowed, and will become part of the ConfigMap. |
+| `logConfig` _object (keys:string, values:string)_ | The logging configuration, which should have keys 'log4j-console.properties' and 'logback-console.xml'. These will end up in the 'flink-config-volume' ConfigMap, which gets mounted at /opt/flink/conf. If not provided, defaults that log to console only will be used. <br> - log4j-console.properties: The contents of the log4j properties file to use. If not provided, a default that logs only to stdout will be provided. <br> - logback-console.xml: The contents of the logback XML file to use. If not provided, a default that logs only to stdout will be provided. <br> - Other arbitrary keys are also allowed, and will become part of the ConfigMap. |
 | `revisionHistoryLimit` _integer_ | The maximum number of revision history to keep, default: 10. |
 | `recreateOnUpdate` _boolean_ | Recreate components when updating flinkcluster, default: true. |
 
@@ -268,8 +268,8 @@ _Appears in:_
 | --- | --- |
 | `name` _string_ | The name of the Kubernetes jobManager service. |
 | `state` _string_ | The state of the component. |
-| `nodePort` _integer_ | (Optional) The node port, present when `accessScope` is `NodePort`. |
-| `loadBalancerIngress` _[LoadBalancerIngress](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#loadbalanceringress-v1-core) array_ | (Optional) The load balancer ingress, present when `accessScope` is `VPC` or `External` |
+| `nodePort` _integer_ | The node port, present when `accessScope` is `NodePort`. |
+| `loadBalancerIngress` _[LoadBalancerIngress](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#loadbalanceringress-v1-core) array_ | The load balancer ingress, present when `accessScope` is `VPC` or `External` |
 
 
 #### JobManagerSpec
