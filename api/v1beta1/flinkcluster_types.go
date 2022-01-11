@@ -534,7 +534,7 @@ type FlinkClusterSpec struct {
 	// The service account assigned to JobManager, TaskManager and Job submitter Pods. If empty, the default service account in the namespace will be used.
 	ServiceAccountName *string `json:"serviceAccountName,omitempty"`
 
-	// _(Deprecated)_ BatchSchedulerName specifies the batch scheduler name for JobManager, TaskManager.
+	// _*(Deprecated)*_ BatchSchedulerName specifies the batch scheduler name for JobManager, TaskManager.
 	// If empty, no batch scheduling is enabled.
 	BatchSchedulerName *string `json:"batchSchedulerName,omitempty"`
 
