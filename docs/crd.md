@@ -33,16 +33,16 @@ _Appears in:_
 
 
 
-CleanupPolicy defines the action to take after job finishes. Use one of `"KeepCluster", "DeleteCluster", "DeleteTaskManager"` for the below fields.
+CleanupPolicy defines the action to take after job finishes. Use one of `KeepCluster, DeleteCluster, DeleteTaskManager` for the below fields.
 
 _Appears in:_
 - [JobSpec](#jobspec)
 
 | Field | Description |
 | --- | --- |
-| `afterJobSucceeds` _CleanupAction_ | Action to take after job succeeds, default: `"DeleteCluster"`. |
-| `afterJobFails` _CleanupAction_ | Action to take after job fails, default: `"KeepCluster"`. |
-| `afterJobCancelled` _CleanupAction_ | Action to take after job is cancelled, default: `"DeleteCluster"`. |
+| `afterJobSucceeds` _CleanupAction_ | Action to take after job succeeds, default: `DeleteCluster`. |
+| `afterJobFails` _CleanupAction_ | Action to take after job fails, default: `KeepCluster`. |
+| `afterJobCancelled` _CleanupAction_ | Action to take after job is cancelled, default: `DeleteCluster`. |
 
 
 #### FlinkCluster
@@ -201,7 +201,7 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `name` _string_ | Flink image name. |
-| `pullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#pullpolicy-v1-core)_ | Image pull policy. One of `Always, Never, IfNotPresent`, default: `Always``. if :latest tag is specified, or IfNotPresent otherwise. [More info](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy) |
+| `pullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#pullpolicy-v1-core)_ | Image pull policy. One of `Always, Never, IfNotPresent`, default: `Always`. if :latest tag is specified, or IfNotPresent otherwise. [More info](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy) |
 | `pullSecrets` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#localobjectreference-v1-core) array_ | _(Optional)_ Secrets for image pull. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/#create-a-pod-that-uses-your-secret) |
 
 
@@ -249,10 +249,10 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `rpc` _integer_ | RPC port, default: 6123. |
-| `blob` _integer_ | Blob port, default: 6124. |
-| `query` _integer_ | Query port, default: 6125. |
-| `ui` _integer_ | UI port, default: 8081. |
+| `rpc` _integer_ | RPC port, default: `6123`. |
+| `blob` _integer_ | Blob port, default: `6124`. |
+| `query` _integer_ | Query port, default: `6125`. |
+| `ui` _integer_ | UI port, default: `8081`. |
 
 
 #### JobManagerServiceStatus
@@ -283,15 +283,15 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `replicas` _integer_ | The number of JobManager replicas, default: 1 |
+| `replicas` _integer_ | The number of JobManager replicas, default: `1` |
 | `accessScope` _string_ | Access scope, default: `Cluster`. `Cluster`: accessible from within the same cluster. `VPC`: accessible from within the same VPC. `External`: accessible from the internet. `NodePort`: accessible through node port. `Headless`: pod IPs assumed to be routable and advertised directly with `clusterIP: None``. Currently `VPC, External` are only available for GKE. |
 | `ingress` _[JobManagerIngressSpec](#jobmanageringressspec)_ | _(Optional)_ Provide external access to JobManager UI/API. |
 | `ports` _[JobManagerPorts](#jobmanagerports)_ | Ports that JobManager listening on. |
 | `extraPorts` _[NamedPort](#namedport)_ | _(Optional)_ Extra ports to be exposed. For example, Flink metrics reporter ports: Prometheus, JMX and so on. Each port number and name must be unique among ports and extraPorts. |
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#resourcerequirements-v1-core)_ | Compute resources required by each JobManager container. default: 2 CPUs with 2Gi Memory. It Cannot be updated. [More info](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/) |
-| `memoryOffHeapRatio` _integer_ | Percentage of off-heap memory in containers, as a safety margin to avoid OOM kill, default: 25 |
-| `memoryOffHeapMin` _Quantity_ | Minimum amount of off-heap memory in containers, as a safety margin to avoid OOM kill, default: 600M You can express this value like 600M, 572Mi and 600e6 [More info](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory) |
-| `memoryProcessRatio` _integer_ | For Flink 1.10+. Percentage of memory process, as a safety margin to avoid OOM kill, default: 80 |
+| `memoryOffHeapRatio` _integer_ | Percentage of off-heap memory in containers, as a safety margin to avoid OOM kill, default: `25` |
+| `memoryOffHeapMin` _Quantity_ | Minimum amount of off-heap memory in containers, as a safety margin to avoid OOM kill, default: `600M` You can express this value like 600M, 572Mi and 600e6 [More info](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory) |
+| `memoryProcessRatio` _integer_ | For Flink 1.10+. Percentage of memory process, as a safety margin to avoid OOM kill, default: `80` |
 | `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volume-v1-core) array_ | _(Optional)_ Volumes in the JobManager pod. [More info](https://kubernetes.io/docs/concepts/storage/volumes/) |
 | `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volumemount-v1-core) array_ | _(Optional)_ Volume mounts in the JobManager container. [More info](https://kubernetes.io/docs/concepts/storage/volumes/) |
 | `volumeClaimTemplates` _[PersistentVolumeClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#persistentvolumeclaim-v1-core) array_ | _(Optional)_ A template for persistent volume claim each requested and mounted to JobManager pod, This can be used to mount an external volume with a specific storageClass or larger captivity (for larger/faster state backend). [More info](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims) |
@@ -324,14 +324,14 @@ _Appears in:_
 | `pyModule` _string_ | _(Optional)_ Python module path of the job entry point. Must use with pythonFiles. |
 | `args` _string array_ | _(Optional)_ Command-line args of the job. |
 | `fromSavepoint` _string_ | _(Optional)_ FromSavepoint where to restore the job from Savepoint where to restore the job from (e.g., gs://my-savepoint/1234). If flink job must be restored from the latest available savepoint when Flink job updating, this field must be unspecified. |
-| `allowNonRestoredState` _boolean_ | Allow non-restored state, default: false. |
+| `allowNonRestoredState` _boolean_ | Allow non-restored state, default: `false`. |
 | `savepointsDir` _string_ | _(Optional)_ Savepoints dir where to store savepoints of the job. |
-| `takeSavepointOnUpdate` _boolean_ | _(Optional)_ Should take savepoint before updating job, default: true. If this is set as false, maxStateAgeToRestoreSeconds must be provided to limit the savepoint age to restore. |
+| `takeSavepointOnUpdate` _boolean_ | _(Optional)_ Should take savepoint before updating job, default: `true`. If this is set as false, maxStateAgeToRestoreSeconds must be provided to limit the savepoint age to restore. |
 | `maxStateAgeToRestoreSeconds` _integer_ | _(Optional)_ Maximum age of the savepoint that allowed to restore state. This is applied to auto restart on failure, update from stopped state and update without taking savepoint. If nil, job can be restarted only when the latest savepoint is the final job state (created by "stop with savepoint") - that is, only when job can be resumed from the suspended state. |
 | `autoSavepointSeconds` _integer_ | _(Optional)_ Automatically take a savepoint to the `savepointsDir` every n seconds. |
 | `savepointGeneration` _integer_ | _(Optional)_ Update this field to `jobStatus.savepointGeneration + 1` for a running job cluster to trigger a new savepoint to `savepointsDir` on demand. |
-| `parallelism` _integer_ | Job parallelism, default: 1. |
-| `noLoggingToStdout` _boolean_ | No logging output to STDOUT, default: false. |
+| `parallelism` _integer_ | Job parallelism, default: `1`. |
+| `noLoggingToStdout` _boolean_ | No logging output to STDOUT, default: `false`. |
 | `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volume-v1-core)_ | _(Optional)_ Volumes in the Job pod. [More info](https://kubernetes.io/docs/concepts/storage/volumes/) |
 | `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volumemount-v1-core)_ | _(Optional)_ Volume mounts in the Job container. [More info](https://kubernetes.io/docs/concepts/storage/volumes/) |
 | `initContainers` _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#container-v1-core)_ | _(Optional)_ Init containers of the Job pod. A typical use case could be using an init container to download a remote job jar to a local path which is referenced by the `jarFile` property. [More info](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/) |
@@ -386,7 +386,7 @@ _Appears in:_
 | --- | --- |
 | `name` _string_ | _(Optional)_ If specified, this must be an IANA_SVC_NAME and unique within the pod. Each named port in a pod must have a unique name. Name for the port that can be referred to by services. |
 | `containerPort` _integer_ | Number of port to expose on the pod's IP address. This must be a valid port number, 0 < x < 65536. |
-| `protocol` _string_ | Protocol for port. Must be UDP, TCP, or SCTP, default: "TCP". |
+| `protocol` _string_ | Protocol for port. One of `UDP, TCP, or SCTP`, default: `TCP`. |
 
 
 #### RevisionStatus
@@ -436,9 +436,9 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `data` _integer_ | Data port, default: 6121. |
-| `rpc` _integer_ | RPC port, default: 6122. |
-| `query` _integer_ | Query port, default: 6125. |
+| `data` _integer_ | Data port, default: `6121`. |
+| `rpc` _integer_ | RPC port, default: `6122`. |
+| `query` _integer_ | Query port, default: `6125`. |
 
 
 #### TaskManagerSpec
@@ -456,9 +456,9 @@ _Appears in:_
 | `ports` _[TaskManagerPorts](#taskmanagerports)_ | Ports that TaskManager listening on. |
 | `extraPorts` _[NamedPort](#namedport)_ | _(Optional)_ Extra ports to be exposed. For example, Flink metrics reporter ports: Prometheus, JMX and so on. |
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#resourcerequirements-v1-core)_ | Compute resources required by each TaskManager container. default: 2 CPUs with 2Gi Memory. It Cannot be updated. [More info](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/) |
-| `memoryOffHeapRatio` _integer_ | Percentage of off-heap memory in containers, as a safety margin to avoid OOM kill, default: 25 |
-| `memoryOffHeapMin` _Quantity_ | Minimum amount of off-heap memory in containers, as a safety margin to avoid OOM kill, default: 600M You can express this value like 600M, 572Mi and 600e6 [More info](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory) |
-| `memoryProcessRatio` _integer_ | For Flink 1.10+. Percentage of process memory, as a safety margin to avoid OOM kill, default: 20 |
+| `memoryOffHeapRatio` _integer_ | Percentage of off-heap memory in containers, as a safety margin to avoid OOM kill, default: `25` |
+| `memoryOffHeapMin` _Quantity_ | Minimum amount of off-heap memory in containers, as a safety margin to avoid OOM kill, default: `600M` You can express this value like 600M, 572Mi and 600e6 [More info](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory) |
+| `memoryProcessRatio` _integer_ | For Flink 1.10+. Percentage of process memory, as a safety margin to avoid OOM kill, default: `20` |
 | `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volume-v1-core)_ | _(Optional)_ Volumes in the TaskManager pods. [More info](https://kubernetes.io/docs/concepts/storage/volumes/) |
 | `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volumemount-v1-core)_ | _(Optional)_ Volume mounts in the TaskManager containers. [More info](https://kubernetes.io/docs/concepts/storage/volumes/) |
 | `volumeClaimTemplates` _[PersistentVolumeClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#persistentvolumeclaim-v1-core)_ | _(Optional)_ A template for persistent volume claim each requested and mounted to JobManager pod, This can be used to mount an external volume with a specific storageClass or larger captivity (for larger/faster state backend). [More info](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims) |

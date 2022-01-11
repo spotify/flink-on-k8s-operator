@@ -121,7 +121,7 @@ type ImageSpec struct {
 	// Flink image name.
 	Name string `json:"name"`
 
-	// Image pull policy. One of `Always, Never, IfNotPresent`, default: `Always``.
+	// Image pull policy. One of `Always, Never, IfNotPresent`, default: `Always`.
 	// if :latest tag is specified, or IfNotPresent otherwise.
 	// [More info](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy)
 	PullPolicy corev1.PullPolicy `json:"pullPolicy,omitempty"`
@@ -144,24 +144,23 @@ type NamedPort struct {
 	// +kubebuilder:validation:Maximum=65535
 	ContainerPort int32 `json:"containerPort"`
 
-	// Protocol for port. Must be UDP, TCP, or SCTP,
-	// default: "TCP".
+	// Protocol for port. One of `UDP, TCP, or SCTP`, default: `TCP`.
 	// +kubebuilder:validation:Enum=TCP;UDP;SCTP
 	Protocol string `json:"protocol,omitempty"`
 }
 
 // JobManagerPorts defines ports of JobManager.
 type JobManagerPorts struct {
-	// RPC port, default: 6123.
+	// RPC port, default: `6123`.
 	RPC *int32 `json:"rpc,omitempty"`
 
-	// Blob port, default: 6124.
+	// Blob port, default: `6124`.
 	Blob *int32 `json:"blob,omitempty"`
 
-	// Query port, default: 6125.
+	// Query port, default: `6125`.
 	Query *int32 `json:"query,omitempty"`
 
-	// UI port, default: 8081.
+	// UI port, default: `8081`.
 	UI *int32 `json:"ui,omitempty"`
 }
 
@@ -183,7 +182,7 @@ type JobManagerIngressSpec struct {
 
 // JobManagerSpec defines properties of JobManager.
 type JobManagerSpec struct {
-	// The number of JobManager replicas, default: 1
+	// The number of JobManager replicas, default: `1`
 	Replicas *int32 `json:"replicas,omitempty"`
 
 	// Access scope, default: `Cluster`.
@@ -211,15 +210,15 @@ type JobManagerSpec struct {
 	// [More info](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/)
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
 
-	// Percentage of off-heap memory in containers, as a safety margin to avoid OOM kill, default: 25
+	// Percentage of off-heap memory in containers, as a safety margin to avoid OOM kill, default: `25`
 	MemoryOffHeapRatio *int32 `json:"memoryOffHeapRatio,omitempty"`
 
-	// Minimum amount of off-heap memory in containers, as a safety margin to avoid OOM kill, default: 600M
+	// Minimum amount of off-heap memory in containers, as a safety margin to avoid OOM kill, default: `600M`
 	// You can express this value like 600M, 572Mi and 600e6
 	// [More info](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory)
 	MemoryOffHeapMin resource.Quantity `json:"memoryOffHeapMin,omitempty"`
 
-	// For Flink 1.10+. Percentage of memory process, as a safety margin to avoid OOM kill, default: 80
+	// For Flink 1.10+. Percentage of memory process, as a safety margin to avoid OOM kill, default: `80`
 	MemoryProcessRatio *int32 `json:"memoryProcessRatio,omitempty"`
 
 	// _(Optional)_ Volumes in the JobManager pod.
@@ -277,13 +276,13 @@ type JobManagerSpec struct {
 
 // TaskManagerPorts defines ports of TaskManager.
 type TaskManagerPorts struct {
-	// Data port, default: 6121.
+	// Data port, default: `6121`.
 	Data *int32 `json:"data,omitempty"`
 
-	// RPC port, default: 6122.
+	// RPC port, default: `6122`.
 	RPC *int32 `json:"rpc,omitempty"`
 
-	// Query port, default: 6125.
+	// Query port, default: `6125`.
 	Query *int32 `json:"query,omitempty"`
 }
 
@@ -306,15 +305,15 @@ type TaskManagerSpec struct {
 
 	// TODO: Memory calculation would be change. Let's watch the issue FLINK-13980.
 
-	// Percentage of off-heap memory in containers, as a safety margin to avoid OOM kill, default: 25
+	// Percentage of off-heap memory in containers, as a safety margin to avoid OOM kill, default: `25`
 	MemoryOffHeapRatio *int32 `json:"memoryOffHeapRatio,omitempty"`
 
-	// Minimum amount of off-heap memory in containers, as a safety margin to avoid OOM kill, default: 600M
+	// Minimum amount of off-heap memory in containers, as a safety margin to avoid OOM kill, default: `600M`
 	// You can express this value like 600M, 572Mi and 600e6
 	// [More info](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory)
 	MemoryOffHeapMin resource.Quantity `json:"memoryOffHeapMin,omitempty"`
 
-	// For Flink 1.10+. Percentage of process memory, as a safety margin to avoid OOM kill, default: 20
+	// For Flink 1.10+. Percentage of process memory, as a safety margin to avoid OOM kill, default: `20`
 	MemoryProcessRatio *int32 `json:"memoryProcessRatio,omitempty"`
 
 	// _(Optional)_ Volumes in the TaskManager pods.
@@ -383,13 +382,13 @@ const (
 )
 
 // CleanupPolicy defines the action to take after job finishes.
-// Use one of `"KeepCluster", "DeleteCluster", "DeleteTaskManager"` for the below fields.
+// Use one of `KeepCluster, DeleteCluster, DeleteTaskManager` for the below fields.
 type CleanupPolicy struct {
-	// Action to take after job succeeds, default: `"DeleteCluster"`.
+	// Action to take after job succeeds, default: `DeleteCluster`.
 	AfterJobSucceeds CleanupAction `json:"afterJobSucceeds,omitempty"`
-	// Action to take after job fails, default: `"KeepCluster"`.
+	// Action to take after job fails, default: `KeepCluster`.
 	AfterJobFails CleanupAction `json:"afterJobFails,omitempty"`
-	// Action to take after job is cancelled, default: `"DeleteCluster"`.
+	// Action to take after job is cancelled, default: `DeleteCluster`.
 	AfterJobCancelled CleanupAction `json:"afterJobCancelled,omitempty"`
 }
 
@@ -420,13 +419,13 @@ type JobSpec struct {
 	// If flink job must be restored from the latest available savepoint when Flink job updating, this field must be unspecified.
 	FromSavepoint *string `json:"fromSavepoint,omitempty"`
 
-	// Allow non-restored state, default: false.
+	// Allow non-restored state, default: `false`.
 	AllowNonRestoredState *bool `json:"allowNonRestoredState,omitempty"`
 
 	// _(Optional)_ Savepoints dir where to store savepoints of the job.
 	SavepointsDir *string `json:"savepointsDir,omitempty"`
 
-	// _(Optional)_ Should take savepoint before updating job, default: true.
+	// _(Optional)_ Should take savepoint before updating job, default: `true`.
 	// If this is set as false, maxStateAgeToRestoreSeconds must be provided to limit the savepoint age to restore.
 	TakeSavepointOnUpdate *bool `json:"takeSavepointOnUpdate,omitempty"`
 
@@ -444,10 +443,10 @@ type JobSpec struct {
 	// cluster to trigger a new savepoint to `savepointsDir` on demand.
 	SavepointGeneration int32 `json:"savepointGeneration,omitempty"`
 
-	// Job parallelism, default: 1.
+	// Job parallelism, default: `1`.
 	Parallelism *int32 `json:"parallelism,omitempty"`
 
-	// No logging output to STDOUT, default: false.
+	// No logging output to STDOUT, default: `false`.
 	NoLoggingToStdout *bool `json:"noLoggingToStdout,omitempty"`
 
 	// _(Optional)_ Volumes in the Job pod.
