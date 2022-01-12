@@ -385,9 +385,13 @@ func getDesiredTaskManagerStatefulSet(
 		ports = append(ports, corev1.ContainerPort{Name: port.Name, ContainerPort: port.ContainerPort, Protocol: corev1.Protocol(port.Protocol)})
 	}
 	var taskManagerStatefulSetName = getTaskManagerStatefulSetName(clusterName)
-	var podLabels = getComponentLabels(*flinkCluster, "taskmanager")
+	var taskManagerContainerName = "taskmanager"
+	var podLabels = getComponentLabels(*flinkCluster, taskManagerContainerName)
 	podLabels = mergeLabels(podLabels, taskManagerSpec.PodLabels)
 	var statefulSetLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
+	var statefulSetAnnotations = map[string]string{
+		"kubectl.kubernetes.io/default-container": taskManagerContainerName,
+	}
 
 	var securityContext = taskManagerSpec.SecurityContext
 
@@ -405,7 +409,7 @@ func getDesiredTaskManagerStatefulSet(
 			Name: "TASK_MANAGER_CPU_LIMIT",
 			ValueFrom: &corev1.EnvVarSource{
 				ResourceFieldRef: &corev1.ResourceFieldSelector{
-					ContainerName: "taskmanager",
+					ContainerName: taskManagerContainerName,
 					Resource:      "limits.cpu",
 					Divisor:       resource.MustParse("1m"),
 				},
@@ -415,7 +419,7 @@ func getDesiredTaskManagerStatefulSet(
 			Name: "TASK_MANAGER_MEMORY_LIMIT",
 			ValueFrom: &corev1.EnvVarSource{
 				ResourceFieldRef: &corev1.ResourceFieldSelector{
-					ContainerName: "taskmanager",
+					ContainerName: taskManagerContainerName,
 					Resource:      "limits.memory",
 					Divisor:       resource.MustParse("1Mi"),
 				},
@@ -449,10 +453,10 @@ func getDesiredTaskManagerStatefulSet(
 	envVars = append(envVars, flinkCluster.Spec.EnvVars...)
 
 	var containers = []corev1.Container{{
-		Name:            "taskmanager",
+		Name:            taskManagerContainerName,
 		Image:           imageSpec.Name,
 		ImagePullPolicy: imageSpec.PullPolicy,
-		Args:            []string{"taskmanager"},
+		Args:            []string{taskManagerContainerName},
 		Ports:           ports,
 		LivenessProbe:   taskManagerSpec.LivenessProbe,
 		ReadinessProbe:  taskManagerSpec.ReadinessProbe,
@@ -496,7 +500,8 @@ func getDesiredTaskManagerStatefulSet(
 			Name:      taskManagerStatefulSetName,
 			OwnerReferences: []metav1.OwnerReference{
 				ToOwnerReference(flinkCluster)},
-			Labels: statefulSetLabels,
+			Labels:      statefulSetLabels,
+			Annotations: statefulSetAnnotations,
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Replicas:             &taskManagerSpec.Replicas,
