@@ -84,7 +84,7 @@ kubectl get deployments --namespace=<namespace>
 
 ## Flink Operator Releases
 
-You can check which images of the Operator are available at [GoogleCloudPlatform](https://console.cloud.google.com/gcr/images/flink-operator/GLOBAL/flink-operator?gcrImageListsize=30)
+You can check which images of the Operator are available at [ghcr.io/spotify/flink-operator](https://github.com/spotify/flink-on-k8s-operator/pkgs/container/flink-operator)
 
 ## Monitoring
 

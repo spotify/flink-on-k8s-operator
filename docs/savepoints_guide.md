@@ -236,8 +236,3 @@ Note that
   it is automatically or  manually taken; otherwise, the job will stay in failed state.
 * The job status includes a `fromSavepoint` property which is the actual savepoint from which the job start or
   restarted. It could be different from the one you specified in the job spec in case of restart.
-
-## Storing savepoints in remote storages
-
-Usually you want to store savepoints in remote storages, see this [doc](../images/flink/README.md) on how you can store
-savepoints in GCS.

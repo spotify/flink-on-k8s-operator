@@ -75,7 +75,6 @@ The operator is still under active development, there is no Helm chart available
 - [Manage savepoints](docs/savepoints_guide.md)
 - [Use remote job jars](config/samples/flinkoperator_v1beta1_remotejobjar.yaml)
 - [Run Apache Beam Python jobs](docs/beam_guide.md)
-- [Use GCS connector](images/flink/README.md)
 - [Test with Apache Kafka](docs/kafka_test_guide.md)
 - [Create Flink job clusters with Helm Chart](docs/flink_job_cluster_guide.md)
 - [Run Python job using pyflink API](docs/python_guide.md)
