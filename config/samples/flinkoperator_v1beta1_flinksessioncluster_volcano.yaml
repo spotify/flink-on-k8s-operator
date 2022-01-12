@@ -17,8 +17,9 @@ kind: FlinkCluster
 metadata:
   name: flinksessioncluster-sample
 spec:
+  flinkVersion: "1.14"
   image:
-    name: flink:1.8.2
+    name: flink:1.14.2
     pullPolicy: Always
   batchSchedulerName: volcano
   jobManager:
