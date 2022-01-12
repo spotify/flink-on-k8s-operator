@@ -17,8 +17,9 @@ kind: FlinkCluster
 metadata:
   name: flinkjobcluster-sample
 spec:
+  flinkVersion: "1.14"
   image:
-    name: flink:1.8.2
+    name: flink:1.14.2
   jobManager:
     ports:
       ui: 8081
