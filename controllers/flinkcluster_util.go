@@ -520,7 +520,7 @@ func getPodLogs(clientset *kubernetes.Clientset, pod *corev1.Pod) (string, error
 	}
 	pods := clientset.CoreV1().Pods(pod.Namespace)
 
-	req := pods.GetLogs(pod.Name, &corev1.PodLogOptions{})
+	req := pods.GetLogs(pod.Name, &corev1.PodLogOptions{Container: "main"})
 	podLogs, err := req.Stream(context.TODO())
 	if err != nil {
 		return "", fmt.Errorf("failed to get logs for pod %s: %v", pod.Name, err)
