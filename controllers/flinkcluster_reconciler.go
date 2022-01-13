@@ -476,8 +476,10 @@ func (reconciler *ClusterReconciler) reconcilePersistentVolumeClaim(pvc *corev1.
 	ctx := reconciler.context
 	k8sClient := reconciler.k8sClient
 
-	if len(pvc.GetOwnerReferences()) != 0 {
-		return nil
+	for _, ownerRef := range pvc.GetOwnerReferences() {
+		if ownerRef.Kind == sset.Kind {
+			return nil
+		}
 	}
 
 	patch := fmt.Sprintf(
