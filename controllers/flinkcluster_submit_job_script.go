@@ -132,6 +132,7 @@ function submit_job() {
     # Submit job and extract the job ID
     echo "/opt/flink/bin/flink run $*" | tee -a submit_log
     /opt/flink/bin/flink run "$@" 2>&1 | tee -a submit_log
+    local -r job_exit_code=$?
     local -r job_id_indicator="Job has been submitted with JobID"
     job_id=$(grep "${job_id_indicator}" submit_log | awk -F "${job_id_indicator}" '{printf $2}' | awk '{printf $1}')
 
@@ -142,10 +143,17 @@ function submit_job() {
         return 1
     fi
 
-    # On success, write job ID and log.
+    # write job ID if there is one
     write_term_log "jobID: ${job_id}"
-    write_term_log_msg "Successfully submitted!" "submit_log"
 
+    # check the job's exit code
+    if [ $job_exit_code -ne 0 ]; then
+        write_term_log_msg "Job failed with a non-zero exit code: ${job_exit_code}" "submit_log"
+        return 1
+    fi        
+
+    # On success, write log
+    write_term_log_msg "Successfully submitted!" "submit_log"
     return 0
 }
 
