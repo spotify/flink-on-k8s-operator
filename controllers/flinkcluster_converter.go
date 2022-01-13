@@ -663,16 +663,16 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 		jobArgs = append(jobArgs, getLocalPath(&envVars, "FLINK_JOB_JAR_URI", *jobSpec.JarFile))
 	}
 
-	if jobSpec.PythonFile != nil {
-		jobArgs = append(jobArgs, "--python", getLocalPath(&envVars, "FLINK_JOB_JAR_URI", *jobSpec.PythonFile))
+	if jobSpec.PyFile != nil {
+		jobArgs = append(jobArgs, "--python", getLocalPath(&envVars, "FLINK_JOB_JAR_URI", *jobSpec.PyFile))
 	}
 
-	if jobSpec.PythonFiles != nil {
-		jobArgs = append(jobArgs, "--pyFiles", getLocalPath(&envVars, "FLINK_JOB_PYTHON_FILES_URI", *jobSpec.PythonFiles))
+	if jobSpec.PyFiles != nil {
+		jobArgs = append(jobArgs, "--pyFiles", getLocalPath(&envVars, "FLINK_JOB_PYTHON_FILES_URI", *jobSpec.PyFiles))
 	}
 
-	if jobSpec.PythonModule != nil {
-		jobArgs = append(jobArgs, "--pyModule", *jobSpec.PythonModule)
+	if jobSpec.PyModule != nil {
+		jobArgs = append(jobArgs, "--pyModule", *jobSpec.PyModule)
 	}
 
 	envVars = append(envVars,

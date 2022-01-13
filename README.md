@@ -55,7 +55,7 @@ clusters and jobs.
 
 The operator is still under active development, there is no Helm chart available yet. You can follow either
 
-- [User Guide](docs/user_guide.md) to deploy a released operator image on `gcr.io/flink-operator` to your Kubernetes
+- [User Guide](docs/user_guide.md) to deploy a released operator image on `ghcr.io/spotify/flink-operator` to your Kubernetes
   cluster or
 - [Developer Guide](docs/developer_guide.md) to build an operator image first then deploy it to the cluster.
 

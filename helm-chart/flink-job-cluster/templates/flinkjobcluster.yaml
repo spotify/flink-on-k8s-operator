@@ -7,10 +7,11 @@ metadata:
     chart: {{ template "flink-job-cluster.chart" . }}
     release: {{ .Release.Name }}
 spec:
+  flinkVersion: {{ .Values.flinkVersion | quote }}
   image:
     name: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
   envVars:
-{{ toYaml .Values.envVars | indent 4 }}    
+{{ toYaml .Values.envVars | indent 4 }}
   jobManager:
     accessScope: {{ .Values.jobManager.accessScope }}
     ports:
@@ -25,8 +26,8 @@ spec:
 {{- end }}
 {{- if .Values.jobManager.metrics.enabled }}
     extraPorts:
-{{ toYaml .Values.jobManager.metrics.extraPorts | indent 6 }}    
-{{- end }}    
+{{ toYaml .Values.jobManager.metrics.extraPorts | indent 6 }}
+{{- end }}
     resources:
 {{ toYaml .Values.jobManager.resources | indent 6 }}
     podAnnotations:
@@ -45,8 +46,8 @@ spec:
 {{- end }}
 {{- if .Values.taskManager.metrics.enabled }}
     extraPorts:
-{{ toYaml .Values.taskManager.metrics.extraPorts | indent 6 }}    
-{{- end }}  
+{{ toYaml .Values.taskManager.metrics.extraPorts | indent 6 }}
+{{- end }}
     resources:
 {{ toYaml .Values.taskManager.resources | indent 6 }}
     podAnnotations:
@@ -73,7 +74,7 @@ spec:
       image: "{{ .Values.job.initContainers.image }}:{{ .Values.job.initContainers.tag }}"
       command: ["/bin/sh","-c","--"]
       args: ["/app/exec-python.sh"]
-      env: 
+      env:
         - name: STORAGE_CONNECTION_STRING
           valueFrom:
             secretKeyRef:
@@ -83,11 +84,10 @@ spec:
           value: {{ .Values.job.initContainers.Storage.containerName }}
         - name: BLOB_NAME
           value: {{ .Values.job.initContainers.Storage.blobName }}
-    {{- end }} 
+    {{- end }}
     podAnnotations:
 {{- with .Values.podAnnotations }}
   {{- toYaml . | nindent 6 }}
 {{- end }}
   flinkProperties:
 {{ toYaml .Values.flinkProperties | indent 4}}
-

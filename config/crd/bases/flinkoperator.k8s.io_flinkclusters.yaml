@@ -777,11 +777,11 @@ spec:
                       additionalProperties:
                         type: string
                       type: object
-                    pythonFile:
+                    pyFile:
                       type: string
-                    pythonFiles:
+                    pyFiles:
                       type: string
-                    pythonModule:
+                    pyModule:
                       type: string
                     resources:
                       properties:

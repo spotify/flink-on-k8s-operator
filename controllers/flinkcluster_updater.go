@@ -426,7 +426,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 			if jobStatus.State == v1beta1.JobStateSucceeded &&
 				policy.AfterJobSucceeds != v1beta1.CleanupActionKeepCluster {
 				status.State = v1beta1.ClusterStateStopping
-			} else if jobStatus.State == v1beta1.JobStateFailed &&
+			} else if jobStatus.IsFailed() &&
 				policy.AfterJobFails != v1beta1.CleanupActionKeepCluster {
 				status.State = v1beta1.ClusterStateStopping
 			} else if jobStatus.State == v1beta1.JobStateCancelled &&

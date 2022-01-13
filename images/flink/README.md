@@ -2,7 +2,7 @@
 
 To use [Google Cloud Storage](https://cloud.google.com/storage/) as remote storage for checkpoints, savepoints or job
 jar, you can create a custom Docker image based on the official Flink image and add
-[GCS connector](https://github.com/GoogleCloudPlatform/bigdata-interop/tree/master/gcs) in it.
+[GCS connector](https://github.com/GoogleCloudDataproc/hadoop-connectors/tree/master/gcs) in it.
 
 ## Create custom Docker image with GCS connector
 

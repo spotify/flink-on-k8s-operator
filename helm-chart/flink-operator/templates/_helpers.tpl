@@ -48,9 +48,9 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 Create the name of the service account to use
 */}}
 {{- define "flink-operator.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create -}}
-    {{ default (include "flink-operator.fullname" .) .Values.serviceAccount.name }}
+{{- if .Values.serviceAccount.flinkoperator.create -}}
+    {{ default (include "flink-operator.fullname" .) .Values.serviceAccount.flinkoperator.name }}
 {{- else -}}
-    {{ default "default" .Values.serviceAccount.name }}
+    {{ default "default" .Values.serviceAccount.flinkoperator.name }}
 {{- end -}}
 {{- end -}}

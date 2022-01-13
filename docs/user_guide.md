@@ -14,7 +14,7 @@ a Kubernetes cluster and running a sample Flink job.
 - Install cert-manager
 
   ```bash
-  kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.5.3/cert-manager.yaml
+  kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.1/cert-manager.yaml
   ```
 
 - (Optional) Clone the Flink Operator repo to your local machine:
@@ -27,7 +27,7 @@ a Kubernetes cluster and running a sample Flink job.
   then switch to the repo directory, we need to use the scripts in the repo for
   deployment.
 
-  To execute the install scripts, you'll need [go v1.14+](https://golang.org/doc/install) installed on your local machine.
+  To execute the install scripts, you'll need [go v1.14+](https://go.dev/doc/install) installed on your local machine.
 
 ## Deploy the operator to a Kubernetes cluster
 
