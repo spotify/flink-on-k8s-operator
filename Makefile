@@ -32,13 +32,13 @@ help: ## Display this help.
 ##@ Development
 
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./apis/flinkcluster/v1beta1/..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./apis/.../v1beta1/..." output:crd:artifacts:config=config/crd/bases
 	# remove status field as they interfer with ArgoCD and Google config-sync
 	# https://github.com/kubernetes-sigs/controller-tools/issues/456
 	yq -i e 'del(.status)' config/crd/bases/flinkoperator.k8s.io_flinkclusters.yaml
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./apis/flinkcluster/v1beta1/..."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./apis/.../v1beta1/..."
 
 generate-crd-docs: crd-ref-docs ## Generate CRD documentation to docs/crd.md
 	$(CRD_REF_DOCS) --source-path=./apis/flinkcluster/v1beta1 --config=docs/config.yaml --renderer=markdown --output-path=docs/crd.md
