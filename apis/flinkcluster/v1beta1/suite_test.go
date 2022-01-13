@@ -52,7 +52,7 @@ var _ = BeforeSuite(func(done Done) {
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "config", "test", "crd")},
+		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "config", "test", "crd")},
 	}
 
 	err := SchemeBuilder.AddToScheme(scheme.Scheme)

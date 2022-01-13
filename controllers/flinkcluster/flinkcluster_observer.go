@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package flinkcluster
 
 import (
 	"context"
@@ -23,9 +23,9 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	v1beta1 "github.com/spotify/flink-on-k8s-operator/api/v1beta1"
-	"github.com/spotify/flink-on-k8s-operator/controllers/flink"
-	"github.com/spotify/flink-on-k8s-operator/controllers/history"
+	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
+	"github.com/spotify/flink-on-k8s-operator/controllers/flinkcluster/flink"
+	"github.com/spotify/flink-on-k8s-operator/controllers/flinkcluster/history"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
