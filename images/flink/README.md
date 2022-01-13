@@ -13,6 +13,10 @@ command to build and push the image:
 make build push IMAGE_TAG=gcr.io/[MY_PROJECT]/flink:[FLINK_VERSION]-scala_[SCALA_VERSION]-gcs
 ```
 
+### Create custom Docker image with GCS connector for python
+
+To execute Flink application via python code, specify the `PYTHON_VERSION` in [properties](./properties) file before run the above command.
+
 ## Before creating a Flink cluster
 
 Before you create a Flink cluster with the custom image, you need to prepare several things:

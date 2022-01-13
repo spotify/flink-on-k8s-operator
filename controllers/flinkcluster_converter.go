@@ -50,6 +50,7 @@ const (
 	submitJobScriptPath     = "/opt/flink-operator/submit-job.sh"
 	gcpServiceAccountVolume = "gcp-service-account-volume"
 	hadoopConfigVolume      = "hadoop-config-volume"
+	flinkJobPath            = "/opt/flink/job"
 )
 
 var (
@@ -658,28 +659,16 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 
 	var envVars []corev1.EnvVar
 
-	// If the JAR file is remote, put the URI in the env variable
-	// FLINK_JOB_JAR_URI and rewrite the JAR path to a local path. The entrypoint
-	// script of the container will download it before submitting it to Flink.
 	if jobSpec.JarFile != nil {
-		var jarPath = *jobSpec.JarFile
-		if strings.Contains(*jobSpec.JarFile, "://") {
-			var parts = strings.Split(*jobSpec.JarFile, "/")
-			jarPath = path.Join("/opt/flink/job", parts[len(parts)-1])
-			envVars = append(envVars, corev1.EnvVar{
-				Name:  "FLINK_JOB_JAR_URI",
-				Value: *jobSpec.JarFile,
-			})
-		}
-		jobArgs = append(jobArgs, jarPath)
+		jobArgs = append(jobArgs, getLocalPath(&envVars, "FLINK_JOB_JAR_URI", *jobSpec.JarFile))
 	}
 
 	if jobSpec.PyFile != nil {
-		jobArgs = append(jobArgs, "--python", *jobSpec.PyFile)
+		jobArgs = append(jobArgs, "--python", getLocalPath(&envVars, "FLINK_JOB_JAR_URI", *jobSpec.PyFile))
 	}
 
 	if jobSpec.PyFiles != nil {
-		jobArgs = append(jobArgs, "--pyFiles", *jobSpec.PyFiles)
+		jobArgs = append(jobArgs, "--pyFiles", getLocalPath(&envVars, "FLINK_JOB_PYTHON_FILES_URI", *jobSpec.PyFiles))
 	}
 
 	if jobSpec.PyModule != nil {
@@ -1183,6 +1172,23 @@ func mergeLabels(labels1 map[string]string, labels2 map[string]string) map[strin
 		mergedLabels[k] = v
 	}
 	return mergedLabels
+}
+
+// getLocalPath puts the URI in the env variable and rewrite the path
+// to a local path if the file is remote and returns the local path.
+// The entrypoint script of the container will download it before submitting it to Flink.
+func getLocalPath(envVars *[]corev1.EnvVar, envName string, filePath string) string {
+	var localPath = filePath
+	if strings.Contains(filePath, "://") {
+		var parts = strings.Split(filePath, "/")
+		localPath = path.Join(flinkJobPath, parts[len(parts)-1])
+		*envVars = append(*envVars, corev1.EnvVar{
+			Name:  envName,
+			Value: filePath,
+		})
+	}
+
+	return localPath
 }
 
 const (

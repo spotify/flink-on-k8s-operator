@@ -401,10 +401,10 @@ type JobSpec struct {
 	// _(Optional)_ Fully qualified Java class name of the job.
 	ClassName *string `json:"className,omitempty"`
 
-	// _(Optional)_ Python file of the job. It should be a local file.
+	// _(Optional)_ Python file of the job. It could be a local file or remote URI (e.g.,`https://`, `gs://`).
 	PyFile *string `json:"pyFile,omitempty"`
 
-	// _(Optional)_ Python files of the job. It should be a local file (with .py/.egg/.zip/.whl) or directory.
+	// _(Optional)_ Python files of the job. It could be a local file (with .py/.egg/.zip/.whl), directory or remote URI (e.g.,`https://`, `gs://`).
 	// See the Flink argument `--pyFiles` for the detail.
 	PyFiles *string `json:"pyFiles,omitempty"`
 

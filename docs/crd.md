@@ -319,8 +319,8 @@ _Appears in:_
 | --- | --- |
 | `jarFile` _string_ | _(Optional)_ JAR file of the job. It could be a local file or remote URI, depending on which protocols (e.g., `https://, gs://`) are supported by the Flink image. |
 | `className` _string_ | _(Optional)_ Fully qualified Java class name of the job. |
-| `pyFile` _string_ | _(Optional)_ Python file of the job. It should be a local file. |
-| `pyFiles` _string_ | _(Optional)_ Python files of the job. It should be a local file (with .py/.egg/.zip/.whl) or directory. See the Flink argument `--pyFiles` for the detail. |
+| `pyFile` _string_ | _(Optional)_ Python file of the job. It could be a local file or remote URI (e.g.,`https://`, `gs://`). |
+| `pyFiles` _string_ | _(Optional)_ Python files of the job. It could be a local file (with .py/.egg/.zip/.whl), directory or remote URI (e.g.,`https://`, `gs://`). See the Flink argument `--pyFiles` for the detail. |
 | `pyModule` _string_ | _(Optional)_ Python module path of the job entry point. Must use with pythonFiles. |
 | `args` _string array_ | _(Optional)_ Command-line args of the job. |
 | `fromSavepoint` _string_ | _(Optional)_ FromSavepoint where to restore the job from Savepoint where to restore the job from (e.g., gs://my-savepoint/1234). If flink job must be restored from the latest available savepoint when Flink job updating, this field must be unspecified. |

@@ -22,6 +22,22 @@ echo "Flink entrypoint..."
 
 FLINK_CONF_FILE="${FLINK_HOME}/conf/flink-conf.yaml"
 
+download_job_file()
+{
+  URI=$1
+  JOB_PATH=$2
+  mkdir -p ${JOB_PATH}
+  echo "Downloading job file ${URI} to ${JOB_PATH}"
+  if [[ "${URI}" == gs://* ]]; then
+    gsutil cp "${URI}" "${JOB_PATH}"
+  elif [[ "${URI}" == http://* || "${URI}" == https://* ]]; then
+    wget -nv -P "${JOB_PATH}" "${URI}"
+  else
+    echo "Unsupported protocol for ${URI}"
+    exit 1
+  fi
+}
+
 # Add user-provided properties to Flink config.
 # FLINK_PROPERTIES is a multi-line string of "<key>: <value>".
 if [[ -n "${FLINK_PROPERTIES}" ]]; then
@@ -31,18 +47,17 @@ if [[ -n "${FLINK_PROPERTIES}" ]]; then
   echo "${FLINK_PROPERTIES}" >>${FLINK_CONF_FILE}
 fi
 
-# Download remote job JAR file.
+# Download remote job file.
 if [[ -n "${FLINK_JOB_JAR_URI}" ]]; then
-  mkdir -p ${FLINK_HOME}/job
-  echo "Downloading job JAR ${FLINK_JOB_JAR_URI} to ${FLINK_HOME}/job/"
-  if [[ "${FLINK_JOB_JAR_URI}" == gs://* ]]; then
-    gsutil cp "${FLINK_JOB_JAR_URI}" "${FLINK_HOME}/job/"
-  elif [[ "${FLINK_JOB_JAR_URI}" == http://* || "${FLINK_JOB_JAR_URI}" == https://* ]]; then
-    wget -nv -P "${FLINK_HOME}/job/" "${FLINK_JOB_JAR_URI}"
-  else
-    echo "Unsupported protocol for ${FLINK_JOB_JAR_URI}"
-    exit 1
-  fi
+  download_job_file ${FLINK_JOB_JAR_URI} "${FLINK_HOME}/job/"
+fi
+
+if [[ -n "${FLINK_JOB_PYTHON_URI}" ]]; then
+  download_job_file ${FLINK_JOB_PYTHON_URI} "${FLINK_HOME}/job/"
+fi
+
+if [[ -n "${FLINK_JOB_PYTHON_FILES_URI}" ]]; then
+  download_job_file ${FLINK_JOB_PYTHON_FILES_URI} "${FLINK_HOME}/job/"
 fi
 
 # Handover to Flink base image's entrypoint.
