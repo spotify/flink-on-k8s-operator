@@ -40,4 +40,3 @@ spec:
     parallelism: 2
   flinkProperties:
     taskmanager.numberOfTaskSlots: "1"
-    taskmanager.memory.flink.size: "1024m"

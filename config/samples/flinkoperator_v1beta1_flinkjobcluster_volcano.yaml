@@ -43,4 +43,3 @@ spec:
     restartPolicy: Never
   flinkProperties:
     taskmanager.numberOfTaskSlots: "1"
-    taskmanager.memory.flink.size: "1024m"
