@@ -28,14 +28,14 @@ spec:
       ui: 8081
     resources:
       limits:
-        memory: "1024Mi"
-        cpu: "200m"
+        memory: "2048Mi"
+        cpu: "500m"
   taskManager:
     replicas: 1
     resources:
       limits:
-        memory: "1024Mi"
-        cpu: "200m"
+        memory: "2048Mi"
+        cpu: "500m"
     volumes:
       - name: cache-volume
         emptyDir: {}

@@ -27,14 +27,14 @@ spec:
       ui: 8081
     resources:
       limits:
-        memory: "1024Mi"
-        cpu: "200m"
+        memory: "2048Mi"
+        cpu: "500m"
   taskManager:
     replicas: 2
     resources:
       limits:
-        memory: "1024Mi"
-        cpu: "200m"
+        memory: "2048Mi"
+        cpu: "500m"
   job:
     jarFile: ./examples/streaming/WordCount.jar
     className: org.apache.flink.streaming.examples.wordcount.WordCount
