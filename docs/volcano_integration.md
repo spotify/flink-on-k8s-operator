@@ -49,7 +49,7 @@ $ kubectl apply -f config/samples/flinkoperator_v1beta1_flinkjobcluster_volcano.
 and verify the pod is up and running with
 
 ```bash
-$ kubectl get pod,svc |grep flinkjobcluster
+$ kubectl get pod,svc | grep flinkjobcluster
   pod/flinkjobcluster-sample-job-xt4k7                         1/1     Running   0          34s
   pod/flinkjobcluster-sample-jobmanager-6c955f9b4-6mfvk        1/1     Running   0          65s
   pod/flinkjobcluster-sample-taskmanager-77c7bb8778-hmvzm      1/1     Running   0          65s
@@ -60,7 +60,7 @@ $ kubectl get pod,svc |grep flinkjobcluster
 verify `job manager` and `task manager` are scheduled by volcano
 
 ```bash
-$ kubectl get podgroup flink-flinkjobcluster-sample -oyaml
+$ kubectl get podgroup flink-flinkjobcluster-sample -o yaml
   apiVersion: scheduling.volcano.sh/v1beta1
   kind: PodGroup
   metadata:
