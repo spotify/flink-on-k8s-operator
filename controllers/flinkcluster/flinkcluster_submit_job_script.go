@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package flinkcluster
 
 // This script is part of the cluster's ConfigMap and is mounted into the
 // job (submitter) container at `/opt/flink-operator/submit-job.sh` for job

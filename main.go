@@ -30,8 +30,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/spotify/flink-on-k8s-operator/api/v1beta1"
-	"github.com/spotify/flink-on-k8s-operator/controllers"
+	"github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
+	"github.com/spotify/flink-on-k8s-operator/controllers/flinkcluster"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -91,7 +91,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = (&controllers.FlinkClusterReconciler{
+	err = (&flinkcluster.FlinkClusterReconciler{
 		Client:    mgr.GetClient(),
 		Clientset: cs,
 		Log:       ctrl.Log.WithName("controllers").WithName("FlinkCluster"),

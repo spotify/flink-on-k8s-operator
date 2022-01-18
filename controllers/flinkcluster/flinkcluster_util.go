@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package flinkcluster
 
 import (
 	"bytes"
@@ -28,10 +28,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/spotify/flink-on-k8s-operator/controllers/flink"
+	"github.com/spotify/flink-on-k8s-operator/controllers/flinkcluster/flink"
 
-	v1beta1 "github.com/spotify/flink-on-k8s-operator/api/v1beta1"
-	"github.com/spotify/flink-on-k8s-operator/controllers/history"
+	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
+	"github.com/spotify/flink-on-k8s-operator/controllers/flinkcluster/history"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -520,7 +520,7 @@ func getPodLogs(clientset *kubernetes.Clientset, pod *corev1.Pod) (string, error
 	}
 	pods := clientset.CoreV1().Pods(pod.Namespace)
 
-	req := pods.GetLogs(pod.Name, &corev1.PodLogOptions{Container: "main"})
+	req := pods.GetLogs(pod.Name, &corev1.PodLogOptions{})
 	podLogs, err := req.Stream(context.TODO())
 	if err != nil {
 		return "", fmt.Errorf("failed to get logs for pod %s: %v", pod.Name, err)
