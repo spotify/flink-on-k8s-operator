@@ -117,12 +117,12 @@ func (reconciler *ClusterReconciler) reconcile() (ctrl.Result, error) {
 }
 
 func (reconciler *ClusterReconciler) reconcileBatchScheduler() error {
-	if reconciler.observed.cluster.Spec.BatchScheduler == nil ||
-		reconciler.observed.cluster.Spec.BatchScheduler.Name == "" {
+	schedulerSpec := reconciler.observed.cluster.Spec.BatchScheduler
+	if schedulerSpec == nil || schedulerSpec.Name == "" {
 		return nil
 	}
 
-	scheduler, err := batchscheduler.GetScheduler(reconciler.observed.cluster.Spec.BatchScheduler.Name)
+	scheduler, err := batchscheduler.GetScheduler(schedulerSpec.Name)
 	if err != nil {
 		return err
 	}
