@@ -65,12 +65,14 @@ func (v *VolcanoBatchScheduler) Name() string {
 
 // Schedule reconciles batch scheduling
 func (v *VolcanoBatchScheduler) Schedule(cluster *v1beta1.FlinkCluster, state *model.DesiredClusterState) error {
-	res, size := getClusterResource(state)
-	pg, err := v.syncPodGroup(cluster, size, res)
+	pg, err := v.syncPodGroup(cluster, state)
 	if err != nil {
 		return err
 	}
-	v.setSchedulerMeta(pg, state)
+
+	if pg != nil {
+		v.setSchedulerMeta(pg, state)
+	}
 	return nil
 }
 
@@ -149,7 +151,21 @@ func (v *VolcanoBatchScheduler) updatePodGroup(pg *scheduling.PodGroup) (*schedu
 		Update(context.TODO(), pg, metav1.UpdateOptions{})
 }
 
-func (v *VolcanoBatchScheduler) syncPodGroup(cluster *v1beta1.FlinkCluster, size int32, minResource corev1.ResourceList) (*scheduling.PodGroup, error) {
+func (v *VolcanoBatchScheduler) deletePodGroup(cluster *v1beta1.FlinkCluster) error {
+	podGroupName := v.getPodGroupName(cluster)
+	return v.volcanoClient.
+		SchedulingV1beta1().
+		PodGroups(cluster.Namespace).
+		Delete(context.TODO(), podGroupName, metav1.DeleteOptions{})
+}
+
+func (v *VolcanoBatchScheduler) syncPodGroup(cluster *v1beta1.FlinkCluster, state *model.DesiredClusterState) (*scheduling.PodGroup, error) {
+	if state.JmStatefulSet == nil && state.TmStatefulSet == nil {
+		// remove the podgroup if the JobManager/TaskManager statefulset are not set
+		return nil, v.deletePodGroup(cluster)
+	}
+
+	minResource, size := getClusterResource(state)
 	pg, err := v.getPodGroup(cluster)
 	if err != nil {
 		if !errors.IsNotFound(err) {
