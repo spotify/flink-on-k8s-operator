@@ -616,16 +616,6 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 			if oldJob.FinalSavepoint {
 				newJob.FinalSavepoint = false
 			}
-		case newJob.IsStopped():
-			if newJob.CompletionTime.IsZero() {
-				now := metav1.Now()
-				newJob.CompletionTime = &now
-			}
-			// When tracking failed, we cannot guarantee if the savepoint is the final job state.
-			if newJob.State == v1beta1.JobStateLost && oldJob.FinalSavepoint {
-				newJob.FinalSavepoint = false
-			}
-			fallthrough
 		case newJob.IsFailed():
 			if len(newJob.FailureReasons) == 0 {
 				newJob.FailureReasons = []string{}
@@ -638,6 +628,16 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 				if observedSubmitter.log != nil {
 					newJob.FailureReasons = append(newJob.FailureReasons, observedSubmitter.log.message)
 				}
+			}
+			fallthrough
+		case newJob.IsStopped():
+			if newJob.CompletionTime.IsZero() {
+				now := metav1.Now()
+				newJob.CompletionTime = &now
+			}
+			// When tracking failed, we cannot guarantee if the savepoint is the final job state.
+			if newJob.State == v1beta1.JobStateLost && oldJob.FinalSavepoint {
+				newJob.FinalSavepoint = false
 			}
 		}
 	}

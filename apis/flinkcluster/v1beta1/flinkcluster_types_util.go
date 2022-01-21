@@ -29,9 +29,7 @@ func (j *JobStatus) IsStopped() bool {
 	return j != nil &&
 		(j.State == JobStateSucceeded ||
 			j.State == JobStateCancelled ||
-			j.State == JobStateFailed ||
-			j.State == JobStateLost ||
-			j.State == JobStateDeployFailed)
+			j.IsFailed())
 }
 
 func (j *JobStatus) IsTerminated(spec *JobSpec) bool {
