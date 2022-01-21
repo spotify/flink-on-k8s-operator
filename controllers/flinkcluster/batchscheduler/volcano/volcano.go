@@ -162,7 +162,12 @@ func (v *VolcanoBatchScheduler) deletePodGroup(cluster *v1beta1.FlinkCluster) er
 func (v *VolcanoBatchScheduler) syncPodGroup(cluster *v1beta1.FlinkCluster, state *model.DesiredClusterState) (*scheduling.PodGroup, error) {
 	if state.JmStatefulSet == nil && state.TmStatefulSet == nil {
 		// remove the podgroup if the JobManager/TaskManager statefulset are not set
-		return nil, v.deletePodGroup(cluster)
+		err := v.deletePodGroup(cluster)
+		if !errors.IsNotFound(err) {
+			return nil, err
+		}
+
+		return nil, nil
 	}
 
 	minResource, size := getClusterResource(state)
