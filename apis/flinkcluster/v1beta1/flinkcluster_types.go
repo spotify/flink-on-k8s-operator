@@ -476,7 +476,7 @@ type JobSpec struct {
 	// The action to take after job finishes.
 	CleanupPolicy *CleanupPolicy `json:"cleanupPolicy,omitempty"`
 
-	// _(Optional)_ Request the job to be cancelled. Only applies to running jobs. If
+	// Deprecated: _(Optional)_ Request the job to be cancelled. Only applies to running jobs. If
 	// `savePointsDir` is provided, a savepoint will be taken before stopping the
 	// job.
 	CancelRequested *bool `json:"cancelRequested,omitempty"`
@@ -533,7 +533,7 @@ type FlinkClusterSpec struct {
 	// _(Optional)_ The service account assigned to JobManager, TaskManager and Job submitter Pods. If empty, the default service account in the namespace will be used.
 	ServiceAccountName *string `json:"serviceAccountName,omitempty"`
 
-	// _*(Deprecated)*_ BatchSchedulerName specifies the batch scheduler name for JobManager, TaskManager.
+	// Deprecated: BatchSchedulerName specifies the batch scheduler name for JobManager, TaskManager.
 	// If empty, no batch scheduling is enabled.
 	BatchSchedulerName *string `json:"batchSchedulerName,omitempty"`
 
