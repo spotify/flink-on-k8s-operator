@@ -901,8 +901,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 								},
 								{
 									Name:      "flink-config-volume",
-									MountPath: "/opt/flink/conf/flink-conf.yaml",
-									SubPath:   "flink-conf.yaml",
+									MountPath: "/opt/flink/conf",
 								},
 								{
 									Name:      "hadoop-config-volume",
