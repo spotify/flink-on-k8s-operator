@@ -1073,8 +1073,7 @@ func convertSubmitJobScript(clusterName string) (*corev1.Volume, *corev1.VolumeM
 	}
 	confMount := &corev1.VolumeMount{
 		Name:      flinkConfigMapVolume,
-		MountPath: path.Join(flinkConfigMapPath, "flink-conf.yaml"),
-		SubPath:   "flink-conf.yaml",
+		MountPath: flinkConfigMapPath,
 	}
 	return confVol, scriptMount, confMount
 }
