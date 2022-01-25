@@ -903,17 +903,27 @@ func deriveControlStatus(
 		c = recordedControl.DeepCopy()
 		switch recordedControl.Name {
 		case v1beta1.ControlNameJobCancel:
-			if newSavepoint.State == v1beta1.SavepointStateSucceeded && newJob.State == v1beta1.JobStateCancelled {
-				c.State = v1beta1.ControlStateSucceeded
-			} else if newJob.IsStopped() {
-				c.Message = "Aborted job cancellation: savepoint is not completed, but job is stopped already."
-				c.State = v1beta1.ControlStateFailed
-			} else if newSavepoint.IsFailed() && newSavepoint.TriggerReason == v1beta1.SavepointReasonJobCancel {
-				c.Message = "Aborted job cancellation: failed to take savepoint."
+			switch {
+			case newJob.State == v1beta1.JobStateCancelled:
+				if newSavepoint != nil {
+					if newSavepoint.State == v1beta1.SavepointStateSucceeded {
+						c.State = v1beta1.ControlStateSucceeded
+					} else if newSavepoint.IsFailed() && newSavepoint.TriggerReason == v1beta1.SavepointReasonJobCancel {
+						c.Message = "Aborted job cancellation: failed to take savepoint."
+						c.State = v1beta1.ControlStateFailed
+					}
+				} else {
+					c.State = v1beta1.ControlStateSucceeded
+				}
+			case newJob.IsStopped():
+				c.Message = "Aborted job cancellation: job is stopped already."
 				c.State = v1beta1.ControlStateFailed
 			}
 		case v1beta1.ControlNameSavepoint:
-			if newSavepoint.State == v1beta1.SavepointStateSucceeded {
+			if newSavepoint == nil {
+				c.Message = "Aborted: savepoint not defined"
+				c.State = v1beta1.ControlStateFailed
+			} else if newSavepoint.State == v1beta1.SavepointStateSucceeded {
 				c.State = v1beta1.ControlStateSucceeded
 			} else if newSavepoint.IsFailed() && newSavepoint.TriggerReason == v1beta1.SavepointReasonUserRequested {
 				c.State = v1beta1.ControlStateFailed
@@ -925,6 +935,7 @@ func deriveControlStatus(
 		}
 		return c
 	}
+
 	// Maintain control status if there is no change.
 	if recordedControl != nil && c == nil {
 		c = recordedControl.DeepCopy()
