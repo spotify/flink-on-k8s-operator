@@ -593,7 +593,10 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 	// Job cancel requested. Stop Flink job.
 	if desiredJob == nil && job.IsActive() {
 		log.Info("Stopping job", "jobID", jobID)
-		newSavepointStatus, err = reconciler.trySuspendJob()
+		if err := reconciler.cancelRunningJobs(true /* takeSavepoint */); err != nil {
+			return requeueResult, err
+		}
+
 		var userControl = getNewControlRequest(observed.cluster)
 		if userControl == v1beta1.ControlNameJobCancel {
 			newControlStatus = getControlStatus(userControl, v1beta1.ControlStateInProgress)
@@ -653,6 +656,11 @@ func (reconciler *ClusterReconciler) getFlinkJobID() string {
 func (reconciler *ClusterReconciler) trySuspendJob() (*v1beta1.SavepointStatus, error) {
 	var log = reconciler.log
 	var recorded = reconciler.observed.cluster.Status
+
+	if !canTakeSavepoint(*reconciler.observed.cluster) {
+		return nil, nil
+	}
+
 	var jobID = reconciler.getFlinkJobID()
 
 	log.Info("Checking the conditions for progressing")
@@ -705,7 +713,6 @@ func (reconciler *ClusterReconciler) cancelUnexpectedJobs(
 // Cancel running jobs.
 func (reconciler *ClusterReconciler) cancelRunningJobs(
 	takeSavepoint bool) error {
-	var log = reconciler.log
 	var runningJobs = reconciler.observed.flinkJob.unexpected
 	var flinkJob = reconciler.observed.flinkJob.status
 	if flinkJob != nil && flinkJob.Id != "" &&
@@ -713,8 +720,7 @@ func (reconciler *ClusterReconciler) cancelRunningJobs(
 		runningJobs = append(runningJobs, flinkJob.Id)
 	}
 	if len(runningJobs) == 0 {
-		log.Info("No running Flink jobs to stop.")
-		return nil
+		return fmt.Errorf("no running Flink jobs to stop")
 	}
 	return reconciler.cancelJobs(takeSavepoint, runningJobs)
 }
