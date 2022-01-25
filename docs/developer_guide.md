@@ -21,7 +21,7 @@ image.
 code, build the Flink Operator binary, run unit tests, build and push docker
 image, deploy the Flink Operator to a Kubernetes cluster.
 
-You might want to watch this tech talk ([video](https://www.youtube.com/watch?v=MXj4lo8XHUE), [slides](https://github.com/GoogleCloudPlatform/flink-on-k8s-operator/blob/master/docs/apache-flink-on-kubernetes-operator-20200212.pdf)) to get a high-level overview of the project.
+You might want to watch this tech talk ([video](https://www.youtube.com/watch?v=MXj4lo8XHUE), [slides](https://github.com/spotify/flink-on-k8s-operator/blob/master/docs/apache-flink-on-kubernetes-operator-20200212.pdf)) to get a high-level overview of the project.
 
 ## Dependencies
 

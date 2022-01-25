@@ -2,7 +2,7 @@
 
 ## Overview
 
-This Helm Chart is an addition to the [existing](https://github.com/GoogleCloudPlatform/flink-on-k8s-operator/tree/master/config/samples) way of deploying Flink job clusters.
+This Helm Chart is an addition to the [existing](https://github.com/spotify/flink-on-k8s-operator/tree/master/config/samples) way of deploying Flink job clusters.
 
 ### Why use the Helm Chart?
 A typical Helm chart will usually include all of the manifests which you would manually apply with kubectl as templates, along with a ```values.yaml``` file for quick management of user preferences, so it becomes a one-step process to manage all of these resources as a single resource. Since Flink job clusters are currently deployed with just one YAML file, it might seem like the helm chart is unnecessary. However, the more components are added in the future, such as a ```PodMonitor``` or ```Services```, the easier it will be to manage those manifests from a central ```values.yaml```. Helm also supports various deployment checks before and after deployment so it integrates well with CI/CD pipelines. Some of these benefits are listed below:
@@ -16,12 +16,12 @@ A typical Helm chart will usually include all of the manifests which you would m
 ## Prerequisites
 
 
-- Fink Operator Image Version:  ```gcr.io/flink-operator/flink-operator:v1beta1-6``` follow these [instructions](https://github.com/GoogleCloudPlatform/flink-on-k8s-operator/tree/master/helm-chart/flink-operator) to deploy the Operator
+- Fink Operator Image Version:  ```ghcr.io/spotify/flink-operator``` follow these [instructions](https://github.com/spotify/flink-on-k8s-operator/tree/master/helm-chart/flink-operator) to deploy the Operator
 - Flink Image Version: ```flink:1.9.3``` or ```flink:latest```
 - [Helm](https://helm.sh/docs/helm/helm_install/) version 2.x or 3.x
 
 Optional:
-- [Prometheus-Operator](https://github.com/GoogleCloudPlatform/flink-on-k8s-operator/blob/master/docs/user_guide.md#monitoring-with-prometheus) to use the custom resource ```PodMonitor``` in order to scrape flink-job-cluster metrics
+- [Prometheus-Operator](https://github.com/spotify/flink-on-k8s-operator/blob/master/docs/user_guide.md#monitoring-with-prometheus) to use the custom resource ```PodMonitor``` in order to scrape flink-job-cluster metrics
 
 
 ## Installing the Chart
@@ -30,7 +30,7 @@ The instructions to install the Flink Job Cluster chart:
 
 1. Clone the repository to your local machine, which has access to your running kubernetes cluster.
   ```bash
-  git clone https://github.com/GoogleCloudPlatform/flink-on-k8s-operator.git
+  git clone https://github.com/spotify/flink-on-k8s-operator.git
   ```
 2. Navigate to the following folder: ```/flink-on-k8s-operator/helm-chart```
 
@@ -84,7 +84,7 @@ kubectl get deployments --namespace=<namespace>
 
 ## Flink Operator Releases
 
-You can check which images of the Operator are available at [GoogleCloudPlatform](https://console.cloud.google.com/gcr/images/flink-operator/GLOBAL/flink-operator?gcrImageListsize=30)
+You can check which images of the Operator are available at [GitHub Packages](https://github.com/spotify/flink-on-k8s-operator/pkgs/container/flink-operator)
 
 ## Monitoring
 
@@ -96,7 +96,7 @@ You can use the following [dashboard](https://grafana.com/grafana/dashboards/103
 ## Run Jobs with InitContainer
 
 You have the option to download job jars to be executed as jobs, directly into the Flink job cluster pods.
-There is already an [example](https://github.com/GoogleCloudPlatform/flink-on-k8s-operator/blob/master/config/samples/flinkoperator_v1beta1_remotejobjar.yaml). on how to run the Flink job cluster with a remote job jar.
+There is already an [example](https://github.com/spotify/flink-on-k8s-operator/blob/master/config/samples/flinkoperator_v1beta1_remotejobjar.yaml). on how to run the Flink job cluster with a remote job jar.
 
 ## Run Jobs without InitContainer
 

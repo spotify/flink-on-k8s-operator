@@ -5,4 +5,4 @@ description: A Helm chart for flink on Kubernetes operator
 version: "0.2.1"
 keywords:
   - flink
-home: https://github.com/GoogleCloudPlatform/flink-on-k8s-operator
+home: https://github.com/spotify/flink-on-k8s-operator
