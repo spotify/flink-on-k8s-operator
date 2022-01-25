@@ -22,14 +22,15 @@ The instructions to install the Flink operator chart:
 4. Finally operator chart can be installed by running:
 
     ```bash
-    helm install --name [RELEASE_NAME] . --set operatorImage.name=[IMAGE_NAME]
+    helm install [RELEASE_NAME] . --set operatorImage.name=[IMAGE_NAME]
     ```
 
     If you're installing the chart into a preexisting namespace, make sure to set the namespace name and instruct the chart not create one like so:
 
     ```bash
-    helm install --name [RELEASE_NAME] . --set operatorImage.name=[IMAGE_NAME],flinkOperatorNamespace.name=[NAMESPACE_NAME]
+    helm install [RELEASE_NAME] . --set operatorImage.name=[IMAGE_NAME],flinkOperatorNamespace.name=[NAMESPACE_NAME]
     ```
+
 ## Uninstalling the Chart
 
 To uninstall your release:
