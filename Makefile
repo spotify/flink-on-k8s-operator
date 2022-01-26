@@ -5,7 +5,7 @@ IMG ?= ghcr.io/spotify/flink-operator:$(VERSION)
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:maxDescLen=0,trivialVersions=true,preserveUnknownFields=false,generateEmbeddedObjectMeta=true"
 # The Kubernetes namespace in which the operator will be deployed.
-FLINK_OPERATOR_NAMESPACE ?= flink-operator-system
+FLINK_OPERATOR_NAMESPACE ?= flink-operator
 # Prefix for Kubernetes resource names. When deploying multiple operators, make sure that the names of cluster-scoped resources are not duplicated.
 RESOURCE_PREFIX ?= flink-operator-
 # The Kubernetes namespace to limit watching.

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 IMG="${IMG:-flink-operator:latest}"
-NS="${NS:-flink-operator-system}"
+NS="${NS:-flink-operator}"
 
 sed -e 's#image: .*#image: '"${IMG}"'#' ../../config/default/manager_image_patch.template >../../config/default/manager_image_patch.yaml
 sed -i '/- \.\.\/crd/d' ../../config/default/kustomization.yaml

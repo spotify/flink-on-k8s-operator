@@ -11,7 +11,7 @@ The instructions to install the Flink operator chart:
 2. Run the bash script `update_template.sh` to update the manifest files in templates from the Flink operator source repo (This step is only required if you want to install from the local chart repo).
     You can set the following env vars to customize the script's behaviour -
     * `export IMG=<image-name>` - Operator image, defaults to `flink-operator:latest`
-    * `export NS=<namespace-name>` - Namespace to install the operator in, defaults to `flink-operator-system`
+    * `export NS=<namespace-name>` - Namespace to install the operator in, defaults to `flink-operator`
 
 3. Register CRD - Don't manually register CRD unless helm install below fails (You can skip this step if your helm version is v3).
 

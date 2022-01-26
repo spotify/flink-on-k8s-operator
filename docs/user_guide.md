@@ -63,7 +63,7 @@ following 3 ways:
 
   - `IMG`: The Flink Operator image. The default value is `ghcr.io/spotify/flink-operator:latest`.
   - `FLINK_OPERATOR_NAMESPACE`: the namespace of the operator. The default value is
-    `flink-operator-system`.
+    `flink-operator`.
   - `RESOURCE_PREFIX`: the prefix to avoid conflict of cluster-scoped resources.
     The default value is `flink-operator-`.
   - `WATCH_NAMESPACE`: the namespace of the `FlinkCluster` CRs which the operator
@@ -98,19 +98,19 @@ kubectl describe crds/flinkclusters.flinkoperator.k8s.io
 Find out the deployment:
 
 ```bash
-kubectl get deployments -n flink-operator-system
+kubectl get deployments -n flink-operator
 ```
 
 Verify the operator Pod is up and running:
 
 ```bash
-kubectl get pods -n flink-operator-system
+kubectl get pods -n flink-operator
 ```
 
 Check the operator logs:
 
 ```bash
-kubectl logs -n flink-operator-system -l app=flink-operator --all-containers
+kubectl logs -n flink-operator -l app=flink-operator --all-containers
 ```
 
 you should be able see logs like:
@@ -239,7 +239,7 @@ There are several ways to submit jobs to a session cluster.
 You can check the operator logs with
 
 ```bash
-kubectl logs -n flink-operator-system -l app=flink-operator --all-containers -f --tail=1000
+kubectl logs -n flink-operator -l app=flink-operator --all-containers -f --tail=1000
 ```
 
 ### Flink cluster
@@ -496,5 +496,5 @@ Examples and explanations of the available options can be found [here](https://k
 ### Mounting external volumes to the pods
 
 If your deployment requires larger storage captivity, or a faster access to the state backend you can use `volumeClaimTemplates` option in TaskManager config
-to create a new claim template and then mount it in `volumeMounts`  
+to create a new claim template and then mount it in `volumeMounts`
 Check the [FlinkCluster Custom Resource Definition](./crd.md) and [StatefulSet's doc](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) for more info
