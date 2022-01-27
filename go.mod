@@ -8,7 +8,7 @@ require (
 	github.com/google/go-cmp v0.5.6
 	github.com/hashicorp/go-version v1.3.0
 	github.com/imdario/mergo v0.3.12
-	github.com/onsi/ginkgo v1.16.4
+	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.16.0
 	golang.org/x/net v0.0.0-20210825183410-e898025ed96a
 	golang.org/x/tools v0.1.5 // indirect
