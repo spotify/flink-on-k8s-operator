@@ -14,7 +14,7 @@ categories:
   - title: "🔧 Refactorings"
     label: "refactoring"
   - title: "🌱 Dependency Updates"
-    label: "dependency-update"
+    label: "dependencies"
 exclude-labels:
   - "administration"
   - "repos-update"
