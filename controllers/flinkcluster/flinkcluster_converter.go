@@ -158,7 +158,7 @@ func getDesiredJobManagerStatefulSet(
 		EnvFrom:         flinkCluster.Spec.EnvFrom,
 		VolumeMounts:    volumeMounts,
 		Lifecycle: &corev1.Lifecycle{
-			PreStop: &corev1.Handler{
+			PreStop: &corev1.LifecycleHandler{
 				Exec: &corev1.ExecAction{
 					Command: []string{"sleep", strconv.Itoa(preStopSleepSeconds)},
 				},
@@ -462,7 +462,7 @@ func getDesiredTaskManagerStatefulSet(
 		EnvFrom:         flinkCluster.Spec.EnvFrom,
 		VolumeMounts:    volumeMounts,
 		Lifecycle: &corev1.Lifecycle{
-			PreStop: &corev1.Handler{
+			PreStop: &corev1.LifecycleHandler{
 				Exec: &corev1.ExecAction{
 					Command: []string{"sleep", strconv.Itoa(preStopSleepSeconds)},
 				},

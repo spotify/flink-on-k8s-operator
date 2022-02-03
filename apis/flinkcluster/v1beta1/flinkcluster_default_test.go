@@ -59,7 +59,7 @@ func TestSetDefault(t *testing.T) {
 	var defaultRecreateOnUpdate = true
 	resources := DefaultResources
 	var defaultJmReadinessProbe = corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(int(defaultJmRPCPort)),
 			},
@@ -70,7 +70,7 @@ func TestSetDefault(t *testing.T) {
 		FailureThreshold:    60,
 	}
 	var defaultJmLivenessProbe = corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(int(defaultJmRPCPort)),
 			},
@@ -81,7 +81,7 @@ func TestSetDefault(t *testing.T) {
 		FailureThreshold:    5,
 	}
 	var defaultTmReadinessProbe = corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(int(defaultTmRPCPort)),
 			},
@@ -92,7 +92,7 @@ func TestSetDefault(t *testing.T) {
 		FailureThreshold:    60,
 	}
 	var defaultTmLivenessProbe = corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(int(defaultTmRPCPort)),
 			},
@@ -215,7 +215,7 @@ func TestSetNonDefault(t *testing.T) {
 		},
 	}
 	var jmReadinessProbe = corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(int(jmRPCPort)),
 			},
@@ -225,7 +225,7 @@ func TestSetNonDefault(t *testing.T) {
 		FailureThreshold:    600,
 	}
 	var jmLivenessProbe = corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(int(jmRPCPort)),
 			},
@@ -235,7 +235,7 @@ func TestSetNonDefault(t *testing.T) {
 		FailureThreshold:    50,
 	}
 	var tmReadinessProbe = corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(int(tmRPCPort)),
 			},
@@ -246,7 +246,7 @@ func TestSetNonDefault(t *testing.T) {
 		FailureThreshold:    600,
 	}
 	var tmLivenessProbe = corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(int(tmRPCPort)),
 			},
@@ -324,7 +324,7 @@ func TestSetNonDefault(t *testing.T) {
 	_SetDefault(&cluster)
 
 	var jmExpectedReadinessProbe = corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(int(jmRPCPort)),
 			},
@@ -335,7 +335,7 @@ func TestSetNonDefault(t *testing.T) {
 		FailureThreshold:    600,
 	}
 	var jmExpectedLivenessProbe = corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(int(jmRPCPort)),
 			},
