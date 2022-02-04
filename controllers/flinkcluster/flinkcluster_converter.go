@@ -738,6 +738,8 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 		ImagePullSecrets:   imageSpec.PullSecrets,
 		SecurityContext:    securityContext,
 		ServiceAccountName: getServiceAccountName(serviceAccount),
+		NodeSelector:       jobSpec.NodeSelector,
+		Tolerations:        jobSpec.Tolerations,
 	}
 
 	// Disable the retry mechanism of k8s Job, all retries should be initiated
