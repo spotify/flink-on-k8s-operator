@@ -550,10 +550,10 @@ type FlinkClusterSpec struct {
 	// If empty, no batch scheduling is enabled.
 	BatchScheduler *BatchSchedulerSpec `json:"batchScheduler,omitempty"`
 
-	// Flink JobManager spec.
+	// _(Optional)_ Flink JobManager spec.
 	JobManager *JobManagerSpec `json:"jobManager,omitempty"`
 
-	// Flink TaskManager spec.
+	// _(Optional)_ Flink TaskManager spec.
 	TaskManager *TaskManagerSpec `json:"taskManager,omitempty"`
 
 	// _(Optional)_ Job spec. If specified, this cluster is an ephemeral Job
