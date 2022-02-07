@@ -54,6 +54,7 @@ func main() {
 	var watchNamespace string
 	var enableLeaderElection bool
 	var leaderElectionID string
+	var maxConcurrentReconciles int
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
@@ -64,6 +65,7 @@ func main() {
 		"watch-namespace",
 		"",
 		"Watch custom resources in the namespace, ignore other namespaces. If empty, all namespaces will be watched.")
+	flag.IntVar(&maxConcurrentReconciles, "maxConcurrentReconciles", 1, "The maximum number of concurrent Reconciles which can be run. Defaults to 1.")
 
 	opts := zap.Options{
 		Development: true,
@@ -95,7 +97,7 @@ func main() {
 		Client:    mgr.GetClient(),
 		Clientset: cs,
 		Log:       ctrl.Log.WithName("controllers").WithName("FlinkCluster"),
-	}).SetupWithManager(mgr)
+	}).SetupWithManager(mgr, maxConcurrentReconciles)
 	if err != nil {
 		setupLog.Error(err, "Unable to create controller", "controller", "FlinkCluster")
 		os.Exit(1)

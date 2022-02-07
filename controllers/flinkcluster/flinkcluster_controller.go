@@ -34,6 +34,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 )
 
 // controllerKind contains the schema.GroupVersionKind for this controller type.
@@ -87,9 +88,11 @@ func (reconciler *FlinkClusterReconciler) Reconcile(ctx context.Context,
 // SetupWithManager registers this reconciler with the controller manager and
 // starts watching FlinkCluster, Deployment and Service resources.
 func (reconciler *FlinkClusterReconciler) SetupWithManager(
-	mgr ctrl.Manager) error {
+	mgr ctrl.Manager,
+	maxConcurrentReconciles int) error {
 	reconciler.Mgr = mgr
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(ctrlcontroller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).
 		For(&v1beta1.FlinkCluster{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&appsv1.StatefulSet{}).
