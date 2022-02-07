@@ -463,6 +463,15 @@ type JobSpec struct {
 	// [More info](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/)
 	InitContainers []corev1.Container `json:"initContainers,omitempty"`
 
+	// _(Optional)_ Selector which must match a node's labels for the Job submitter pod to be
+	// scheduled on that node.
+	// [More info](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/)
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// _(Optional)_ Defines the node affinity of the Job submitter pod
+	// [More info](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+
 	// Restart policy when the job fails, one of `Never, FromSavepointOnFailure`,
 	// default: `Never`.
 	// `Never` means the operator will never try to restart a failed job, manual
