@@ -78,7 +78,7 @@ func TestNewRevision(t *testing.T) {
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("Always"),
 			},
-			JobManager: v1beta1.JobManagerSpec{
+			JobManager: &v1beta1.JobManagerSpec{
 				Replicas:    &jmReplicas,
 				AccessScope: v1beta1.AccessScopeVPC,
 				Ports: v1beta1.JobManagerPorts{
@@ -90,7 +90,7 @@ func TestNewRevision(t *testing.T) {
 				MemoryOffHeapRatio: &memoryOffHeapRatio,
 				MemoryOffHeapMin:   memoryOffHeapMin,
 			},
-			TaskManager: v1beta1.TaskManagerSpec{
+			TaskManager: &v1beta1.TaskManagerSpec{
 				Replicas: 3,
 				Ports: v1beta1.TaskManagerPorts{
 					RPC:   &rpcPort,
@@ -212,7 +212,7 @@ func TestIsComponentUpdated(t *testing.T) {
 	}
 	var cluster2 = v1beta1.FlinkCluster{
 		Spec: v1beta1.FlinkClusterSpec{
-			JobManager: v1beta1.JobManagerSpec{Ingress: &v1beta1.JobManagerIngressSpec{}},
+			JobManager: &v1beta1.JobManagerSpec{Ingress: &v1beta1.JobManagerIngressSpec{}},
 			Job:        &v1beta1.JobSpec{},
 		},
 		Status: v1beta1.FlinkClusterStatus{Revision: v1beta1.RevisionStatus{NextRevision: "cluster-85dc8f749-2"}},
@@ -254,7 +254,7 @@ func TestGetUpdateState(t *testing.T) {
 	var observed = ObservedClusterState{
 		cluster: &v1beta1.FlinkCluster{
 			Spec: v1beta1.FlinkClusterSpec{
-				JobManager: v1beta1.JobManagerSpec{Ingress: &v1beta1.JobManagerIngressSpec{}},
+				JobManager: &v1beta1.JobManagerSpec{Ingress: &v1beta1.JobManagerIngressSpec{}},
 				Job:        &v1beta1.JobSpec{},
 			},
 			Status: v1beta1.FlinkClusterStatus{
@@ -273,7 +273,7 @@ func TestGetUpdateState(t *testing.T) {
 	observed = ObservedClusterState{
 		cluster: &v1beta1.FlinkCluster{
 			Spec: v1beta1.FlinkClusterSpec{
-				JobManager: v1beta1.JobManagerSpec{Ingress: &v1beta1.JobManagerIngressSpec{}},
+				JobManager: &v1beta1.JobManagerSpec{Ingress: &v1beta1.JobManagerIngressSpec{}},
 				Job:        &v1beta1.JobSpec{},
 			},
 			Status: v1beta1.FlinkClusterStatus{
@@ -290,7 +290,7 @@ func TestGetUpdateState(t *testing.T) {
 	observed = ObservedClusterState{
 		cluster: &v1beta1.FlinkCluster{
 			Spec: v1beta1.FlinkClusterSpec{
-				JobManager: v1beta1.JobManagerSpec{Ingress: &v1beta1.JobManagerIngressSpec{}},
+				JobManager: &v1beta1.JobManagerSpec{Ingress: &v1beta1.JobManagerIngressSpec{}},
 				Job:        &v1beta1.JobSpec{},
 			},
 			Status: v1beta1.FlinkClusterStatus{Revision: v1beta1.RevisionStatus{CurrentRevision: "cluster-85dc8f749-2", NextRevision: "cluster-aa5e3a87z-3"}},
@@ -325,7 +325,7 @@ func TestGetFlinkAPIBaseURL(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: v1beta1.FlinkClusterSpec{
-			JobManager: v1beta1.JobManagerSpec{
+			JobManager: &v1beta1.JobManagerSpec{
 				Ports: v1beta1.JobManagerPorts{
 					UI: &uiPort,
 				},

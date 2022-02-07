@@ -551,10 +551,10 @@ type FlinkClusterSpec struct {
 	BatchScheduler *BatchSchedulerSpec `json:"batchScheduler,omitempty"`
 
 	// Flink JobManager spec.
-	JobManager JobManagerSpec `json:"jobManager"`
+	JobManager *JobManagerSpec `json:"jobManager,omitempty"`
 
 	// Flink TaskManager spec.
-	TaskManager TaskManagerSpec `json:"taskManager"`
+	TaskManager *TaskManagerSpec `json:"taskManager,omitempty"`
 
 	// _(Optional)_ Job spec. If specified, this cluster is an ephemeral Job
 	// Cluster, which will be automatically terminated after the job finishes;

@@ -181,7 +181,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 					},
 					SecurityContext: &securityContext,
 				},
-				JobManager: v1beta1.JobManagerSpec{
+				JobManager: &v1beta1.JobManagerSpec{
 					AccessScope: v1beta1.AccessScopeVPC,
 					Ingress: &v1beta1.JobManagerIngressSpec{
 						HostFormat: &hostFormat,
@@ -219,7 +219,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 					},
 					SecurityContext: &securityContext,
 				},
-				TaskManager: v1beta1.TaskManagerSpec{
+				TaskManager: &v1beta1.TaskManagerSpec{
 					Replicas: 42,
 					Ports: v1beta1.TaskManagerPorts{
 						Data:  &tmDataPort,
@@ -1040,7 +1040,7 @@ func TestSecurityContext(t *testing.T) {
 				Job: &v1beta1.JobSpec{
 					SecurityContext: &securityContext,
 				},
-				JobManager: v1beta1.JobManagerSpec{
+				JobManager: &v1beta1.JobManagerSpec{
 					AccessScope: v1beta1.AccessScopeVPC,
 					Ports: v1beta1.JobManagerPorts{
 						RPC:   &jmRPCPort,
@@ -1050,7 +1050,7 @@ func TestSecurityContext(t *testing.T) {
 					},
 					SecurityContext: &securityContext,
 				},
-				TaskManager: v1beta1.TaskManagerSpec{
+				TaskManager: &v1beta1.TaskManagerSpec{
 					Ports: v1beta1.TaskManagerPorts{
 						Data:  &tmDataPort,
 						RPC:   &tmRPCPort,
@@ -1080,7 +1080,7 @@ func TestSecurityContext(t *testing.T) {
 			},
 			Spec: v1beta1.FlinkClusterSpec{
 				Job: &v1beta1.JobSpec{},
-				JobManager: v1beta1.JobManagerSpec{
+				JobManager: &v1beta1.JobManagerSpec{
 					AccessScope: v1beta1.AccessScopeVPC,
 					Ports: v1beta1.JobManagerPorts{
 						RPC:   &jmRPCPort,
@@ -1089,7 +1089,7 @@ func TestSecurityContext(t *testing.T) {
 						UI:    &jmUIPort,
 					},
 				},
-				TaskManager: v1beta1.TaskManagerSpec{
+				TaskManager: &v1beta1.TaskManagerSpec{
 					Ports: v1beta1.TaskManagerPorts{
 						Data:  &tmDataPort,
 						RPC:   &tmRPCPort,
@@ -1121,7 +1121,7 @@ func TestCalFlinkHeapSize(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: v1beta1.FlinkClusterSpec{
-			JobManager: v1beta1.JobManagerSpec{
+			JobManager: &v1beta1.JobManagerSpec{
 				Resources: corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceMemory: resource.MustParse("1Gi"),
@@ -1130,7 +1130,7 @@ func TestCalFlinkHeapSize(t *testing.T) {
 				MemoryOffHeapRatio: &memoryOffHeapRatio,
 				MemoryOffHeapMin:   memoryOffHeapMin,
 			},
-			TaskManager: v1beta1.TaskManagerSpec{
+			TaskManager: &v1beta1.TaskManagerSpec{
 				Resources: corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceMemory: resource.MustParse("4Gi"),
@@ -1160,7 +1160,7 @@ func TestCalFlinkHeapSize(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: v1beta1.FlinkClusterSpec{
-			JobManager: v1beta1.JobManagerSpec{
+			JobManager: &v1beta1.JobManagerSpec{
 				Resources: corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceMemory: resource.MustParse("500Mi"),
@@ -1169,7 +1169,7 @@ func TestCalFlinkHeapSize(t *testing.T) {
 				MemoryOffHeapRatio: &memoryOffHeapRatio,
 				MemoryOffHeapMin:   memoryOffHeapMin,
 			},
-			TaskManager: v1beta1.TaskManagerSpec{
+			TaskManager: &v1beta1.TaskManagerSpec{
 				MemoryOffHeapRatio: &memoryOffHeapRatio,
 				MemoryOffHeapMin:   memoryOffHeapMin,
 			},
@@ -1190,7 +1190,7 @@ func TestCalFlinkMemoryProcessSize(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: v1beta1.FlinkClusterSpec{
-			JobManager: v1beta1.JobManagerSpec{
+			JobManager: &v1beta1.JobManagerSpec{
 				Resources: corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceMemory: resource.MustParse("1Gi"),
@@ -1198,7 +1198,7 @@ func TestCalFlinkMemoryProcessSize(t *testing.T) {
 				},
 				MemoryProcessRatio: &memoryProcessRatio,
 			},
-			TaskManager: v1beta1.TaskManagerSpec{
+			TaskManager: &v1beta1.TaskManagerSpec{
 				Resources: corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceMemory: resource.MustParse("4Gi"),
@@ -1227,7 +1227,7 @@ func TestCalFlinkMemoryProcessSize(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: v1beta1.FlinkClusterSpec{
-			JobManager: v1beta1.JobManagerSpec{
+			JobManager: &v1beta1.JobManagerSpec{
 				Resources: corev1.ResourceRequirements{
 					Limits: map[corev1.ResourceName]resource.Quantity{
 						corev1.ResourceMemory: resource.MustParse("500Mi"),
@@ -1235,7 +1235,7 @@ func TestCalFlinkMemoryProcessSize(t *testing.T) {
 				},
 				MemoryProcessRatio: &memoryProcessRatio,
 			},
-			TaskManager: v1beta1.TaskManagerSpec{
+			TaskManager: &v1beta1.TaskManagerSpec{
 				MemoryProcessRatio: &memoryProcessRatio,
 			},
 		},

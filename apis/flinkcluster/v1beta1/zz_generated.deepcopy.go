@@ -200,8 +200,16 @@ func (in *FlinkClusterSpec) DeepCopyInto(out *FlinkClusterSpec) {
 		*out = new(BatchSchedulerSpec)
 		**out = **in
 	}
-	in.JobManager.DeepCopyInto(&out.JobManager)
-	in.TaskManager.DeepCopyInto(&out.TaskManager)
+	if in.JobManager != nil {
+		in, out := &in.JobManager, &out.JobManager
+		*out = new(JobManagerSpec)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.TaskManager != nil {
+		in, out := &in.TaskManager, &out.TaskManager
+		*out = new(TaskManagerSpec)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Job != nil {
 		in, out := &in.Job, &out.Job
 		*out = new(JobSpec)

@@ -49,10 +49,17 @@ func _SetDefault(cluster *FlinkCluster) {
 
 	_SetImageDefault(&cluster.Spec.Image)
 	flinkVersion, _ := version.NewVersion(cluster.Spec.FlinkVersion)
-	_SetJobManagerDefault(&cluster.Spec.JobManager, flinkVersion)
-	_SetTaskManagerDefault(&cluster.Spec.TaskManager, flinkVersion)
+	if cluster.Spec.JobManager == nil {
+		cluster.Spec.JobManager = &JobManagerSpec{}
+	}
+	_SetJobManagerDefault(cluster.Spec.JobManager, flinkVersion)
+	if cluster.Spec.TaskManager == nil {
+		cluster.Spec.TaskManager = &TaskManagerSpec{}
+	}
+	_SetTaskManagerDefault(cluster.Spec.TaskManager, flinkVersion)
 	_SetJobDefault(cluster.Spec.Job)
 	_SetHadoopConfigDefault(cluster.Spec.HadoopConfig)
+
 }
 
 func _SetImageDefault(imageSpec *ImageSpec) {
@@ -62,6 +69,10 @@ func _SetImageDefault(imageSpec *ImageSpec) {
 }
 
 func _SetJobManagerDefault(jmSpec *JobManagerSpec, flinkVersion *version.Version) {
+	if jmSpec == nil {
+		return
+	}
+
 	if jmSpec.Replicas == nil {
 		jmSpec.Replicas = new(int32)
 		*jmSpec.Replicas = 1
@@ -144,6 +155,10 @@ func _SetJobManagerDefault(jmSpec *JobManagerSpec, flinkVersion *version.Version
 }
 
 func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Version) {
+	if tmSpec == nil {
+		return
+	}
+
 	if tmSpec.Ports.Data == nil {
 		tmSpec.Ports.Data = new(int32)
 		*tmSpec.Ports.Data = 6121

@@ -33,7 +33,7 @@ func TestSetDefault(t *testing.T) {
 	var cluster = FlinkCluster{
 		Spec: FlinkClusterSpec{
 			Job: &JobSpec{},
-			JobManager: JobManagerSpec{
+			JobManager: &JobManagerSpec{
 				Ingress: &JobManagerIngressSpec{},
 			},
 			HadoopConfig: &HadoopConfig{},
@@ -112,7 +112,7 @@ func TestSetDefault(t *testing.T) {
 				PullPolicy:  "Always",
 				PullSecrets: nil,
 			},
-			JobManager: JobManagerSpec{
+			JobManager: &JobManagerSpec{
 				Replicas:    &defaultJmReplicas,
 				AccessScope: "Cluster",
 				Ingress: &JobManagerIngressSpec{
@@ -133,7 +133,7 @@ func TestSetDefault(t *testing.T) {
 				LivenessProbe:      &defaultJmLivenessProbe,
 				ReadinessProbe:     &defaultJmReadinessProbe,
 			},
-			TaskManager: TaskManagerSpec{
+			TaskManager: &TaskManagerSpec{
 				Replicas: 0,
 				Ports: TaskManagerPorts{
 					Data:  &defaultTmDataPort,
@@ -267,7 +267,7 @@ func TestSetNonDefault(t *testing.T) {
 				PullPolicy:  "Always",
 				PullSecrets: nil,
 			},
-			JobManager: JobManagerSpec{
+			JobManager: &JobManagerSpec{
 				Replicas:    &jmReplicas,
 				AccessScope: "Cluster",
 				Ingress: &JobManagerIngressSpec{
@@ -286,7 +286,7 @@ func TestSetNonDefault(t *testing.T) {
 				LivenessProbe:   &jmLivenessProbe,
 				ReadinessProbe:  &jmReadinessProbe,
 			},
-			TaskManager: TaskManagerSpec{
+			TaskManager: &TaskManagerSpec{
 				Replicas: 0,
 				Ports: TaskManagerPorts{
 					Data:  &tmDataPort,
@@ -355,7 +355,7 @@ func TestSetNonDefault(t *testing.T) {
 				PullPolicy:  "Always",
 				PullSecrets: nil,
 			},
-			JobManager: JobManagerSpec{
+			JobManager: &JobManagerSpec{
 				Replicas:    &jmReplicas,
 				AccessScope: "Cluster",
 				Ingress: &JobManagerIngressSpec{
@@ -375,7 +375,7 @@ func TestSetNonDefault(t *testing.T) {
 				LivenessProbe:      &jmExpectedLivenessProbe,
 				ReadinessProbe:     &jmExpectedReadinessProbe,
 			},
-			TaskManager: TaskManagerSpec{
+			TaskManager: &TaskManagerSpec{
 				Replicas: 0,
 				Ports: TaskManagerPorts{
 					Data:  &tmDataPort,
