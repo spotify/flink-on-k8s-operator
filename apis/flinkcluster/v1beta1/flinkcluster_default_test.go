@@ -159,6 +159,7 @@ func TestSetDefault(t *testing.T) {
 				},
 				SecurityContext: nil,
 				Mode:            &defaultJobMode,
+				Resources:       resources,
 			},
 			FlinkProperties: nil,
 			HadoopConfig: &HadoopConfig{
@@ -400,7 +401,8 @@ func TestSetNonDefault(t *testing.T) {
 					AfterJobFails:     "DeleteCluster",
 					AfterJobCancelled: "KeepCluster",
 				},
-				Mode: &defaultJobMode,
+				Mode:      &defaultJobMode,
+				Resources: DefaultResources,
 			},
 			FlinkProperties: nil,
 			HadoopConfig: &HadoopConfig{

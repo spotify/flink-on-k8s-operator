@@ -27,6 +27,10 @@ import (
 var (
 	v10, _           = version.NewVersion("1.10")
 	DefaultResources = corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("200m"),
+			corev1.ResourceMemory: resource.MustParse("512Mi"),
+		},
 		Limits: corev1.ResourceList{
 			corev1.ResourceCPU:    resource.MustParse("2"),
 			corev1.ResourceMemory: resource.MustParse("2Gi"),
@@ -233,6 +237,9 @@ func _SetJobDefault(jobSpec *JobSpec) {
 	if jobSpec.Mode == nil {
 		jobSpec.Mode = new(JobMode)
 		*jobSpec.Mode = JobModeDetached
+	}
+	if jobSpec.Resources.Size() == 0 {
+		jobSpec.Resources = DefaultResources
 	}
 }
 
