@@ -65,7 +65,7 @@ func main() {
 		"watch-namespace",
 		"",
 		"Watch custom resources in the namespace, ignore other namespaces. If empty, all namespaces will be watched.")
-	flag.IntVar(&maxConcurrentReconciles, "maxConcurrentReconciles", 1, "The maximum number of concurrent Reconciles which can be run. Defaults to 1.")
+	flag.IntVar(&maxConcurrentReconciles, "max-concurrent-reconciles", 1, "The maximum number of concurrent Reconciles which can be run. Defaults to 1.")
 
 	opts := zap.Options{
 		Development: true,
