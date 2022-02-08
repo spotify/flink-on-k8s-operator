@@ -32,7 +32,8 @@ import (
 const MaxStateAgeToRestore = int32(60)
 
 func TestValidateCreate(t *testing.T) {
-	var jmReplicas int32 = 1
+	var jmReplicas int32 = DefaultJobManagerReplicas
+	var tmReplicas int32 = DefaultTaskManagerReplicas
 	var rpcPort int32 = 8001
 	var blobPort int32 = 8002
 	var queryPort int32 = 8003
@@ -69,7 +70,7 @@ func TestValidateCreate(t *testing.T) {
 				Resources:          resources,
 			},
 			TaskManager: &TaskManagerSpec{
-				Replicas: 3,
+				Replicas: &tmReplicas,
 				Ports: TaskManagerPorts{
 					RPC:   &rpcPort,
 					Data:  &dataPort,
@@ -229,7 +230,8 @@ func TestInvalidJobManagerSpec(t *testing.T) {
 }
 
 func TestInvalidTaskManagerSpec(t *testing.T) {
-	var jmReplicas int32 = 1
+	var jmReplicas int32 = DefaultJobManagerReplicas
+	var tmReplicas int32 = DefaultTaskManagerReplicas
 	var rpcPort int32 = 8001
 	var blobPort int32 = 8002
 	var queryPort int32 = 8003
@@ -264,7 +266,6 @@ func TestInvalidTaskManagerSpec(t *testing.T) {
 				Resources:          resources,
 			},
 			TaskManager: &TaskManagerSpec{
-				Replicas: 0,
 				Ports: TaskManagerPorts{
 					RPC:   &rpcPort,
 					Data:  &dataPort,
@@ -305,7 +306,7 @@ func TestInvalidTaskManagerSpec(t *testing.T) {
 				Resources:          resources,
 			},
 			TaskManager: &TaskManagerSpec{
-				Replicas: 1,
+				Replicas: &tmReplicas,
 				Ports: TaskManagerPorts{
 					RPC:   &rpcPort,
 					Data:  &dataPort,
@@ -346,7 +347,7 @@ func TestInvalidTaskManagerSpec(t *testing.T) {
 				Resources:          resources,
 			},
 			TaskManager: &TaskManagerSpec{
-				Replicas: 1,
+				Replicas: &tmReplicas,
 				Ports: TaskManagerPorts{
 					RPC:   &rpcPort,
 					Data:  &dataPort,
@@ -369,7 +370,8 @@ func TestInvalidTaskManagerSpec(t *testing.T) {
 }
 
 func TestInvalidJobSpec(t *testing.T) {
-	var jmReplicas int32 = 1
+	var jmReplicas int32 = DefaultJobManagerReplicas
+	var tmReplicas int32 = DefaultTaskManagerReplicas
 	var rpcPort int32 = 8001
 	var blobPort int32 = 8002
 	var queryPort int32 = 8003
@@ -410,7 +412,7 @@ func TestInvalidJobSpec(t *testing.T) {
 				Resources:          resources,
 			},
 			TaskManager: &TaskManagerSpec{
-				Replicas: 3,
+				Replicas: &tmReplicas,
 				Ports: TaskManagerPorts{
 					RPC:   &rpcPort,
 					Data:  &dataPort,
@@ -455,7 +457,7 @@ func TestInvalidJobSpec(t *testing.T) {
 				Resources:          resources,
 			},
 			TaskManager: &TaskManagerSpec{
-				Replicas: 3,
+				Replicas: &tmReplicas,
 				Ports: TaskManagerPorts{
 					RPC:   &rpcPort,
 					Data:  &dataPort,
@@ -502,7 +504,7 @@ func TestInvalidJobSpec(t *testing.T) {
 				Resources:          resources,
 			},
 			TaskManager: &TaskManagerSpec{
-				Replicas: 3,
+				Replicas: &tmReplicas,
 				Ports: TaskManagerPorts{
 					RPC:   &rpcPort,
 					Data:  &dataPort,
@@ -803,7 +805,7 @@ func TestUpdateCluster(t *testing.T) {
 	var newTMReplicas int32 = 5
 	newCluster = getSimpleFlinkCluster()
 	newCluster.Spec.TaskManager = &TaskManagerSpec{
-		Replicas: newTMReplicas,
+		Replicas: &newTMReplicas,
 		Ports: TaskManagerPorts{
 			RPC:   &rpcPort,
 			Data:  &dataPort,
@@ -1017,7 +1019,8 @@ func TestDupPort(t *testing.T) {
 }
 
 func getSimpleFlinkCluster() FlinkCluster {
-	var jmReplicas int32 = 1
+	var jmReplicas int32 = DefaultJobManagerReplicas
+	var tmReplicas int32 = DefaultTaskManagerReplicas
 	var rpcPort int32 = 8001
 	var blobPort int32 = 8002
 	var queryPort int32 = 8003
@@ -1057,7 +1060,7 @@ func getSimpleFlinkCluster() FlinkCluster {
 				Resources:          resources,
 			},
 			TaskManager: &TaskManagerSpec{
-				Replicas: 3,
+				Replicas: &tmReplicas,
 				Ports: TaskManagerPorts{
 					RPC:   &rpcPort,
 					Data:  &dataPort,

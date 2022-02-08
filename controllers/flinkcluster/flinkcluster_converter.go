@@ -500,7 +500,7 @@ func getDesiredTaskManagerStatefulSet(
 			Labels: statefulSetLabels,
 		},
 		Spec: appsv1.StatefulSetSpec{
-			Replicas:             &taskManagerSpec.Replicas,
+			Replicas:             taskManagerSpec.Replicas,
 			Selector:             &metav1.LabelSelector{MatchLabels: podLabels},
 			ServiceName:          taskManagerStatefulSetName,
 			VolumeClaimTemplates: pvcs,
@@ -937,7 +937,7 @@ func calJobParallelism(cluster *v1beta1.FlinkCluster) (int32, error) {
 		return 0, err
 	}
 
-	parallelism := cluster.Spec.TaskManager.Replicas * value
+	parallelism := *cluster.Spec.TaskManager.Replicas * value
 	return parallelism, nil
 }
 

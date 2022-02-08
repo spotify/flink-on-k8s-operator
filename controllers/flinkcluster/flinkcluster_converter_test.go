@@ -220,7 +220,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 					SecurityContext: &securityContext,
 				},
 				TaskManager: &v1beta1.TaskManagerSpec{
-					Replicas: 42,
+					Replicas: &replicas,
 					Ports: v1beta1.TaskManagerPorts{
 						Data:  &tmDataPort,
 						RPC:   &tmRPCPort,
@@ -1022,6 +1022,7 @@ func TestSecurityContext(t *testing.T) {
 	var tmDataPort int32 = 6121
 	var tmRPCPort int32 = 6122
 	var tmQueryPort int32 = 6125
+	var tmReplicas int32 = v1beta1.DefaultTaskManagerReplicas
 
 	var userAndGroupId int64 = 9999
 	var securityContext = corev1.PodSecurityContext{
@@ -1051,6 +1052,7 @@ func TestSecurityContext(t *testing.T) {
 					SecurityContext: &securityContext,
 				},
 				TaskManager: &v1beta1.TaskManagerSpec{
+					Replicas: &tmReplicas,
 					Ports: v1beta1.TaskManagerPorts{
 						Data:  &tmDataPort,
 						RPC:   &tmRPCPort,
@@ -1090,6 +1092,7 @@ func TestSecurityContext(t *testing.T) {
 					},
 				},
 				TaskManager: &v1beta1.TaskManagerSpec{
+					Replicas: &tmReplicas,
 					Ports: v1beta1.TaskManagerPorts{
 						Data:  &tmDataPort,
 						RPC:   &tmRPCPort,

@@ -410,7 +410,7 @@ func (v *Validator) validateJobManager(flinkVersion *version.Version, jmSpec *Jo
 
 func (v *Validator) validateTaskManager(flinkVersion *version.Version, tmSpec *TaskManagerSpec) error {
 	// Replicas.
-	if tmSpec.Replicas < 1 {
+	if tmSpec.Replicas == nil || *tmSpec.Replicas < 1 {
 		return fmt.Errorf("invalid TaskManager replicas, it must >= 1")
 	}
 

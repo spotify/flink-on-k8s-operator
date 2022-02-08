@@ -24,6 +24,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+const (
+	DefaultJobManagerReplicas  = 1
+	DefaultTaskManagerReplicas = 3
+)
+
 var (
 	v10, _           = version.NewVersion("1.10")
 	DefaultResources = corev1.ResourceRequirements{
@@ -79,7 +84,7 @@ func _SetJobManagerDefault(jmSpec *JobManagerSpec, flinkVersion *version.Version
 
 	if jmSpec.Replicas == nil {
 		jmSpec.Replicas = new(int32)
-		*jmSpec.Replicas = 1
+		*jmSpec.Replicas = DefaultJobManagerReplicas
 	}
 	if len(jmSpec.AccessScope) == 0 {
 		jmSpec.AccessScope = AccessScopeCluster
@@ -162,7 +167,10 @@ func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Versi
 	if tmSpec == nil {
 		return
 	}
-
+	if tmSpec.Replicas == nil {
+		tmSpec.Replicas = new(int32)
+		*tmSpec.Replicas = DefaultTaskManagerReplicas
+	}
 	if tmSpec.Ports.Data == nil {
 		tmSpec.Ports.Data = new(int32)
 		*tmSpec.Ports.Data = 6121

@@ -454,7 +454,7 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `replicas` _integer_ | The number of replicas. |
+| `replicas` _integer_ | The number of replicas. default: `3` |
 | `ports` _[TaskManagerPorts](#taskmanagerports)_ | Ports that TaskManager listening on. |
 | `extraPorts` _[NamedPort](#namedport) array_ | _(Optional)_ Extra ports to be exposed. For example, Flink metrics reporter ports: Prometheus, JMX and so on. |
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#resourcerequirements-v1-core)_ | Compute resources required by each TaskManager container. default: 2 CPUs with 2Gi Memory. It Cannot be updated. [More info](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/) |

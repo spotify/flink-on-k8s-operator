@@ -288,8 +288,8 @@ type TaskManagerPorts struct {
 
 // TaskManagerSpec defines properties of TaskManager.
 type TaskManagerSpec struct {
-	// The number of replicas.
-	Replicas int32 `json:"replicas"`
+	// The number of replicas. default: `3`
+	Replicas *int32 `json:"replicas"`
 
 	// Ports that TaskManager listening on.
 	Ports TaskManagerPorts `json:"ports,omitempty"`

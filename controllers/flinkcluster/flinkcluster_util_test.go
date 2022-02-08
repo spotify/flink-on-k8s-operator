@@ -57,7 +57,8 @@ func TestGetRetryCount(t *testing.T) {
 }
 
 func TestNewRevision(t *testing.T) {
-	var jmReplicas int32 = 1
+	var jmReplicas int32 = v1beta1.DefaultJobManagerReplicas
+	var tmReplicas int32 = v1beta1.DefaultTaskManagerReplicas
 	var rpcPort int32 = 8001
 	var blobPort int32 = 8002
 	var queryPort int32 = 8003
@@ -91,7 +92,7 @@ func TestNewRevision(t *testing.T) {
 				MemoryOffHeapMin:   memoryOffHeapMin,
 			},
 			TaskManager: &v1beta1.TaskManagerSpec{
-				Replicas: 3,
+				Replicas: &tmReplicas,
 				Ports: v1beta1.TaskManagerPorts{
 					RPC:   &rpcPort,
 					Data:  &dataPort,
