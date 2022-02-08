@@ -71,11 +71,11 @@ func (v *Validator) ValidateCreate(cluster *FlinkCluster) error {
 	if err != nil {
 		return err
 	}
-	err = v.validateJobManager(flinkVersion, &cluster.Spec.JobManager)
+	err = v.validateJobManager(flinkVersion, cluster.Spec.JobManager)
 	if err != nil {
 		return err
 	}
-	err = v.validateTaskManager(flinkVersion, &cluster.Spec.TaskManager)
+	err = v.validateTaskManager(flinkVersion, cluster.Spec.TaskManager)
 	if err != nil {
 		return err
 	}

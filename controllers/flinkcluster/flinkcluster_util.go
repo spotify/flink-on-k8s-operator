@@ -393,7 +393,8 @@ func isComponentUpdated(component runtime.Object, cluster *v1beta1.FlinkCluster)
 		}
 	case *networkingv1.Ingress:
 		if o == nil {
-			return cluster.Spec.JobManager.Ingress == nil
+			jm := cluster.Spec.JobManager
+			return jm == nil || jm.Ingress == nil
 		}
 	}
 

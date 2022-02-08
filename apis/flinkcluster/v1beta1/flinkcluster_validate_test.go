@@ -56,7 +56,7 @@ func TestValidateCreate(t *testing.T) {
 				Name:       "flink:1.12.1",
 				PullPolicy: corev1.PullPolicy("Always"),
 			},
-			JobManager: JobManagerSpec{
+			JobManager: &JobManagerSpec{
 				Replicas:    &jmReplicas,
 				AccessScope: AccessScopeVPC,
 				Ports: JobManagerPorts{
@@ -68,7 +68,7 @@ func TestValidateCreate(t *testing.T) {
 				MemoryProcessRatio: &memoryProcessRatio,
 				Resources:          resources,
 			},
-			TaskManager: TaskManagerSpec{
+			TaskManager: &TaskManagerSpec{
 				Replicas: 3,
 				Ports: TaskManagerPorts{
 					RPC:   &rpcPort,
@@ -157,7 +157,7 @@ func TestInvalidJobManagerSpec(t *testing.T) {
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("Always"),
 			},
-			JobManager: JobManagerSpec{
+			JobManager: &JobManagerSpec{
 				Replicas:    &jmReplicas2,
 				AccessScope: AccessScopeVPC,
 				Ports: JobManagerPorts{
@@ -184,7 +184,7 @@ func TestInvalidJobManagerSpec(t *testing.T) {
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("Always"),
 			},
-			JobManager: JobManagerSpec{
+			JobManager: &JobManagerSpec{
 				Replicas:    &jmReplicas1,
 				AccessScope: "XXX",
 				Ports: JobManagerPorts{
@@ -211,7 +211,7 @@ func TestInvalidJobManagerSpec(t *testing.T) {
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("Always"),
 			},
-			JobManager: JobManagerSpec{
+			JobManager: &JobManagerSpec{
 				Replicas:    &jmReplicas1,
 				AccessScope: AccessScopeVPC,
 				Ports: JobManagerPorts{
@@ -250,7 +250,7 @@ func TestInvalidTaskManagerSpec(t *testing.T) {
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("Always"),
 			},
-			JobManager: JobManagerSpec{
+			JobManager: &JobManagerSpec{
 				Replicas:    &jmReplicas,
 				AccessScope: AccessScopeVPC,
 				Ports: JobManagerPorts{
@@ -263,7 +263,7 @@ func TestInvalidTaskManagerSpec(t *testing.T) {
 				MemoryOffHeapMin:   memoryOffHeapMin,
 				Resources:          resources,
 			},
-			TaskManager: TaskManagerSpec{
+			TaskManager: &TaskManagerSpec{
 				Replicas: 0,
 				Ports: TaskManagerPorts{
 					RPC:   &rpcPort,
@@ -291,7 +291,7 @@ func TestInvalidTaskManagerSpec(t *testing.T) {
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("Always"),
 			},
-			JobManager: JobManagerSpec{
+			JobManager: &JobManagerSpec{
 				Replicas:    &jmReplicas,
 				AccessScope: AccessScopeVPC,
 				Ports: JobManagerPorts{
@@ -304,7 +304,7 @@ func TestInvalidTaskManagerSpec(t *testing.T) {
 				MemoryOffHeapMin:   memoryOffHeapMin,
 				Resources:          resources,
 			},
-			TaskManager: TaskManagerSpec{
+			TaskManager: &TaskManagerSpec{
 				Replicas: 1,
 				Ports: TaskManagerPorts{
 					RPC:   &rpcPort,
@@ -332,7 +332,7 @@ func TestInvalidTaskManagerSpec(t *testing.T) {
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("Always"),
 			},
-			JobManager: JobManagerSpec{
+			JobManager: &JobManagerSpec{
 				Replicas:    &jmReplicas,
 				AccessScope: AccessScopeVPC,
 				Ports: JobManagerPorts{
@@ -345,7 +345,7 @@ func TestInvalidTaskManagerSpec(t *testing.T) {
 				MemoryOffHeapMin:   memoryOffHeapMin,
 				Resources:          resources,
 			},
-			TaskManager: TaskManagerSpec{
+			TaskManager: &TaskManagerSpec{
 				Replicas: 1,
 				Ports: TaskManagerPorts{
 					RPC:   &rpcPort,
@@ -396,7 +396,7 @@ func TestInvalidJobSpec(t *testing.T) {
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("Always"),
 			},
-			JobManager: JobManagerSpec{
+			JobManager: &JobManagerSpec{
 				Replicas:    &jmReplicas,
 				AccessScope: AccessScopeVPC,
 				Ports: JobManagerPorts{
@@ -409,7 +409,7 @@ func TestInvalidJobSpec(t *testing.T) {
 				MemoryOffHeapMin:   memoryOffHeapMin,
 				Resources:          resources,
 			},
-			TaskManager: TaskManagerSpec{
+			TaskManager: &TaskManagerSpec{
 				Replicas: 3,
 				Ports: TaskManagerPorts{
 					RPC:   &rpcPort,
@@ -441,7 +441,7 @@ func TestInvalidJobSpec(t *testing.T) {
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("Always"),
 			},
-			JobManager: JobManagerSpec{
+			JobManager: &JobManagerSpec{
 				Replicas:    &jmReplicas,
 				AccessScope: AccessScopeVPC,
 				Ports: JobManagerPorts{
@@ -454,7 +454,7 @@ func TestInvalidJobSpec(t *testing.T) {
 				MemoryOffHeapMin:   memoryOffHeapMin,
 				Resources:          resources,
 			},
-			TaskManager: TaskManagerSpec{
+			TaskManager: &TaskManagerSpec{
 				Replicas: 3,
 				Ports: TaskManagerPorts{
 					RPC:   &rpcPort,
@@ -488,7 +488,7 @@ func TestInvalidJobSpec(t *testing.T) {
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("Always"),
 			},
-			JobManager: JobManagerSpec{
+			JobManager: &JobManagerSpec{
 				Replicas:    &jmReplicas,
 				AccessScope: AccessScopeVPC,
 				Ports: JobManagerPorts{
@@ -501,7 +501,7 @@ func TestInvalidJobSpec(t *testing.T) {
 				MemoryOffHeapMin:   memoryOffHeapMin,
 				Resources:          resources,
 			},
-			TaskManager: TaskManagerSpec{
+			TaskManager: &TaskManagerSpec{
 				Replicas: 3,
 				Ports: TaskManagerPorts{
 					RPC:   &rpcPort,
@@ -769,7 +769,7 @@ func TestUpdateCluster(t *testing.T) {
 	assert.NilError(t, err, "updating FlinkCluster image failed unexpectedly")
 
 	oldCluster = getSimpleFlinkCluster()
-	oldCluster.Spec.JobManager = JobManagerSpec{
+	oldCluster.Spec.JobManager = &JobManagerSpec{
 		Replicas:    &jmReplicas,
 		AccessScope: AccessScopeVPC,
 		Ports: JobManagerPorts{
@@ -784,7 +784,7 @@ func TestUpdateCluster(t *testing.T) {
 	}
 	var newMemoryOffHeapRatio int32 = 20
 	newCluster = getSimpleFlinkCluster()
-	newCluster.Spec.JobManager = JobManagerSpec{
+	newCluster.Spec.JobManager = &JobManagerSpec{
 		Replicas:    &jmReplicas,
 		AccessScope: AccessScopeVPC,
 		Ports: JobManagerPorts{
@@ -802,7 +802,7 @@ func TestUpdateCluster(t *testing.T) {
 
 	var newTMReplicas int32 = 5
 	newCluster = getSimpleFlinkCluster()
-	newCluster.Spec.TaskManager = TaskManagerSpec{
+	newCluster.Spec.TaskManager = &TaskManagerSpec{
 		Replicas: newTMReplicas,
 		Ports: TaskManagerPorts{
 			RPC:   &rpcPort,
@@ -985,33 +985,33 @@ func TestDupPort(t *testing.T) {
 		Query: &queryPort,
 		UI:    &uiPort,
 	}
-	var jm = JobManagerSpec{Replicas: &jmReplicas, AccessScope: AccessScopeVPC, Ports: flinkPorts,
+	var jm = &JobManagerSpec{Replicas: &jmReplicas, AccessScope: AccessScopeVPC, Ports: flinkPorts,
 		ExtraPorts: []NamedPort{
 			{Name: "rpc", ContainerPort: 9001}}}
-	var err = validator.validateJobManager(nil, &jm)
+	var err = validator.validateJobManager(nil, jm)
 	var expectedErr = "duplicate port name rpc in jobmanager, each port name of ports and extraPorts must be unique"
 	assert.Equal(t, err.Error(), expectedErr)
 
-	jm = JobManagerSpec{Replicas: &jmReplicas, AccessScope: AccessScopeVPC, Ports: flinkPorts,
+	jm = &JobManagerSpec{Replicas: &jmReplicas, AccessScope: AccessScopeVPC, Ports: flinkPorts,
 		ExtraPorts: []NamedPort{
 			{Name: "monitoring", ContainerPort: 9249},
 			{Name: "monitoring", ContainerPort: 9259}}}
-	err = validator.validateJobManager(nil, &jm)
+	err = validator.validateJobManager(nil, jm)
 	expectedErr = "duplicate port name monitoring in jobmanager, each port name of ports and extraPorts must be unique"
 	assert.Equal(t, err.Error(), expectedErr)
 
-	jm = JobManagerSpec{Replicas: &jmReplicas, AccessScope: AccessScopeVPC, Ports: flinkPorts,
+	jm = &JobManagerSpec{Replicas: &jmReplicas, AccessScope: AccessScopeVPC, Ports: flinkPorts,
 		ExtraPorts: []NamedPort{
 			{Name: "rpc2", ContainerPort: 8001}}}
-	err = validator.validateJobManager(nil, &jm)
+	err = validator.validateJobManager(nil, jm)
 	expectedErr = "duplicate containerPort 8001 in jobmanager, each port number of ports and extraPorts must be unique"
 	assert.Equal(t, err.Error(), expectedErr)
 
-	jm = JobManagerSpec{Replicas: &jmReplicas, AccessScope: AccessScopeVPC, Ports: flinkPorts,
+	jm = &JobManagerSpec{Replicas: &jmReplicas, AccessScope: AccessScopeVPC, Ports: flinkPorts,
 		ExtraPorts: []NamedPort{
 			{Name: "monitoring", ContainerPort: 9249},
 			{Name: "prometheus", ContainerPort: 9249}}}
-	err = validator.validateJobManager(nil, &jm)
+	err = validator.validateJobManager(nil, jm)
 	expectedErr = "duplicate containerPort 9249 in jobmanager, each port number of ports and extraPorts must be unique"
 	assert.Equal(t, err.Error(), expectedErr)
 }
@@ -1043,7 +1043,7 @@ func getSimpleFlinkCluster() FlinkCluster {
 				Name:       "flink:1.8.1",
 				PullPolicy: corev1.PullPolicy("Always"),
 			},
-			JobManager: JobManagerSpec{
+			JobManager: &JobManagerSpec{
 				Replicas:    &jmReplicas,
 				AccessScope: AccessScopeVPC,
 				Ports: JobManagerPorts{
@@ -1056,7 +1056,7 @@ func getSimpleFlinkCluster() FlinkCluster {
 				MemoryOffHeapMin:   memoryOffHeapMin,
 				Resources:          resources,
 			},
-			TaskManager: TaskManagerSpec{
+			TaskManager: &TaskManagerSpec{
 				Replicas: 3,
 				Ports: TaskManagerPorts{
 					RPC:   &rpcPort,

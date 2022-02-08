@@ -169,7 +169,7 @@ func getDesiredJobManagerStatefulSet(
 	containers = append(containers, jobManagerSpec.Sidecars...)
 
 	var podSpec = corev1.PodSpec{
-		InitContainers:                convertJobManagerInitContainers(&jobManagerSpec, saMount, saEnv),
+		InitContainers:                convertJobManagerInitContainers(jobManagerSpec, saMount, saEnv),
 		Containers:                    containers,
 		Volumes:                       volumes,
 		NodeSelector:                  jobManagerSpec.NodeSelector,
@@ -471,7 +471,7 @@ func getDesiredTaskManagerStatefulSet(
 	}}
 	containers = append(containers, taskManagerSpec.Sidecars...)
 	var podSpec = corev1.PodSpec{
-		InitContainers:                convertTaskManagerInitContainers(&taskManagerSpec, saMount, saEnv),
+		InitContainers:                convertTaskManagerInitContainers(taskManagerSpec, saMount, saEnv),
 		Containers:                    containers,
 		Volumes:                       volumes,
 		NodeSelector:                  taskManagerSpec.NodeSelector,

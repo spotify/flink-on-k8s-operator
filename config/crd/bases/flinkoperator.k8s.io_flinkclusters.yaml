@@ -6409,8 +6409,6 @@ spec:
               required:
                 - flinkVersion
                 - image
-                - jobManager
-                - taskManager
               type: object
             status:
               properties:
