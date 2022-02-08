@@ -58,6 +58,7 @@ func TestSetDefault(t *testing.T) {
 	var defaultMemoryOffHeapMin = resource.MustParse("600M")
 	var defaultRecreateOnUpdate = true
 	resources := DefaultResources
+	tmReplicas := int32(DefaultTaskManagerReplicas)
 	var defaultJmReadinessProbe = corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
@@ -134,7 +135,7 @@ func TestSetDefault(t *testing.T) {
 				ReadinessProbe:     &defaultJmReadinessProbe,
 			},
 			TaskManager: &TaskManagerSpec{
-				Replicas: 0,
+				Replicas: &tmReplicas,
 				Ports: TaskManagerPorts{
 					Data:  &defaultTmDataPort,
 					RPC:   &defaultTmRPCPort,
@@ -215,6 +216,7 @@ func TestSetNonDefault(t *testing.T) {
 			corev1.ResourceMemory: resource.MustParse("2Gi"),
 		},
 	}
+	tmReplicas := int32(DefaultTaskManagerReplicas)
 	var jmReadinessProbe = corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
@@ -288,7 +290,7 @@ func TestSetNonDefault(t *testing.T) {
 				ReadinessProbe:  &jmReadinessProbe,
 			},
 			TaskManager: &TaskManagerSpec{
-				Replicas: 0,
+				Replicas: &tmReplicas,
 				Ports: TaskManagerPorts{
 					Data:  &tmDataPort,
 					RPC:   &tmRPCPort,
@@ -377,7 +379,7 @@ func TestSetNonDefault(t *testing.T) {
 				ReadinessProbe:     &jmExpectedReadinessProbe,
 			},
 			TaskManager: &TaskManagerSpec{
-				Replicas: 0,
+				Replicas: &tmReplicas,
 				Ports: TaskManagerPorts{
 					Data:  &tmDataPort,
 					RPC:   &tmRPCPort,
