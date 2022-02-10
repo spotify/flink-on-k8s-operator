@@ -122,6 +122,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 		RunAsUser:  &userAndGroupId,
 		RunAsGroup: &userAndGroupId,
 	}
+	var ingressPathType = networkingv1.PathTypePrefix
 
 	// Setup.
 	storageClassName := "default-class"
@@ -555,7 +556,8 @@ func TestGetDesiredClusterState(t *testing.T) {
 				IngressRuleValue: networkingv1.IngressRuleValue{
 					HTTP: &networkingv1.HTTPIngressRuleValue{
 						Paths: []networkingv1.HTTPIngressPath{{
-							Path: "/*",
+							Path:     "/",
+							PathType: &ingressPathType,
 							Backend: networkingv1.IngressBackend{
 								Service: &networkingv1.IngressServiceBackend{
 									Name: "flinkjobcluster-sample-jobmanager",
