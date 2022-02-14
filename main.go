@@ -40,6 +40,14 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
+var (
+	metricsAddr             = flag.String("metrics-addr", ":8080", "The address the metric endpoint binds to.")
+	enableLeaderElection    = flag.Bool("enable-leader-election", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
+	leaderElectionID        = flag.String("leader-election-id", "flink-operator-lock", "The name that leader election will use for holding the leader lock")
+	watchNamespace          = flag.String("watch-namespace", "", "Watch custom resources in the namespace, ignore other namespaces. If empty, all namespaces will be watched.")
+	maxConcurrentReconciles = flag.Int("max-concurrent-reconciles", 1, "The maximum number of concurrent Reconciles which can be run. Defaults to 1.")
+)
+
 func init() {
 	appsv1.AddToScheme(scheme)
 	batchv1.AddToScheme(scheme)
@@ -50,26 +58,7 @@ func init() {
 }
 
 func main() {
-	var metricsAddr string
-	var watchNamespace string
-	var enableLeaderElection bool
-	var leaderElectionID string
-	var maxConcurrentReconciles int
-	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
-		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
-	flag.StringVar(&leaderElectionID, "leader-election-id", "flink-operator-lock",
-		"The name that leader election will use for holding the leader lock")
-	flag.StringVar(
-		&watchNamespace,
-		"watch-namespace",
-		"",
-		"Watch custom resources in the namespace, ignore other namespaces. If empty, all namespaces will be watched.")
-	flag.IntVar(&maxConcurrentReconciles, "max-concurrent-reconciles", 1, "The maximum number of concurrent Reconciles which can be run. Defaults to 1.")
-
-	opts := zap.Options{
-		Development: true,
-	}
+	opts := zap.Options{Development: true}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
@@ -77,10 +66,10 @@ func main() {
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
-		MetricsBindAddress: metricsAddr,
-		LeaderElection:     enableLeaderElection,
-		Namespace:          watchNamespace,
-		LeaderElectionID:   leaderElectionID,
+		MetricsBindAddress: *metricsAddr,
+		LeaderElection:     *enableLeaderElection,
+		Namespace:          *watchNamespace,
+		LeaderElectionID:   *leaderElectionID,
 	})
 	if err != nil {
 		setupLog.Error(err, "Unable to start manager")
@@ -97,7 +86,7 @@ func main() {
 		Client:    mgr.GetClient(),
 		Clientset: cs,
 		Log:       ctrl.Log.WithName("controllers").WithName("FlinkCluster"),
-	}).SetupWithManager(mgr, maxConcurrentReconciles)
+	}).SetupWithManager(mgr, *maxConcurrentReconciles)
 	if err != nil {
 		setupLog.Error(err, "Unable to create controller", "controller", "FlinkCluster")
 		os.Exit(1)
