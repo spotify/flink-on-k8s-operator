@@ -74,12 +74,12 @@ spec:
           name: webhook-server
           protocol: TCP
         resources:
-          limits:
-            cpu: 100m
-            memory: 150Mi
           requests:
-            cpu: 100m
-            memory: 100Mi
+            cpu: {{ .Values.requests.cpu }}
+            memory: {{ .Values.requests.memory }}
+          limits:
+            cpu: {{ .Values.limits.cpu }}
+            memory: {{ .Values.limits.memory }}
         securityContext:
           allowPrivilegeEscalation: false
         volumeMounts:
