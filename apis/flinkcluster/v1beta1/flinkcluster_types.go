@@ -192,7 +192,7 @@ type JobManagerSpec struct {
 	// `NodePort`: accessible through node port.
 	// `Headless`: pod IPs assumed to be routable and advertised directly with `clusterIP: None``.
 	// Currently `VPC, External` are only available for GKE.
-	AccessScope string `json:"accessScope"`
+	AccessScope string `json:"accessScope,omitempty"`
 
 	// _(Optional)_ Provide external access to JobManager UI/API.
 	Ingress *JobManagerIngressSpec `json:"ingress,omitempty"`
@@ -289,7 +289,7 @@ type TaskManagerPorts struct {
 // TaskManagerSpec defines properties of TaskManager.
 type TaskManagerSpec struct {
 	// The number of replicas. default: `3`
-	Replicas *int32 `json:"replicas"`
+	Replicas *int32 `json:"replicas,omitempty"`
 
 	// Ports that TaskManager listening on.
 	Ports TaskManagerPorts `json:"ports,omitempty"`
