@@ -835,16 +835,19 @@ func TestGetDesiredClusterState(t *testing.T) {
 							VolumeMounts: []corev1.VolumeMount{
 								{Name: "cache-volume", MountPath: "/cache"},
 								{
-									Name:      "gcp-service-account-volume",
-									MountPath: "/etc/gcp_service_account/",
-									ReadOnly:  true,
+									Name:      "flink-config-volume",
+									MountPath: "/opt/flink-operator/submit-job.sh",
+									SubPath:   "submit-job.sh",
 								},
+								{Name: "flink-config-volume", MountPath: "/opt/flink/conf"},
+								{Name: "hadoop-config-volume", ReadOnly: true, MountPath: "/etc/hadoop/conf"},
+								{Name: "gcp-service-account-volume", ReadOnly: true, MountPath: "/etc/gcp_service_account/"},
 							},
 							Env: []corev1.EnvVar{
-								{
-									Name:  "GOOGLE_APPLICATION_CREDENTIALS",
-									Value: "/etc/gcp_service_account/gcp_service_account_key.json",
-								},
+								{Name: "FLINK_JM_ADDR", Value: "flinkjobcluster-sample-jobmanager:8081"},
+								{Name: "HADOOP_CONF_DIR", Value: "/etc/hadoop/conf"},
+								{Name: "GOOGLE_APPLICATION_CREDENTIALS", Value: "/etc/gcp_service_account/gcp_service_account_key.json"},
+								{Name: "FOO", Value: "abc"},
 							},
 						},
 					},

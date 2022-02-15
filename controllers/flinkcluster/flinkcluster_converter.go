@@ -169,7 +169,7 @@ func getDesiredJobManagerStatefulSet(
 	containers = append(containers, jobManagerSpec.Sidecars...)
 
 	var podSpec = corev1.PodSpec{
-		InitContainers:                convertJobManagerInitContainers(jobManagerSpec, saMount, saEnv),
+		InitContainers:                convertContainers(jobManagerSpec.InitContainers, volumeMounts, envVars),
 		Containers:                    containers,
 		Volumes:                       volumes,
 		NodeSelector:                  jobManagerSpec.NodeSelector,
@@ -473,7 +473,7 @@ func getDesiredTaskManagerStatefulSet(
 	}}
 	containers = append(containers, taskManagerSpec.Sidecars...)
 	var podSpec = corev1.PodSpec{
-		InitContainers:                convertTaskManagerInitContainers(taskManagerSpec, saMount, saEnv),
+		InitContainers:                convertContainers(taskManagerSpec.InitContainers, volumeMounts, envVars),
 		Containers:                    containers,
 		Volumes:                       volumes,
 		NodeSelector:                  taskManagerSpec.NodeSelector,
@@ -722,7 +722,7 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 	envVars = append(envVars, flinkCluster.Spec.EnvVars...)
 
 	var podSpec = corev1.PodSpec{
-		InitContainers: convertJobInitContainers(jobSpec, saMount, saEnv),
+		InitContainers: convertContainers(jobSpec.InitContainers, volumeMounts, envVars),
 		Containers: []corev1.Container{
 			{
 				Name:            "main",
@@ -805,55 +805,45 @@ func convertFromSavepoint(jobSpec *v1beta1.JobSpec, jobStatus *v1beta1.JobStatus
 	return nil
 }
 
-// Copy any non-duplicate volume mounts to the specified initContainers
-func ensureVolumeMountsInitContainer(initContainers []corev1.Container, volumeMounts []corev1.VolumeMount) []corev1.Container {
-	var updatedInitContainers = []corev1.Container{}
-	for _, initContainer := range initContainers {
-		for _, mounts := range volumeMounts {
-			var conflict = false
-			for _, mount := range initContainer.VolumeMounts {
-				if mounts.MountPath == mount.MountPath {
-					conflict = true
-					break
-				}
-			}
-			if !conflict {
-				initContainer.VolumeMounts =
-					append(initContainer.VolumeMounts, mounts)
+// Copy any non-duplicate volume mounts and env vars to the specified containers
+func convertContainer(container corev1.Container, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.Container {
+	for _, mounts := range volumeMounts {
+		var conflict = false
+		for _, mount := range container.VolumeMounts {
+			if mounts.MountPath == mount.MountPath {
+				conflict = true
+				break
 			}
 		}
-		updatedInitContainers = append(updatedInitContainers, initContainer)
-	}
-	return updatedInitContainers
-}
-
-func setGSAEnv(initContainers []corev1.Container, saMount *corev1.VolumeMount, saEnv *corev1.EnvVar) []corev1.Container {
-	updatedInitContainers := []corev1.Container{}
-	for _, initContainer := range initContainers {
-		if saEnv != nil {
-			initContainer.Env = append(initContainer.Env, *saEnv)
+		if !conflict {
+			container.VolumeMounts = append(container.VolumeMounts, mounts)
 		}
-		if saMount != nil {
-			initContainer.VolumeMounts = append(initContainer.VolumeMounts, *saMount)
-		}
-		updatedInitContainers = append(updatedInitContainers, initContainer)
 	}
-	return updatedInitContainers
+
+	for _, envVar := range envVars {
+		var conflict = false
+		for _, env := range container.Env {
+			if envVar.Name == env.Name {
+				conflict = true
+				break
+			}
+		}
+		if !conflict {
+			container.Env = append(container.Env, envVar)
+		}
+	}
+
+	return container
 }
 
-func convertJobManagerInitContainers(jobManagerSpec *v1beta1.JobManagerSpec, saMount *corev1.VolumeMount, saEnv *corev1.EnvVar) []corev1.Container {
-	updatedInitContainers := ensureVolumeMountsInitContainer(jobManagerSpec.InitContainers, jobManagerSpec.VolumeMounts)
-	return setGSAEnv(updatedInitContainers, saMount, saEnv)
-}
-
-func convertTaskManagerInitContainers(taskSpec *v1beta1.TaskManagerSpec, saMount *corev1.VolumeMount, saEnv *corev1.EnvVar) []corev1.Container {
-	updatedInitContainers := ensureVolumeMountsInitContainer(taskSpec.InitContainers, taskSpec.VolumeMounts)
-	return setGSAEnv(updatedInitContainers, saMount, saEnv)
-}
-
-func convertJobInitContainers(jobSpec *v1beta1.JobSpec, saMount *corev1.VolumeMount, saEnv *corev1.EnvVar) []corev1.Container {
-	updatedInitContainers := ensureVolumeMountsInitContainer(jobSpec.InitContainers, jobSpec.VolumeMounts)
-	return setGSAEnv(updatedInitContainers, saMount, saEnv)
+// Copy any non-duplicate volume mounts and env vars to each specified container
+func convertContainers(containers []corev1.Container, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) []corev1.Container {
+	var updatedContainers = []corev1.Container{}
+	for _, container := range containers {
+		updatedContainer := convertContainer(container, volumeMounts, envVars)
+		updatedContainers = append(updatedContainers, updatedContainer)
+	}
+	return updatedContainers
 }
 
 // Converts the FlinkCluster as owner reference for its child resources.
