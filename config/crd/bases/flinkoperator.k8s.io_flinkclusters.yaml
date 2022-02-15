@@ -4026,8 +4026,6 @@ spec:
                           - name
                         type: object
                       type: array
-                  required:
-                    - accessScope
                   type: object
                 logConfig:
                   additionalProperties:
@@ -6403,8 +6401,6 @@ spec:
                           - name
                         type: object
                       type: array
-                  required:
-                    - replicas
                   type: object
               required:
                 - flinkVersion
