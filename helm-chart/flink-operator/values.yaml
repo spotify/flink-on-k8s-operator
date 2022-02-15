@@ -37,13 +37,14 @@ securityContext:
   # runAsNonRoot: true
   # runAsUser: 1000
 
+# Defines the operator's resources
 resources:
   requests:
     cpu: 100m
-    memory: 128Mi
+    memory: 100Mi
   limits:
-    cpu: 2
-    memory: 2Gi
+    cpu: 100m
+    memory: 200Mi
 
 # Annotations to be added to pods
 podAnnotations: {}
