@@ -844,7 +844,9 @@ func TestGetDesiredClusterState(t *testing.T) {
 								{Name: "gcp-service-account-volume", ReadOnly: true, MountPath: "/etc/gcp_service_account/"},
 							},
 							Env: []corev1.EnvVar{
+								{Name: "FLINK_USR_LIB_DIR", Value: "/opt/flink/job"},
 								{Name: "FLINK_JM_ADDR", Value: "flinkjobcluster-sample-jobmanager:8081"},
+								{Name: "FLINK_JOB_JAR_URI", Value: "/cache/my-job.jar"},
 								{Name: "HADOOP_CONF_DIR", Value: "/etc/hadoop/conf"},
 								{Name: "GOOGLE_APPLICATION_CREDENTIALS", Value: "/etc/gcp_service_account/gcp_service_account_key.json"},
 								{Name: "FOO", Value: "abc"},
@@ -870,7 +872,9 @@ func TestGetDesiredClusterState(t *testing.T) {
 								"./README.txt",
 							},
 							Env: []corev1.EnvVar{
+								{Name: "FLINK_USR_LIB_DIR", Value: "/opt/flink/job"},
 								{Name: "FLINK_JM_ADDR", Value: "flinkjobcluster-sample-jobmanager:8081"},
+								{Name: "FLINK_JOB_JAR_URI", Value: "/cache/my-job.jar"},
 								{Name: "HADOOP_CONF_DIR", Value: "/etc/hadoop/conf"},
 								{
 									Name:  "GOOGLE_APPLICATION_CREDENTIALS",
