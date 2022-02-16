@@ -16,7 +16,7 @@ require (
 	k8s.io/apimachinery v0.23.3
 	k8s.io/client-go v0.23.3
 	k8s.io/klog v1.0.0
-	sigs.k8s.io/controller-runtime v0.11.0
+	sigs.k8s.io/controller-runtime v0.11.1
 	volcano.sh/apis v0.0.0-20210924061932-d4408f25a528
 )
 
