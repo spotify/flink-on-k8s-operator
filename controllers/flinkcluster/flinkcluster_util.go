@@ -28,7 +28,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/spotify/flink-on-k8s-operator/controllers/flinkcluster/flink"
+	"github.com/spotify/flink-on-k8s-operator/internal/flink"
 
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
 	"github.com/spotify/flink-on-k8s-operator/controllers/flinkcluster/history"
