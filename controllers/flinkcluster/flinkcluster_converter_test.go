@@ -846,10 +846,10 @@ func TestGetDesiredClusterState(t *testing.T) {
 							Env: []corev1.EnvVar{
 								{Name: "FLINK_USR_LIB_DIR", Value: "/opt/flink/job"},
 								{Name: "FLINK_JM_ADDR", Value: "flinkjobcluster-sample-jobmanager:8081"},
-								{Name: "FLINK_JOB_JAR_URI", Value: "/cache/my-job.jar"},
+								{Name: "FOO", Value: "abc"},
 								{Name: "HADOOP_CONF_DIR", Value: "/etc/hadoop/conf"},
 								{Name: "GOOGLE_APPLICATION_CREDENTIALS", Value: "/etc/gcp_service_account/gcp_service_account_key.json"},
-								{Name: "FOO", Value: "abc"},
+								{Name: "FLINK_JOB_JAR_URI", Value: "/cache/my-job.jar"},
 							},
 						},
 					},
@@ -874,13 +874,13 @@ func TestGetDesiredClusterState(t *testing.T) {
 							Env: []corev1.EnvVar{
 								{Name: "FLINK_USR_LIB_DIR", Value: "/opt/flink/job"},
 								{Name: "FLINK_JM_ADDR", Value: "flinkjobcluster-sample-jobmanager:8081"},
-								{Name: "FLINK_JOB_JAR_URI", Value: "/cache/my-job.jar"},
+								{Name: "FOO", Value: "abc"},
 								{Name: "HADOOP_CONF_DIR", Value: "/etc/hadoop/conf"},
 								{
 									Name:  "GOOGLE_APPLICATION_CREDENTIALS",
 									Value: "/etc/gcp_service_account/gcp_service_account_key.json",
 								},
-								{Name: "FOO", Value: "abc"},
+								{Name: "FLINK_JOB_JAR_URI", Value: "/cache/my-job.jar"},
 							},
 							EnvFrom: []corev1.EnvFromSource{
 								{
