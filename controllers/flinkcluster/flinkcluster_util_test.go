@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestTimeConverter(t *testing.T) {
