@@ -50,7 +50,14 @@ const (
 	submitJobScriptPath     = "/opt/flink-operator/submit-job.sh"
 	gcpServiceAccountVolume = "gcp-service-account-volume"
 	hadoopConfigVolume      = "hadoop-config-volume"
-	flinkJobPath            = "/opt/flink/job"
+	usrLibDir               = "/opt/flink/job"
+	jobManagerAddrEnvVar    = "FLINK_JM_ADDR"
+	usrLibPathEnvVar        = "FLINK_USR_LIB_DIR"
+	jobJarUriEnvVar         = "FLINK_JOB_JAR_URI"
+	jobPyFileUriEnvVar      = "FLINK_JOB_PY_FILE_URI"
+	jobPyFilesUriEnvVar     = "FLINK_JOB_PY_FILES_URI"
+	hadoopConfDirEnvVar     = "HADOOP_CONF_DIR"
+	gacEnvVar               = "GOOGLE_APPLICATION_CREDENTIALS"
 )
 
 var (
@@ -624,6 +631,7 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 	var podLabels = getClusterLabels(*flinkCluster)
 	podLabels = mergeLabels(podLabels, jobManagerSpec.PodLabels)
 	var jobLabels = mergeLabels(podLabels, getRevisionHashLabels(&recorded.Revision))
+
 	var jobArgs = []string{"bash", submitJobScriptPath}
 	jobArgs = append(jobArgs, "--jobmanager", jobManagerAddress)
 	if jobSpec.ClassName != nil {
@@ -660,28 +668,31 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 	var securityContext = jobSpec.SecurityContext
 
 	var envVars []corev1.EnvVar
+	envVars = append(envVars,
+		corev1.EnvVar{
+			Name:  usrLibPathEnvVar,
+			Value: usrLibDir,
+		},
+		corev1.EnvVar{
+			Name:  jobManagerAddrEnvVar,
+			Value: jobManagerAddress,
+		})
 
 	if jobSpec.JarFile != nil {
-		jobArgs = append(jobArgs, getLocalPath(&envVars, "FLINK_JOB_JAR_URI", *jobSpec.JarFile))
+		jobArgs = append(jobArgs, getLocalPath(&envVars, jobJarUriEnvVar, *jobSpec.JarFile))
 	}
 
 	if jobSpec.PyFile != nil {
-		jobArgs = append(jobArgs, "--python", getLocalPath(&envVars, "FLINK_JOB_JAR_URI", *jobSpec.PyFile))
+		jobArgs = append(jobArgs, "--python", getLocalPath(&envVars, jobPyFileUriEnvVar, *jobSpec.PyFile))
 	}
 
 	if jobSpec.PyFiles != nil {
-		jobArgs = append(jobArgs, "--pyFiles", getLocalPath(&envVars, "FLINK_JOB_PYTHON_FILES_URI", *jobSpec.PyFiles))
+		jobArgs = append(jobArgs, "--pyFiles", getLocalPath(&envVars, jobPyFilesUriEnvVar, *jobSpec.PyFiles))
 	}
 
 	if jobSpec.PyModule != nil {
 		jobArgs = append(jobArgs, "--pyModule", *jobSpec.PyModule)
 	}
-
-	envVars = append(envVars,
-		corev1.EnvVar{
-			Name:  "FLINK_JM_ADDR",
-			Value: jobManagerAddress,
-		})
 
 	jobArgs = append(jobArgs, jobSpec.Args...)
 
@@ -1094,7 +1105,7 @@ func convertHadoopConfig(hadoopConfig *v1beta1.HadoopConfig) (
 		ReadOnly:  true,
 	}
 	var env = &corev1.EnvVar{
-		Name:  "HADOOP_CONF_DIR",
+		Name:  hadoopConfDirEnvVar,
 		Value: hadoopConfig.MountPath,
 	}
 	return volume, mount, env
@@ -1123,7 +1134,7 @@ func convertGCPConfig(gcpConfig *v1beta1.GCPConfig) (*corev1.Volume, *corev1.Vol
 		saMount.MountPath = saMount.MountPath + "/"
 	}
 	var saEnv = &corev1.EnvVar{
-		Name:  "GOOGLE_APPLICATION_CREDENTIALS",
+		Name:  gacEnvVar,
 		Value: saMount.MountPath + saConfig.KeyFile,
 	}
 	return saVolume, saMount, saEnv
@@ -1171,14 +1182,15 @@ func mergeLabels(labels1 map[string]string, labels2 map[string]string) map[strin
 // to a local path if the file is remote and returns the local path.
 // The entrypoint script of the container will download it before submitting it to Flink.
 func getLocalPath(envVars *[]corev1.EnvVar, envName string, filePath string) string {
+	*envVars = append(*envVars, corev1.EnvVar{
+		Name:  envName,
+		Value: filePath,
+	})
+
 	var localPath = filePath
 	if strings.Contains(filePath, "://") {
 		var parts = strings.Split(filePath, "/")
-		localPath = path.Join(flinkJobPath, parts[len(parts)-1])
-		*envVars = append(*envVars, corev1.EnvVar{
-			Name:  envName,
-			Value: filePath,
-		})
+		localPath = path.Join(usrLibDir, parts[len(parts)-1])
 	}
 
 	return localPath
