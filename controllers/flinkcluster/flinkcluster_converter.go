@@ -816,33 +816,61 @@ func convertFromSavepoint(jobSpec *v1beta1.JobSpec, jobStatus *v1beta1.JobStatus
 	return nil
 }
 
-// Copy any non-duplicate volume mounts and env vars to the specified containers
-func convertContainer(container corev1.Container, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.Container {
-	for _, mounts := range volumeMounts {
+func appendVolumes(volumes []corev1.Volume, newVolumes ...corev1.Volume) []corev1.Volume {
+	for _, mounts := range newVolumes {
 		var conflict = false
-		for _, mount := range container.VolumeMounts {
+		for _, mount := range volumes {
+			if mounts.Name == mount.Name {
+				conflict = true
+				break
+			}
+		}
+		if !conflict {
+			volumes = append(volumes, mounts)
+		}
+	}
+
+	return volumes
+}
+
+func appendVolumeMounts(volumeMounts []corev1.VolumeMount, newVolumeMounts ...corev1.VolumeMount) []corev1.VolumeMount {
+	for _, mounts := range newVolumeMounts {
+		var conflict = false
+		for _, mount := range volumeMounts {
 			if mounts.MountPath == mount.MountPath {
 				conflict = true
 				break
 			}
 		}
 		if !conflict {
-			container.VolumeMounts = append(container.VolumeMounts, mounts)
+			volumeMounts = append(volumeMounts, mounts)
 		}
 	}
 
-	for _, envVar := range envVars {
+	return volumeMounts
+}
+
+func appendEnvVars(envVars []corev1.EnvVar, newEnvVars ...corev1.EnvVar) []corev1.EnvVar {
+	for _, envVar := range newEnvVars {
 		var conflict = false
-		for _, env := range container.Env {
+		for _, env := range envVars {
 			if envVar.Name == env.Name {
 				conflict = true
 				break
 			}
 		}
 		if !conflict {
-			container.Env = append(container.Env, envVar)
+			envVars = append(envVars, envVar)
 		}
 	}
+
+	return envVars
+}
+
+// Copy any non-duplicate volume mounts and env vars to the specified containers
+func convertContainer(container corev1.Container, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.Container {
+	container.VolumeMounts = appendVolumeMounts(container.VolumeMounts, volumeMounts...)
+	container.Env = appendEnvVars(container.Env, envVars...)
 
 	return container
 }
