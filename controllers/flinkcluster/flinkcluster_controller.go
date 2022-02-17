@@ -20,8 +20,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/spotify/flink-on-k8s-operator/controllers/flinkcluster/flink"
 	"github.com/spotify/flink-on-k8s-operator/controllers/flinkcluster/history"
+	"github.com/spotify/flink-on-k8s-operator/internal/flink"
 
 	"github.com/go-logr/logr"
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
