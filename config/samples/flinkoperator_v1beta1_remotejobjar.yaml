@@ -6,13 +6,33 @@ spec:
   flinkVersion: "1.14"
   image:
     name: flink:1.14.2
-  job:
-    jarFile: https://repo1.maven.org/maven2/org/apache/flink/flink-examples-streaming_2.12/1.14.3/flink-examples-streaming_2.12-1.14.3-WordCount.jar
-    className: org.apache.flink.streaming.examples.wordcount.WordCount
-    args: ["--input", "./README.txt"]
-    restartPolicy: Never
+  jobManager:
     initContainers:
       - name: downloader
         image: curlimages/curl
         command:
           ["sh", "-c", "cd ${FLINK_USR_LIB_DIR}; curl -O ${FLINK_JOB_JAR_URI}"]
+        resources:
+          limits:
+            cpu: 100m
+            memory: 512Mi
+  taskManager:
+    initContainers:
+      - name: downloader
+        image: curlimages/curl
+        command:
+          ["sh", "-c", "cd ${FLINK_USR_LIB_DIR}; curl -O ${FLINK_JOB_JAR_URI}"]
+        resources:
+          limits:
+            cpu: 100m
+            memory: 512Mi
+  job:
+    mode: Blocking
+    cleanupPolicy:
+      afterJobSucceeds: DeleteCluster
+      afterJobFails: DeleteCluster
+      afterJobCancelled: DeleteCluster
+    jarFile: https://repo1.maven.org/maven2/org/apache/flink/flink-examples-streaming_2.12/1.14.3/flink-examples-streaming_2.12-1.14.3-WordCount.jar
+    className: org.apache.flink.streaming.examples.wordcount.WordCount
+    args: ["--input", "./README.txt"]
+    restartPolicy: Never

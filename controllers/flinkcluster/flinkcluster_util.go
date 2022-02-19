@@ -117,8 +117,11 @@ func getTaskManagerStatefulSetName(clusterName string) string {
 	return clusterName + "-taskmanager"
 }
 
-// Gets Job name
-func getJobName(clusterName string) string {
+func getJobManagerJobName(clusterName string) string {
+	return clusterName + "-jobmanager"
+}
+
+func getSubmitterJobName(clusterName string) string {
 	return clusterName + "-job-submitter"
 }
 

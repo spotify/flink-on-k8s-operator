@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
+	"github.com/spotify/flink-on-k8s-operator/internal/flink"
 	"github.com/spotify/flink-on-k8s-operator/internal/model"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -50,7 +51,7 @@ const (
 	submitJobScriptPath     = "/opt/flink-operator/submit-job.sh"
 	gcpServiceAccountVolume = "gcp-service-account-volume"
 	hadoopConfigVolume      = "hadoop-config-volume"
-	usrLibDir               = "/opt/flink/job"
+	usrLibDir               = "/opt/flink/usrlib"
 	jobManagerAddrEnvVar    = "FLINK_JM_ADDR"
 	usrLibPathEnvVar        = "FLINK_USR_LIB_DIR"
 	jobJarUriEnvVar         = "FLINK_JOB_JAR_URI"
@@ -61,6 +62,7 @@ const (
 )
 
 var (
+	backoffLimit                  int32 = 0
 	terminationGracePeriodSeconds int64 = 60
 	flinkSysProps                       = map[string]struct{}{
 		"jobmanager.rpc.address": {},
@@ -92,6 +94,7 @@ func getDesiredClusterState(observed *ObservedClusterState) model.DesiredCluster
 
 func newJobManagerPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
 	var clusterSpec = flinkCluster.Spec
+	var status = flinkCluster.Status
 	var imageSpec = clusterSpec.Image
 	var serviceAccount = clusterSpec.ServiceAccountName
 	var jobManagerSpec = clusterSpec.JobManager
@@ -104,16 +107,48 @@ func newJobManagerPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
 		ports = append(ports, corev1.ContainerPort{Name: port.Name, ContainerPort: port.ContainerPort, Protocol: corev1.Protocol(port.Protocol)})
 	}
 
+	args := []string{"jobmanager"}
+	var envVars []corev1.EnvVar
+	envVars = append(envVars, flinkCluster.Spec.EnvVars...)
+	jobSpec := flinkCluster.Spec.Job
+	addUsrLib := false
+	if jobSpec != nil && *jobSpec.Mode == v1beta1.JobModeBlocking && jobSpec.JarFile != nil {
+		envVars = addEnvVar(envVars, jobJarUriEnvVar, *jobSpec.JarFile)
+		addUsrLib = isRemoteFile(*jobSpec.JarFile)
+		args = []string{"standalone-job"}
+
+		if parallelism, err := calJobParallelism(flinkCluster); err == nil {
+			args = append(args, fmt.Sprintf("-Dparallelism.default=%d", parallelism))
+		}
+
+		var fromSavepoint = convertFromSavepoint(jobSpec, status.Components.Job, &status.Revision)
+		if fromSavepoint != nil {
+			args = append(args, "--fromSavepoint", *fromSavepoint)
+		}
+
+		if jobSpec.AllowNonRestoredState != nil &&
+			*jobSpec.AllowNonRestoredState {
+			args = append(args, "--allowNonRestoredState")
+		}
+
+		args = append(args,
+			"--job-id", flink.GenJobId(flinkCluster.Namespace, flinkCluster.Name),
+			"--job-classname", *jobSpec.ClassName,
+		)
+
+		args = append(args, jobSpec.Args...)
+	}
+
 	var containers = []corev1.Container{{
 		Name:            "jobmanager",
 		Image:           imageSpec.Name,
 		ImagePullPolicy: imageSpec.PullPolicy,
-		Args:            []string{"jobmanager"},
+		Args:            args,
 		Ports:           ports,
 		LivenessProbe:   jobManagerSpec.LivenessProbe,
 		ReadinessProbe:  jobManagerSpec.ReadinessProbe,
 		Resources:       jobManagerSpec.Resources,
-		Env:             flinkCluster.Spec.EnvVars,
+		Env:             envVars,
 		EnvFrom:         flinkCluster.Spec.EnvFrom,
 		VolumeMounts:    jobManagerSpec.VolumeMounts,
 		Lifecycle: &corev1.Lifecycle{
@@ -126,7 +161,7 @@ func newJobManagerPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
 	}}
 
 	var podSpec = &corev1.PodSpec{
-		InitContainers:                jobManagerSpec.InitContainers,
+		InitContainers:                convertContainers(jobManagerSpec.InitContainers, []corev1.VolumeMount{}, envVars),
 		Containers:                    containers,
 		Volumes:                       jobManagerSpec.Volumes,
 		NodeSelector:                  jobManagerSpec.NodeSelector,
@@ -135,6 +170,9 @@ func newJobManagerPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
 		SecurityContext:               jobManagerSpec.SecurityContext,
 		ServiceAccountName:            getServiceAccountName(serviceAccount),
 		TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+	}
+	if addUsrLib {
+		setUsrLib(podSpec)
 	}
 	setFlinkConfig(getConfigMapName(flinkCluster.Name), podSpec)
 	setHadoopConfig(flinkCluster.Spec.HadoopConfig, podSpec)
@@ -148,6 +186,10 @@ func newJobManagerPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
 func getDesiredJobManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1.StatefulSet {
 
 	if shouldCleanup(flinkCluster, "JobManagerStatefulSet") {
+		return nil
+	}
+	if flinkCluster.Spec.Job != nil &&
+		*flinkCluster.Spec.Job.Mode == v1beta1.JobModeBlocking {
 		return nil
 	}
 
@@ -386,6 +428,13 @@ func newTaskManagerPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
 
 	envVars = append(envVars, flinkCluster.Spec.EnvVars...)
 
+	jobSpec := flinkCluster.Spec.Job
+	addUsrLib := false
+	if jobSpec != nil && *jobSpec.Mode == v1beta1.JobModeBlocking && jobSpec.JarFile != nil {
+		envVars = addEnvVar(envVars, jobJarUriEnvVar, *jobSpec.JarFile)
+		addUsrLib = isRemoteFile(*jobSpec.JarFile)
+	}
+
 	var containers = []corev1.Container{{
 		Name:            "taskmanager",
 		Image:           imageSpec.Name,
@@ -408,7 +457,7 @@ func newTaskManagerPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
 	}}
 
 	var podSpec = &corev1.PodSpec{
-		InitContainers:                taskManagerSpec.InitContainers,
+		InitContainers:                convertContainers(taskManagerSpec.InitContainers, []corev1.VolumeMount{}, envVars),
 		Containers:                    containers,
 		Volumes:                       taskManagerSpec.Volumes,
 		NodeSelector:                  taskManagerSpec.NodeSelector,
@@ -417,6 +466,9 @@ func newTaskManagerPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
 		SecurityContext:               taskManagerSpec.SecurityContext,
 		ServiceAccountName:            getServiceAccountName(serviceAccount),
 		TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+	}
+	if addUsrLib {
+		setUsrLib(podSpec)
 	}
 	setFlinkConfig(getConfigMapName(flinkCluster.Name), podSpec)
 	setHadoopConfig(flinkCluster.Spec.HadoopConfig, podSpec)
@@ -681,24 +733,16 @@ func newJobSubmitterPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec 
 }
 
 // Gets the desired job spec from a cluster spec.
-func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
-	var flinkCluster = observed.cluster
+func getDesiredSubmitterJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 	var recorded = flinkCluster.Status
 	var jobSpec = flinkCluster.Spec.Job
-	var jobStatus = recorded.Components.Job
 
 	if jobSpec == nil {
 		return nil
 	}
 
-	// When the job should be stopped, keep that state unless update is triggered or the job must to be restarted.
-	if (shouldStopJob(flinkCluster) || jobStatus.IsStopped()) &&
-		(!shouldUpdateJob(observed) && !jobStatus.ShouldRestart(jobSpec)) {
-		return nil
-	}
-
 	var jobManagerSpec = flinkCluster.Spec.JobManager
-	var jobName = getJobName(flinkCluster.Name)
+	var jobName = getSubmitterJobName(flinkCluster.Name)
 	var podLabels = getClusterLabels(*flinkCluster)
 	podLabels = mergeLabels(podLabels, jobManagerSpec.PodLabels)
 	var jobLabels = mergeLabels(podLabels, getRevisionHashLabels(&recorded.Revision))
@@ -715,7 +759,6 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 	// the job from the latest savepoint which means strictly speaking it is no
 	// longer the same job as the previous one because the `--fromSavepoint`
 	// parameter has changed.
-	var backoffLimit int32 = 0
 	var job = &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: flinkCluster.Namespace,
@@ -736,6 +779,84 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 		},
 	}
 	return job
+}
+
+func getDesiredJobManagerJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
+	var clusterSpec = flinkCluster.Spec
+	var jobManagerSpec = clusterSpec.JobManager
+	var jobId = flink.GenJobId(flinkCluster.Namespace, flinkCluster.Name)
+	var podLabels = getComponentLabels(*flinkCluster, "jobmanager")
+	podLabels = mergeLabels(podLabels, jobManagerSpec.PodLabels)
+	podLabels = mergeLabels(podLabels, map[string]string{"job-id": jobId})
+	var jobLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
+
+	var jobName = getJobManagerJobName(flinkCluster.Name)
+	podSpec := newJobManagerPodSpec(flinkCluster)
+	if podSpec == nil {
+		return nil
+	}
+	podSpec.RestartPolicy = corev1.RestartPolicyNever
+
+	//FIXME: Add Volume claim support
+	// var pvcs []corev1.PersistentVolumeClaim
+	// if jobManagerSpec.VolumeClaimTemplates != nil {
+	// 	pvcs = make([]corev1.PersistentVolumeClaim, len(jobManagerSpec.VolumeClaimTemplates))
+	// 	for i, pvc := range jobManagerSpec.VolumeClaimTemplates {
+	// 		pvc.OwnerReferences = []metav1.OwnerReference{ToOwnerReference(flinkCluster)}
+	// 		pvcs[i] = pvc
+	// 	}
+	// }
+
+	// Disable the retry mechanism of k8s Job, all retries should be initiated
+	// by the operator based on the job restart policy. This is because Flink
+	// jobs are stateful, if a job fails after running for 10 hours, we probably
+	// don't want to start over from the beginning, instead we want to resume
+	// the job from the latest savepoint which means strictly speaking it is no
+	// longer the same job as the previous one because the `--fromSavepoint`
+	// parameter has changed.
+	var job = &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:       flinkCluster.Namespace,
+			Name:            jobName,
+			OwnerReferences: []metav1.OwnerReference{ToOwnerReference(flinkCluster)},
+			Labels:          jobLabels,
+		},
+		Spec: batchv1.JobSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels:      podLabels,
+					Annotations: jobManagerSpec.PodAnnotations,
+				},
+				Spec: *podSpec,
+			},
+			BackoffLimit: &backoffLimit,
+		},
+	}
+	return job
+}
+
+// Gets the desired job spec from a cluster spec.
+func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
+	var flinkCluster = observed.cluster
+	var recorded = flinkCluster.Status
+	var jobSpec = flinkCluster.Spec.Job
+	var jobStatus = recorded.Components.Job
+
+	if jobSpec == nil {
+		return nil
+	}
+
+	// When the job should be stopped, keep that state unless update is triggered or the job must to be restarted.
+	if (shouldStopJob(flinkCluster) || jobStatus.IsStopped()) &&
+		(!shouldUpdateJob(observed) && !jobStatus.ShouldRestart(jobSpec)) {
+		return nil
+	}
+
+	if *jobSpec.Mode == v1beta1.JobModeBlocking {
+		return getDesiredJobManagerJob(flinkCluster)
+	} else {
+		return getDesiredSubmitterJob(flinkCluster)
+	}
 }
 
 // Decide from which savepoint Flink job should be restored when the job created, updated or restarted

@@ -270,7 +270,13 @@ func (observer *ClusterStateObserver) observeJob(
 	var log = observer.log
 	// Extract the log stream from pod only when the job state is Deploying.
 	var recordedJob = observed.cluster.Status.Components.Job
-	var jobName = getJobName(observed.cluster.Name)
+	var jobName string
+	var applicationMode = *observed.cluster.Spec.Job.Mode == v1beta1.JobModeBlocking
+	if applicationMode {
+		jobName = getJobManagerJobName(observed.cluster.Name)
+	} else {
+		jobName = getSubmitterJobName(observed.cluster.Name)
+	}
 
 	// Job resource.
 	job := new(batchv1.Job)
@@ -308,7 +314,8 @@ func (observer *ClusterStateObserver) observeJob(
 	}
 
 	// Wait until the job manager is ready.
-	jmReady := observed.jmStatefulSet != nil && getStatefulSetState(observed.jmStatefulSet) == v1beta1.ComponentStateReady
+	jmReady := applicationMode ||
+		(observed.jmStatefulSet != nil && getStatefulSetState(observed.jmStatefulSet) == v1beta1.ComponentStateReady)
 	if jmReady {
 		// Observe the Flink job status.
 		var flinkJobID string

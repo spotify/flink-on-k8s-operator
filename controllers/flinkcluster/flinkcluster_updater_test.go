@@ -209,7 +209,8 @@ func TestClusterStatus(t *testing.T) {
 		}
 
 		var updater = &ClusterStatusUpdater{log: log.Log, observed: observed}
-		newStatus := updater.deriveClusterStatus(&oldStatus, &observed)
+		cluster := v1beta1.FlinkCluster{Status: oldStatus}
+		newStatus := updater.deriveClusterStatus(&cluster, &observed)
 		assert.Assert(t, updater.isStatusChanged(oldStatus, newStatus))
 		assert.Equal(t, newStatus.State, v1beta1.ClusterStateRunning)
 	})
