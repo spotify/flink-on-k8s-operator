@@ -724,7 +724,7 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 
 	if jobSpec.PyFile != nil {
 		jobArgs = append(jobArgs, "--python", getLocalPath(*jobSpec.PyFile))
-		envVars = addEnvVar(envVars, jobJarUriEnvVar, *jobSpec.PyFile)
+		envVars = addEnvVar(envVars, jobPyFileUriEnvVar, *jobSpec.PyFile)
 		if isRemoteFile(*jobSpec.PyFile) {
 			volumes = addUsrLibVolume(volumes)
 			volumeMounts = addUsrLibVolumeMount(volumeMounts)
