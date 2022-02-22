@@ -31,7 +31,7 @@ import (
 	"github.com/spotify/flink-on-k8s-operator/internal/flink"
 
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
-	"github.com/spotify/flink-on-k8s-operator/controllers/flinkcluster/history"
+	"github.com/spotify/flink-on-k8s-operator/internal/controllers/history"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
