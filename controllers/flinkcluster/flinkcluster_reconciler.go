@@ -30,9 +30,10 @@ import (
 
 	"github.com/go-logr/logr"
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
-	"github.com/spotify/flink-on-k8s-operator/controllers/flinkcluster/batchscheduler"
-	"github.com/spotify/flink-on-k8s-operator/controllers/flinkcluster/model"
+	"github.com/spotify/flink-on-k8s-operator/internal/batchscheduler"
+	schedulerTypes "github.com/spotify/flink-on-k8s-operator/internal/batchscheduler/types"
 	"github.com/spotify/flink-on-k8s-operator/internal/flink"
+	"github.com/spotify/flink-on-k8s-operator/internal/model"
 
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -117,7 +118,8 @@ func (reconciler *ClusterReconciler) reconcile() (ctrl.Result, error) {
 }
 
 func (reconciler *ClusterReconciler) reconcileBatchScheduler() error {
-	schedulerSpec := reconciler.observed.cluster.Spec.BatchScheduler
+	cluster := reconciler.observed.cluster
+	schedulerSpec := cluster.Spec.BatchScheduler
 	if schedulerSpec == nil || schedulerSpec.Name == "" {
 		return nil
 	}
@@ -127,7 +129,14 @@ func (reconciler *ClusterReconciler) reconcileBatchScheduler() error {
 		return err
 	}
 
-	err = scheduler.Schedule(reconciler.observed.cluster, &reconciler.desired)
+	options := schedulerTypes.SchedulerOptions{
+		ClusterName:       cluster.Name,
+		ClusterNamespace:  cluster.Namespace,
+		Queue:             schedulerSpec.PriorityClassName,
+		PriorityClassName: schedulerSpec.PriorityClassName,
+		OwnerReferences:   []metav1.OwnerReference{ToOwnerReference(cluster)},
+	}
+	err = scheduler.Schedule(options, &reconciler.desired)
 	if err != nil {
 		return err
 	}
