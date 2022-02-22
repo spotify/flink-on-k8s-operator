@@ -117,41 +117,7 @@ func getDesiredJobManagerStatefulSet(
 	podLabels = mergeLabels(podLabels, jobManagerSpec.PodLabels)
 	var statefulSetLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
 	var securityContext = jobManagerSpec.SecurityContext
-	// Make Volume, VolumeMount to use configMap data for flink-conf.yaml, if flinkProperties is provided.
-	var volumes []corev1.Volume
-	var volumeMounts []corev1.VolumeMount
-	var confVol *corev1.Volume
-	var confMount *corev1.VolumeMount
-	confVol, confMount = convertFlinkConfig(clusterName)
-	volumes = append(jobManagerSpec.Volumes, *confVol)
-	volumeMounts = append(jobManagerSpec.VolumeMounts, *confMount)
-	var envVars []corev1.EnvVar
 
-	// Hadoop config.
-	var hcVolume, hcMount, hcEnv = convertHadoopConfig(clusterSpec.HadoopConfig)
-	if hcVolume != nil {
-		volumes = append(volumes, *hcVolume)
-	}
-	if hcMount != nil {
-		volumeMounts = append(volumeMounts, *hcMount)
-	}
-	if hcEnv != nil {
-		envVars = append(envVars, *hcEnv)
-	}
-
-	// GCP service account config.
-	var saVolume, saMount, saEnv = convertGCPConfig(clusterSpec.GCPConfig)
-	if saVolume != nil {
-		volumes = append(volumes, *saVolume)
-	}
-	if saMount != nil {
-		volumeMounts = append(volumeMounts, *saMount)
-	}
-	if saEnv != nil {
-		envVars = append(envVars, *saEnv)
-	}
-
-	envVars = append(envVars, flinkCluster.Spec.EnvVars...)
 	var containers = []corev1.Container{{
 		Name:            "jobmanager",
 		Image:           imageSpec.Name,
@@ -161,9 +127,9 @@ func getDesiredJobManagerStatefulSet(
 		LivenessProbe:   jobManagerSpec.LivenessProbe,
 		ReadinessProbe:  jobManagerSpec.ReadinessProbe,
 		Resources:       jobManagerSpec.Resources,
-		Env:             envVars,
+		Env:             flinkCluster.Spec.EnvVars,
 		EnvFrom:         flinkCluster.Spec.EnvFrom,
-		VolumeMounts:    volumeMounts,
+		VolumeMounts:    jobManagerSpec.VolumeMounts,
 		Lifecycle: &corev1.Lifecycle{
 			PreStop: &corev1.LifecycleHandler{
 				Exec: &corev1.ExecAction{
@@ -173,12 +139,10 @@ func getDesiredJobManagerStatefulSet(
 		},
 	}}
 
-	containers = append(containers, jobManagerSpec.Sidecars...)
-
 	var podSpec = corev1.PodSpec{
-		InitContainers:                convertContainers(jobManagerSpec.InitContainers, volumeMounts, envVars),
+		InitContainers:                jobManagerSpec.InitContainers,
 		Containers:                    containers,
-		Volumes:                       volumes,
+		Volumes:                       jobManagerSpec.Volumes,
 		NodeSelector:                  jobManagerSpec.NodeSelector,
 		Tolerations:                   jobManagerSpec.Tolerations,
 		ImagePullSecrets:              imageSpec.PullSecrets,
@@ -186,6 +150,10 @@ func getDesiredJobManagerStatefulSet(
 		ServiceAccountName:            getServiceAccountName(serviceAccount),
 		TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 	}
+	podSpec = addFlinkConfig(getConfigMapName(flinkCluster.Name), podSpec)
+	podSpec = addHadoopConfig(flinkCluster.Spec.HadoopConfig, podSpec)
+	podSpec = addGCPConfig(flinkCluster.Spec.GCPConfig, podSpec)
+	podSpec.Containers = append(podSpec.Containers, jobManagerSpec.Sidecars...)
 
 	var pvcs []corev1.PersistentVolumeClaim
 	if jobManagerSpec.VolumeClaimTemplates != nil {
@@ -398,17 +366,7 @@ func getDesiredTaskManagerStatefulSet(
 	var podLabels = getComponentLabels(*flinkCluster, "taskmanager")
 	podLabels = mergeLabels(podLabels, taskManagerSpec.PodLabels)
 	var statefulSetLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
-
 	var securityContext = taskManagerSpec.SecurityContext
-
-	// Make Volume, VolumeMount to use configMap data for flink-conf.yaml
-	var volumes []corev1.Volume
-	var volumeMounts []corev1.VolumeMount
-
-	// Flink config.
-	var confVol, confMount = convertFlinkConfig(clusterName)
-	volumes = append(taskManagerSpec.Volumes, *confVol)
-	volumeMounts = append(taskManagerSpec.VolumeMounts, *confMount)
 
 	var envVars = []corev1.EnvVar{
 		{
@@ -433,29 +391,6 @@ func getDesiredTaskManagerStatefulSet(
 		},
 	}
 
-	// Hadoop config.
-	var hcVolume, hcMount, hcEnv = convertHadoopConfig(clusterSpec.HadoopConfig)
-	if hcVolume != nil {
-		volumes = append(volumes, *hcVolume)
-	}
-	if hcMount != nil {
-		volumeMounts = append(volumeMounts, *hcMount)
-	}
-	if hcEnv != nil {
-		envVars = append(envVars, *hcEnv)
-	}
-
-	// GCP service account config.
-	var saVolume, saMount, saEnv = convertGCPConfig(clusterSpec.GCPConfig)
-	if saVolume != nil {
-		volumes = append(volumes, *saVolume)
-	}
-	if saMount != nil {
-		volumeMounts = append(volumeMounts, *saMount)
-	}
-	if saEnv != nil {
-		envVars = append(envVars, *saEnv)
-	}
 	envVars = append(envVars, flinkCluster.Spec.EnvVars...)
 
 	var containers = []corev1.Container{{
@@ -469,7 +404,7 @@ func getDesiredTaskManagerStatefulSet(
 		Resources:       taskManagerSpec.Resources,
 		Env:             envVars,
 		EnvFrom:         flinkCluster.Spec.EnvFrom,
-		VolumeMounts:    volumeMounts,
+		VolumeMounts:    taskManagerSpec.VolumeMounts,
 		Lifecycle: &corev1.Lifecycle{
 			PreStop: &corev1.LifecycleHandler{
 				Exec: &corev1.ExecAction{
@@ -478,11 +413,11 @@ func getDesiredTaskManagerStatefulSet(
 			},
 		},
 	}}
-	containers = append(containers, taskManagerSpec.Sidecars...)
+
 	var podSpec = corev1.PodSpec{
-		InitContainers:                convertContainers(taskManagerSpec.InitContainers, volumeMounts, envVars),
+		InitContainers:                taskManagerSpec.InitContainers,
 		Containers:                    containers,
-		Volumes:                       volumes,
+		Volumes:                       taskManagerSpec.Volumes,
 		NodeSelector:                  taskManagerSpec.NodeSelector,
 		Tolerations:                   taskManagerSpec.Tolerations,
 		ImagePullSecrets:              imageSpec.PullSecrets,
@@ -490,6 +425,10 @@ func getDesiredTaskManagerStatefulSet(
 		ServiceAccountName:            getServiceAccountName(serviceAccount),
 		TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 	}
+	podSpec = addFlinkConfig(getConfigMapName(flinkCluster.Name), podSpec)
+	podSpec = addHadoopConfig(flinkCluster.Spec.HadoopConfig, podSpec)
+	podSpec = addGCPConfig(flinkCluster.Spec.GCPConfig, podSpec)
+	podSpec.Containers = append(podSpec.Containers, taskManagerSpec.Sidecars...)
 
 	var pvcs []corev1.PersistentVolumeClaim
 	if taskManagerSpec.VolumeClaimTemplates != nil {
@@ -688,56 +627,24 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 	sbsVolume, sbsMount, confMount := convertSubmitJobScript(clusterName)
 	volumes = append(volumes, *sbsVolume)
 	volumeMounts = append(volumeMounts, *sbsMount, *confMount)
-
-	// Hadoop config.
-	var hcVolume, hcMount, hcEnv = convertHadoopConfig(clusterSpec.HadoopConfig)
-	if hcVolume != nil {
-		volumes = append(volumes, *hcVolume)
-	}
-	if hcMount != nil {
-		volumeMounts = append(volumeMounts, *hcMount)
-	}
-	if hcEnv != nil {
-		envVars = append(envVars, *hcEnv)
-	}
-
-	// GCP service account config.
-	var saVolume, saMount, saEnv = convertGCPConfig(clusterSpec.GCPConfig)
-	if saVolume != nil {
-		volumes = append(volumes, *saVolume)
-	}
-	if saMount != nil {
-		volumeMounts = append(volumeMounts, *saMount)
-	}
-	if saEnv != nil {
-		envVars = append(envVars, *saEnv)
-	}
+	hasRemoteFile := false
 
 	if jobSpec.JarFile != nil {
+		hasRemoteFile = isRemoteFile(*jobSpec.JarFile)
 		jobArgs = append(jobArgs, getLocalPath(*jobSpec.JarFile))
 		envVars = addEnvVar(envVars, jobJarUriEnvVar, *jobSpec.JarFile)
-		if isRemoteFile(*jobSpec.JarFile) {
-			volumes = addUsrLibVolume(volumes)
-			volumeMounts = addUsrLibVolumeMount(volumeMounts)
-		}
 	}
 
 	if jobSpec.PyFile != nil {
+		hasRemoteFile = isRemoteFile(*jobSpec.PyFile)
 		jobArgs = append(jobArgs, "--python", getLocalPath(*jobSpec.PyFile))
 		envVars = addEnvVar(envVars, jobPyFileUriEnvVar, *jobSpec.PyFile)
-		if isRemoteFile(*jobSpec.PyFile) {
-			volumes = addUsrLibVolume(volumes)
-			volumeMounts = addUsrLibVolumeMount(volumeMounts)
-		}
 	}
 
 	if jobSpec.PyFiles != nil {
+		hasRemoteFile = isRemoteFile(*jobSpec.PyFiles)
 		jobArgs = append(jobArgs, "--pyFiles", getLocalPath(*jobSpec.PyFiles))
 		envVars = addEnvVar(envVars, jobPyFilesUriEnvVar, *jobSpec.PyFiles)
-		if isRemoteFile(*jobSpec.PyFiles) {
-			volumes = addUsrLibVolume(volumes)
-			volumeMounts = addUsrLibVolumeMount(volumeMounts)
-		}
 	}
 
 	if jobSpec.PyModule != nil {
@@ -768,6 +675,12 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 		NodeSelector:       jobSpec.NodeSelector,
 		Tolerations:        jobSpec.Tolerations,
 	}
+	if hasRemoteFile {
+		podSpec = addUsrLib(podSpec)
+	}
+	podSpec = addFlinkConfig(getConfigMapName(flinkCluster.Name), podSpec)
+	podSpec = addHadoopConfig(flinkCluster.Spec.HadoopConfig, podSpec)
+	podSpec = addGCPConfig(flinkCluster.Spec.GCPConfig, podSpec)
 
 	// Disable the retry mechanism of k8s Job, all retries should be initiated
 	// by the operator based on the job restart policy. This is because Flink
@@ -830,15 +743,18 @@ func convertFromSavepoint(jobSpec *v1beta1.JobSpec, jobStatus *v1beta1.JobStatus
 	return nil
 }
 
-func addUsrLibVolume(volumes []corev1.Volume) []corev1.Volume {
-	return appendVolumes(volumes, corev1.Volume{Name: "usrlib"})
-}
-
-func addUsrLibVolumeMount(volumeMounts []corev1.VolumeMount) []corev1.VolumeMount {
-	return appendVolumeMounts(volumeMounts, corev1.VolumeMount{
+func addUsrLib(podSpec corev1.PodSpec) corev1.PodSpec {
+	var envVars []corev1.EnvVar
+	volumes := []corev1.Volume{{Name: "usrlib"}}
+	volumeMounts := []corev1.VolumeMount{{
 		Name:      "usrlib",
 		MountPath: usrLibDir,
-	})
+	}}
+
+	podSpec.Containers = convertContainers(podSpec.Containers, volumeMounts, envVars)
+	podSpec.InitContainers = convertContainers(podSpec.InitContainers, volumeMounts, envVars)
+	podSpec.Volumes = appendVolumes(podSpec.Volumes, volumes...)
+	return podSpec
 }
 
 func appendVolumes(volumes []corev1.Volume, newVolumes ...corev1.Volume) []corev1.Volume {
@@ -1100,24 +1016,28 @@ func calFlinkMemoryProcessSize(cluster *v1beta1.FlinkCluster) map[string]string 
 	return flinkProcessMemory
 }
 
-func convertFlinkConfig(clusterName string) (*corev1.Volume, *corev1.VolumeMount) {
-	var confVol *corev1.Volume
-	var confMount *corev1.VolumeMount
-	confVol = &corev1.Volume{
+func addFlinkConfig(name string, podSpec corev1.PodSpec) corev1.PodSpec {
+	var envVars []corev1.EnvVar
+	volumes := []corev1.Volume{{
 		Name: flinkConfigMapVolume,
 		VolumeSource: corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: getConfigMapName(clusterName),
+					Name: name,
 				},
 			},
 		},
-	}
-	confMount = &corev1.VolumeMount{
+	}}
+	volumeMounts := []corev1.VolumeMount{{
 		Name:      flinkConfigMapVolume,
 		MountPath: flinkConfigMapPath,
-	}
-	return confVol, confMount
+	}}
+
+	podSpec.Containers = convertContainers(podSpec.Containers, volumeMounts, envVars)
+	podSpec.InitContainers = convertContainers(podSpec.InitContainers, volumeMounts, envVars)
+	podSpec.Volumes = appendVolumes(podSpec.Volumes, volumes...)
+	return podSpec
+
 }
 
 func convertSubmitJobScript(clusterName string) (*corev1.Volume, *corev1.VolumeMount, *corev1.VolumeMount) {
@@ -1143,13 +1063,12 @@ func convertSubmitJobScript(clusterName string) (*corev1.Volume, *corev1.VolumeM
 	return confVol, scriptMount, confMount
 }
 
-func convertHadoopConfig(hadoopConfig *v1beta1.HadoopConfig) (
-	*corev1.Volume, *corev1.VolumeMount, *corev1.EnvVar) {
+func addHadoopConfig(hadoopConfig *v1beta1.HadoopConfig, podSpec corev1.PodSpec) corev1.PodSpec {
 	if hadoopConfig == nil {
-		return nil, nil, nil
+		return podSpec
 	}
 
-	var volume = &corev1.Volume{
+	var volumes = []corev1.Volume{{
 		Name: hadoopConfigVolume,
 		VolumeSource: corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -1158,26 +1077,30 @@ func convertHadoopConfig(hadoopConfig *v1beta1.HadoopConfig) (
 				},
 			},
 		},
-	}
-	var mount = &corev1.VolumeMount{
+	}}
+	var volumeMounts = []corev1.VolumeMount{{
 		Name:      hadoopConfigVolume,
 		MountPath: hadoopConfig.MountPath,
 		ReadOnly:  true,
-	}
-	var env = &corev1.EnvVar{
+	}}
+	var envVars = []corev1.EnvVar{{
 		Name:  hadoopConfDirEnvVar,
 		Value: hadoopConfig.MountPath,
-	}
-	return volume, mount, env
+	}}
+
+	podSpec.Containers = convertContainers(podSpec.Containers, volumeMounts, envVars)
+	podSpec.InitContainers = convertContainers(podSpec.InitContainers, volumeMounts, envVars)
+	podSpec.Volumes = appendVolumes(podSpec.Volumes, volumes...)
+	return podSpec
 }
 
-func convertGCPConfig(gcpConfig *v1beta1.GCPConfig) (*corev1.Volume, *corev1.VolumeMount, *corev1.EnvVar) {
+func addGCPConfig(gcpConfig *v1beta1.GCPConfig, podSpec corev1.PodSpec) corev1.PodSpec {
 	if gcpConfig == nil {
-		return nil, nil, nil
+		return podSpec
 	}
 
 	var saConfig = gcpConfig.ServiceAccount
-	var saVolume = &corev1.Volume{
+	var saVolume = corev1.Volume{
 		Name: gcpServiceAccountVolume,
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
@@ -1185,7 +1108,7 @@ func convertGCPConfig(gcpConfig *v1beta1.GCPConfig) (*corev1.Volume, *corev1.Vol
 			},
 		},
 	}
-	var saMount = &corev1.VolumeMount{
+	var saMount = corev1.VolumeMount{
 		Name:      gcpServiceAccountVolume,
 		MountPath: gcpConfig.ServiceAccount.MountPath,
 		ReadOnly:  true,
@@ -1193,11 +1116,19 @@ func convertGCPConfig(gcpConfig *v1beta1.GCPConfig) (*corev1.Volume, *corev1.Vol
 	if !strings.HasSuffix(saMount.MountPath, "/") {
 		saMount.MountPath = saMount.MountPath + "/"
 	}
-	var saEnv = &corev1.EnvVar{
+	
+	var saEnv = corev1.EnvVar{
 		Name:  gacEnvVar,
 		Value: saMount.MountPath + saConfig.KeyFile,
 	}
-	return saVolume, saMount, saEnv
+
+	volumes := []corev1.Volume{saVolume}
+	volumeMounts := []corev1.VolumeMount{saMount}
+	envVars := []corev1.EnvVar{saEnv}
+	podSpec.Containers = convertContainers(podSpec.Containers, volumeMounts, envVars)
+	podSpec.InitContainers = convertContainers(podSpec.InitContainers, volumeMounts, envVars)
+	podSpec.Volumes = appendVolumes(podSpec.Volumes, volumes...)
+	return podSpec
 }
 
 func getClusterLabels(cluster v1beta1.FlinkCluster) map[string]string {
