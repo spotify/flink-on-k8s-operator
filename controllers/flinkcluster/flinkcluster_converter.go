@@ -90,16 +90,7 @@ func getDesiredClusterState(observed *ObservedClusterState) model.DesiredCluster
 	}
 }
 
-// Gets the desired JobManager StatefulSet spec from the FlinkCluster spec.
-func getDesiredJobManagerStatefulSet(
-	flinkCluster *v1beta1.FlinkCluster) *appsv1.StatefulSet {
-
-	if shouldCleanup(flinkCluster, "JobManagerStatefulSet") {
-		return nil
-	}
-
-	var clusterNamespace = flinkCluster.Namespace
-	var clusterName = flinkCluster.Name
+func newJobManagerPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
 	var clusterSpec = flinkCluster.Spec
 	var imageSpec = clusterSpec.Image
 	var serviceAccount = clusterSpec.ServiceAccountName
@@ -112,11 +103,6 @@ func getDesiredJobManagerStatefulSet(
 	for _, port := range jobManagerSpec.ExtraPorts {
 		ports = append(ports, corev1.ContainerPort{Name: port.Name, ContainerPort: port.ContainerPort, Protocol: corev1.Protocol(port.Protocol)})
 	}
-	var jobManagerStatefulSetName = getJobManagerStatefulSetName(clusterName)
-	var podLabels = getComponentLabels(*flinkCluster, "jobmanager")
-	podLabels = mergeLabels(podLabels, jobManagerSpec.PodLabels)
-	var statefulSetLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
-	var securityContext = jobManagerSpec.SecurityContext
 
 	var containers = []corev1.Container{{
 		Name:            "jobmanager",
@@ -146,7 +132,7 @@ func getDesiredJobManagerStatefulSet(
 		NodeSelector:                  jobManagerSpec.NodeSelector,
 		Tolerations:                   jobManagerSpec.Tolerations,
 		ImagePullSecrets:              imageSpec.PullSecrets,
-		SecurityContext:               securityContext,
+		SecurityContext:               jobManagerSpec.SecurityContext,
 		ServiceAccountName:            getServiceAccountName(serviceAccount),
 		TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 	}
@@ -154,6 +140,27 @@ func getDesiredJobManagerStatefulSet(
 	setHadoopConfig(flinkCluster.Spec.HadoopConfig, podSpec)
 	setGCPConfig(flinkCluster.Spec.GCPConfig, podSpec)
 	podSpec.Containers = append(podSpec.Containers, jobManagerSpec.Sidecars...)
+
+	return podSpec
+}
+
+// Gets the desired JobManager StatefulSet spec from the FlinkCluster spec.
+func getDesiredJobManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1.StatefulSet {
+
+	if shouldCleanup(flinkCluster, "JobManagerStatefulSet") {
+		return nil
+	}
+
+	var jobManagerSpec = flinkCluster.Spec.JobManager
+	var jobManagerStatefulSetName = getJobManagerStatefulSetName(flinkCluster.Name)
+	var podLabels = getComponentLabels(*flinkCluster, "jobmanager")
+	podLabels = mergeLabels(podLabels, jobManagerSpec.PodLabels)
+	var statefulSetLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
+
+	podSpec := newJobManagerPodSpec(flinkCluster)
+	if podSpec == nil {
+		return nil
+	}
 
 	var pvcs []corev1.PersistentVolumeClaim
 	if jobManagerSpec.VolumeClaimTemplates != nil {
@@ -166,7 +173,7 @@ func getDesiredJobManagerStatefulSet(
 
 	var jobManagerStatefulSet = &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       clusterNamespace,
+			Namespace:       flinkCluster.Namespace,
 			Name:            jobManagerStatefulSetName,
 			OwnerReferences: []metav1.OwnerReference{ToOwnerReference(flinkCluster)},
 			Labels:          statefulSetLabels,
@@ -341,16 +348,7 @@ func getDesiredJobManagerIngress(
 	return jobManagerIngress
 }
 
-// Gets the desired TaskManager StatefulSet spec from a cluster spec.
-func getDesiredTaskManagerStatefulSet(
-	flinkCluster *v1beta1.FlinkCluster) *appsv1.StatefulSet {
-
-	if shouldCleanup(flinkCluster, "TaskManagerStatefulSet") {
-		return nil
-	}
-
-	var clusterNamespace = flinkCluster.Namespace
-	var clusterName = flinkCluster.Name
+func newTaskManagerPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
 	var clusterSpec = flinkCluster.Spec
 	var imageSpec = flinkCluster.Spec.Image
 	var serviceAccount = clusterSpec.ServiceAccountName
@@ -362,11 +360,6 @@ func getDesiredTaskManagerStatefulSet(
 	for _, port := range taskManagerSpec.ExtraPorts {
 		ports = append(ports, corev1.ContainerPort{Name: port.Name, ContainerPort: port.ContainerPort, Protocol: corev1.Protocol(port.Protocol)})
 	}
-	var taskManagerStatefulSetName = getTaskManagerStatefulSetName(clusterName)
-	var podLabels = getComponentLabels(*flinkCluster, "taskmanager")
-	podLabels = mergeLabels(podLabels, taskManagerSpec.PodLabels)
-	var statefulSetLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
-	var securityContext = taskManagerSpec.SecurityContext
 
 	var envVars = []corev1.EnvVar{
 		{
@@ -421,7 +414,7 @@ func getDesiredTaskManagerStatefulSet(
 		NodeSelector:                  taskManagerSpec.NodeSelector,
 		Tolerations:                   taskManagerSpec.Tolerations,
 		ImagePullSecrets:              imageSpec.PullSecrets,
-		SecurityContext:               securityContext,
+		SecurityContext:               taskManagerSpec.SecurityContext,
 		ServiceAccountName:            getServiceAccountName(serviceAccount),
 		TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 	}
@@ -429,6 +422,27 @@ func getDesiredTaskManagerStatefulSet(
 	setHadoopConfig(flinkCluster.Spec.HadoopConfig, podSpec)
 	setGCPConfig(flinkCluster.Spec.GCPConfig, podSpec)
 	podSpec.Containers = append(podSpec.Containers, taskManagerSpec.Sidecars...)
+
+	return podSpec
+}
+
+// Gets the desired TaskManager StatefulSet spec from a cluster spec.
+func getDesiredTaskManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1.StatefulSet {
+
+	if shouldCleanup(flinkCluster, "TaskManagerStatefulSet") {
+		return nil
+	}
+
+	var taskManagerSpec = flinkCluster.Spec.TaskManager
+	var taskManagerStatefulSetName = getTaskManagerStatefulSetName(flinkCluster.Name)
+	var podLabels = getComponentLabels(*flinkCluster, "taskmanager")
+	podLabels = mergeLabels(podLabels, taskManagerSpec.PodLabels)
+	var statefulSetLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
+
+	podSpec := newTaskManagerPodSpec(flinkCluster)
+	if podSpec == nil {
+		return nil
+	}
 
 	var pvcs []corev1.PersistentVolumeClaim
 	if taskManagerSpec.VolumeClaimTemplates != nil {
@@ -441,7 +455,7 @@ func getDesiredTaskManagerStatefulSet(
 
 	var taskManagerStatefulSet = &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: clusterNamespace,
+			Namespace: flinkCluster.Namespace,
 			Name:      taskManagerStatefulSetName,
 			OwnerReferences: []metav1.OwnerReference{
 				ToOwnerReference(flinkCluster)},
@@ -540,36 +554,21 @@ func getDesiredConfigMap(
 	return configMap
 }
 
-// Gets the desired job spec from a cluster spec.
-func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
-	var flinkCluster = observed.cluster
-	var recorded = flinkCluster.Status
+func newJobSubmitterPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
 	var jobSpec = flinkCluster.Spec.Job
-	var jobStatus = recorded.Components.Job
-
 	if jobSpec == nil {
 		return nil
 	}
 
-	// When the job should be stopped, keep that state unless update is triggered or the job must to be restarted.
-	if (shouldStopJob(flinkCluster) || jobStatus.IsStopped()) &&
-		(!shouldUpdateJob(observed) && !jobStatus.ShouldRestart(jobSpec)) {
-		return nil
-	}
-
+	var status = flinkCluster.Status
 	var clusterSpec = flinkCluster.Spec
 	var imageSpec = clusterSpec.Image
 	var serviceAccount = clusterSpec.ServiceAccountName
 	var jobManagerSpec = clusterSpec.JobManager
-	var clusterNamespace = flinkCluster.Namespace
 	var clusterName = flinkCluster.Name
-	var jobName = getJobName(clusterName)
 	var jobManagerServiceName = clusterName + "-jobmanager"
 	var jobManagerAddress = fmt.Sprintf(
 		"%s:%d", jobManagerServiceName, *jobManagerSpec.Ports.UI)
-	var podLabels = getClusterLabels(*flinkCluster)
-	podLabels = mergeLabels(podLabels, jobManagerSpec.PodLabels)
-	var jobLabels = mergeLabels(podLabels, getRevisionHashLabels(&recorded.Revision))
 
 	var jobArgs = []string{"bash", submitJobScriptPath}
 	jobArgs = append(jobArgs, "--jobmanager", jobManagerAddress)
@@ -577,7 +576,7 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 		jobArgs = append(jobArgs, "--class", *jobSpec.ClassName)
 	}
 
-	var fromSavepoint = convertFromSavepoint(jobSpec, jobStatus, &recorded.Revision)
+	var fromSavepoint = convertFromSavepoint(jobSpec, status.Components.Job, &status.Revision)
 	if fromSavepoint != nil {
 		jobArgs = append(jobArgs, "--fromSavepoint", *fromSavepoint)
 	}
@@ -678,6 +677,37 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 	setHadoopConfig(flinkCluster.Spec.HadoopConfig, podSpec)
 	setGCPConfig(flinkCluster.Spec.GCPConfig, podSpec)
 
+	return podSpec
+}
+
+// Gets the desired job spec from a cluster spec.
+func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
+	var flinkCluster = observed.cluster
+	var recorded = flinkCluster.Status
+	var jobSpec = flinkCluster.Spec.Job
+	var jobStatus = recorded.Components.Job
+
+	if jobSpec == nil {
+		return nil
+	}
+
+	// When the job should be stopped, keep that state unless update is triggered or the job must to be restarted.
+	if (shouldStopJob(flinkCluster) || jobStatus.IsStopped()) &&
+		(!shouldUpdateJob(observed) && !jobStatus.ShouldRestart(jobSpec)) {
+		return nil
+	}
+
+	var jobManagerSpec = flinkCluster.Spec.JobManager
+	var jobName = getJobName(flinkCluster.Name)
+	var podLabels = getClusterLabels(*flinkCluster)
+	podLabels = mergeLabels(podLabels, jobManagerSpec.PodLabels)
+	var jobLabels = mergeLabels(podLabels, getRevisionHashLabels(&recorded.Revision))
+
+	podSpec := newJobSubmitterPodSpec(flinkCluster)
+	if podSpec == nil {
+		return nil
+	}
+
 	// Disable the retry mechanism of k8s Job, all retries should be initiated
 	// by the operator based on the job restart policy. This is because Flink
 	// jobs are stateful, if a job fails after running for 10 hours, we probably
@@ -688,7 +718,7 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 	var backoffLimit int32 = 0
 	var job = &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: clusterNamespace,
+			Namespace: flinkCluster.Namespace,
 			Name:      jobName,
 			OwnerReferences: []metav1.OwnerReference{
 				ToOwnerReference(flinkCluster)},
