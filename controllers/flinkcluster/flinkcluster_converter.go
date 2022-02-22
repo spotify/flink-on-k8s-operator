@@ -609,10 +609,6 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 	var envVars []corev1.EnvVar
 	envVars = append(envVars,
 		corev1.EnvVar{
-			Name:  usrLibPathEnvVar,
-			Value: usrLibDir,
-		},
-		corev1.EnvVar{
 			Name:  jobManagerAddrEnvVar,
 			Value: jobManagerAddress,
 		})
@@ -744,11 +740,14 @@ func convertFromSavepoint(jobSpec *v1beta1.JobSpec, jobStatus *v1beta1.JobStatus
 }
 
 func addUsrLib(podSpec corev1.PodSpec) corev1.PodSpec {
-	var envVars []corev1.EnvVar
 	volumes := []corev1.Volume{{Name: "usrlib"}}
 	volumeMounts := []corev1.VolumeMount{{
 		Name:      "usrlib",
 		MountPath: usrLibDir,
+	}}
+	envVars := []corev1.EnvVar{{
+		Name:  usrLibPathEnvVar,
+		Value: usrLibDir,
 	}}
 
 	podSpec.Containers = convertContainers(podSpec.Containers, volumeMounts, envVars)
@@ -1116,7 +1115,7 @@ func addGCPConfig(gcpConfig *v1beta1.GCPConfig, podSpec corev1.PodSpec) corev1.P
 	if !strings.HasSuffix(saMount.MountPath, "/") {
 		saMount.MountPath = saMount.MountPath + "/"
 	}
-	
+
 	var saEnv = corev1.EnvVar{
 		Name:  gacEnvVar,
 		Value: saMount.MountPath + saConfig.KeyFile,
