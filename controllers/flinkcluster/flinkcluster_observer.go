@@ -268,111 +268,63 @@ func (observer *ClusterStateObserver) observeJob(
 		return nil
 	}
 	var log = observer.log
-
 	// Extract the log stream from pod only when the job state is Deploying.
 	var recordedJob = observed.cluster.Status.Components.Job
+	var jobName = getJobName(observed.cluster.Name)
 
+	// Job resource.
+	job := new(batchv1.Job)
+	if err := observer.observeJobSubmitter(jobName, job); err != nil {
+		log.Error(err, "Failed to get the job submitter")
+		job = nil
+	}
+
+	// Get job submitter pod resource.
+	jobPod := new(corev1.Pod)
+	if err := observer.observeJobSubmitterPod(jobName, jobPod); err != nil {
+		log.Error(err, "Failed to get the submitter pod")
+		jobPod = nil
+	}
+
+	var submitterLog *SubmitterLog
 	// Extract submission result only when it is in deployment progress.
 	// It is not necessary to get the log stream from the submitter pod always.
 	var jobDeployInProgress = recordedJob != nil && recordedJob.State == v1beta1.JobStateDeploying
-	if !jobDeployInProgress {
-		return nil
+	if jobPod != nil && jobDeployInProgress {
+		var err error
+		submitterLog, err = getFlinkJobSubmitLog(observer.k8sClientset, jobPod)
+		if err != nil {
+			// Error occurred while pulling log stream from the job submitter pod.
+			// In this case the operator must return the error and retry in the next reconciliation iteration.
+			log.Error(err, "Failed to get log stream from the job submitter pod. Will try again in the next iteration.")
+			submitterLog = nil
+		}
 	}
 
-	var jobName = getJobName(observed.cluster.Name)
-	// Observe the Flink job submitter.
-	var submitter FlinkJobSubmitter
-	if err := observer.observeSubmitter(jobName, &submitter); err != nil {
-		log.Error(err, "Failed to get the status of the job submitter")
-	}
-	observed.flinkJobSubmitter = submitter
-
-	// Observe the Flink job status.
-	var flinkJobID string
-	if jobId, ok := submitter.pod.Labels["job-id"]; ok {
-		flinkJobID = jobId
-	} else
-	// Get the ID from the job submitter.
-	if submitter.log != nil && submitter.log.jobID != "" {
-		flinkJobID = submitter.log.jobID
-	} else
-	// Or get the job ID from the recorded job status which is written in previous iteration.
-	if recordedJob != nil {
-		flinkJobID = recordedJob.ID
+	observed.flinkJobSubmitter = FlinkJobSubmitter{
+		job: job,
+		pod: jobPod,
+		log: submitterLog,
 	}
 
-	// Wait until the job manager is ready.
-	var observedFlinkJob FlinkJob
 	// Wait until the job manager is ready.
 	jmReady := observed.jmStatefulSet != nil && getStatefulSetState(observed.jmStatefulSet) == v1beta1.ComponentStateReady
 	if jmReady {
-		observer.observeFlinkJobStatus(observed, flinkJobID, &observedFlinkJob)
-	}
-	observed.flinkJob = observedFlinkJob
-
-	return nil
-}
-
-func (observer *ClusterStateObserver) observeSubmitter(jobName string, submitter *FlinkJobSubmitter) error {
-	var log = observer.log
-	var err error
-
-	// Observe following
-	var job *batchv1.Job
-	var pod *corev1.Pod
-	var podLog *SubmitterLog
-
-	// Job resource.
-	job = new(batchv1.Job)
-	err = observer.observeJobSubmitter(jobName, job)
-	if err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			log.Error(err, "Failed to get the job submitter")
-			return err
+		// Observe the Flink job status.
+		var flinkJobID string
+		if jobId, ok := jobPod.Labels["job-id"]; ok {
+			flinkJobID = jobId
+		} else
+		// Get the ID from the job submitter.
+		if submitterLog != nil && submitterLog.jobID != "" {
+			flinkJobID = submitterLog.jobID
+		} else
+		// Or get the job ID from the recorded job status which is written in previous iteration.
+		if recordedJob != nil {
+			flinkJobID = recordedJob.ID
 		}
-		log.Info("Observed job submitter", "state", "nil")
-		job = nil
-	} else {
-		log.Info("Observed submitter job", "state", *job)
+		observer.observeFlinkJobStatus(observed, flinkJobID, &observed.flinkJob)
 	}
-	submitter.job = job
-
-	// Get the job submission log.
-	// When the recorded job state is pending or updating, and the actual submission is completed,
-	// extract the job submission log from the pod termination log.
-	if submitter.job == nil {
-		return nil
-	}
-	// Get job submitter pod resource.
-	pod = new(corev1.Pod)
-	err = observer.observeJobSubmitterPod(jobName, pod)
-	if err != nil {
-		log.Error(err, "Failed to get the submitter pod")
-		return err
-	} else if pod == nil {
-		log.Info("Observed submitter job pod", "state", "nil")
-		return nil
-	} else {
-		log.Info("Observed submitter job pod", "state", *pod)
-	}
-	submitter.pod = pod
-
-	log.Info("Extracting the result of job submission because it is completed")
-	podLog, err = getFlinkJobSubmitLog(observer.k8sClientset, pod)
-	if err != nil {
-		// Error occurred while pulling log stream from the job submitter pod.
-		// In this case the operator must return the error and retry in the next reconciliation iteration.
-		log.Error(err, "Failed to get log stream from the job submitter pod. Will try again in the next iteration.")
-		return err
-	} else {
-		log.Info("Observed job submitter log", "submitter log", podLog.message)
-		if podLog.jobID != "" {
-			log.Info("Observed job submitter: Flink job ID found", "job ID", podLog.jobID)
-		} else {
-			log.Info("Observed job submitter: Flink job ID not found yet")
-		}
-	}
-	submitter.log = podLog
 
 	return nil
 }
