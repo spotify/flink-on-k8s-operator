@@ -27,9 +27,8 @@ import (
 	scheduling "volcano.sh/apis/pkg/apis/scheduling/v1beta1"
 	volcanoclient "volcano.sh/apis/pkg/client/clientset/versioned"
 
-	"github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
-	schedulerinterface "github.com/spotify/flink-on-k8s-operator/controllers/flinkcluster/batchscheduler/interface"
-	"github.com/spotify/flink-on-k8s-operator/controllers/flinkcluster/model"
+	schedulerinterface "github.com/spotify/flink-on-k8s-operator/internal/batchscheduler/types"
+	"github.com/spotify/flink-on-k8s-operator/internal/model"
 )
 
 const (
@@ -64,8 +63,10 @@ func (v *VolcanoBatchScheduler) Name() string {
 }
 
 // Schedule reconciles batch scheduling
-func (v *VolcanoBatchScheduler) Schedule(cluster *v1beta1.FlinkCluster, state *model.DesiredClusterState) error {
-	pg, err := v.syncPodGroup(cluster, state)
+func (v *VolcanoBatchScheduler) Schedule(
+	options schedulerinterface.SchedulerOptions,
+	state *model.DesiredClusterState) error {
+	pg, err := v.syncPodGroup(options, state)
 	if err != nil {
 		return err
 	}
@@ -99,49 +100,18 @@ func (v *VolcanoBatchScheduler) setSchedulerMeta(pg *scheduling.PodGroup, state 
 	}
 }
 
-func (v *VolcanoBatchScheduler) getPodGroupName(cluster *v1beta1.FlinkCluster) string {
-	return fmt.Sprintf(podGroupNameFormat, cluster.Name)
-}
-
-// Converts the FlinkCluster as owner reference for its child resources.
-func newOwnerReference(flinkCluster *v1beta1.FlinkCluster) metav1.OwnerReference {
-	return metav1.OwnerReference{
-		APIVersion:         flinkCluster.APIVersion,
-		Kind:               flinkCluster.Kind,
-		Name:               flinkCluster.Name,
-		UID:                flinkCluster.UID,
-		Controller:         &[]bool{true}[0],
-		BlockOwnerDeletion: &[]bool{false}[0],
-	}
-}
-
-func (v *VolcanoBatchScheduler) getPodGroup(cluster *v1beta1.FlinkCluster) (*scheduling.PodGroup, error) {
-	podGroupName := v.getPodGroupName(cluster)
+func (v *VolcanoBatchScheduler) getPodGroup(podGroupName, namespace string) (*scheduling.PodGroup, error) {
 	return v.volcanoClient.
 		SchedulingV1beta1().
-		PodGroups(cluster.Namespace).
+		PodGroups(namespace).
 		Get(context.TODO(), podGroupName, metav1.GetOptions{})
 }
 
-func (v *VolcanoBatchScheduler) createPodGroup(cluster *v1beta1.FlinkCluster, size int32, minResource corev1.ResourceList) (*scheduling.PodGroup, error) {
-	pg := scheduling.PodGroup{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       cluster.Namespace,
-			Name:            v.getPodGroupName(cluster),
-			OwnerReferences: []metav1.OwnerReference{newOwnerReference(cluster)},
-		},
-		Spec: scheduling.PodGroupSpec{
-			MinMember:         size,
-			MinResources:      &minResource,
-			Queue:             cluster.Spec.BatchScheduler.Queue,
-			PriorityClassName: cluster.Spec.BatchScheduler.PriorityClassName,
-		},
-	}
-
+func (v *VolcanoBatchScheduler) createPodGroup(pg *scheduling.PodGroup) (*scheduling.PodGroup, error) {
 	return v.volcanoClient.
 		SchedulingV1beta1().
 		PodGroups(pg.Namespace).
-		Create(context.TODO(), &pg, metav1.CreateOptions{})
+		Create(context.TODO(), pg, metav1.CreateOptions{})
 }
 
 func (v *VolcanoBatchScheduler) updatePodGroup(pg *scheduling.PodGroup) (*scheduling.PodGroup, error) {
@@ -151,18 +121,22 @@ func (v *VolcanoBatchScheduler) updatePodGroup(pg *scheduling.PodGroup) (*schedu
 		Update(context.TODO(), pg, metav1.UpdateOptions{})
 }
 
-func (v *VolcanoBatchScheduler) deletePodGroup(cluster *v1beta1.FlinkCluster) error {
-	podGroupName := v.getPodGroupName(cluster)
+func (v *VolcanoBatchScheduler) deletePodGroup(podGroupName, namespace string) error {
 	return v.volcanoClient.
 		SchedulingV1beta1().
-		PodGroups(cluster.Namespace).
+		PodGroups(namespace).
 		Delete(context.TODO(), podGroupName, metav1.DeleteOptions{})
 }
 
-func (v *VolcanoBatchScheduler) syncPodGroup(cluster *v1beta1.FlinkCluster, state *model.DesiredClusterState) (*scheduling.PodGroup, error) {
+func (v *VolcanoBatchScheduler) syncPodGroup(
+	options schedulerinterface.SchedulerOptions,
+	state *model.DesiredClusterState) (*scheduling.PodGroup, error) {
+	podGroupName := fmt.Sprintf(podGroupNameFormat, options.ClusterName)
+	namespace := options.ClusterNamespace
+
 	if state.JmStatefulSet == nil && state.TmStatefulSet == nil {
 		// remove the podgroup if the JobManager/TaskManager statefulset are not set
-		err := v.deletePodGroup(cluster)
+		err := v.deletePodGroup(podGroupName, namespace)
 		if !errors.IsNotFound(err) {
 			return nil, err
 		}
@@ -171,12 +145,25 @@ func (v *VolcanoBatchScheduler) syncPodGroup(cluster *v1beta1.FlinkCluster, stat
 	}
 
 	minResource, size := getClusterResource(state)
-	pg, err := v.getPodGroup(cluster)
+	pg, err := v.getPodGroup(podGroupName, namespace)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return nil, err
 		}
-		return v.createPodGroup(cluster, size, minResource)
+		pg := scheduling.PodGroup{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace:       namespace,
+				Name:            podGroupName,
+				OwnerReferences: options.OwnerReferences,
+			},
+			Spec: scheduling.PodGroupSpec{
+				MinMember:         size,
+				MinResources:      &minResource,
+				Queue:             options.Queue,
+				PriorityClassName: options.PriorityClassName,
+			},
+		}
+		return v.createPodGroup(&pg)
 	}
 
 	if pg.Spec.MinMember != size {
