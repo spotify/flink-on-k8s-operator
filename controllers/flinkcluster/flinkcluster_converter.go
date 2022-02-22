@@ -139,7 +139,7 @@ func getDesiredJobManagerStatefulSet(
 		},
 	}}
 
-	var podSpec = corev1.PodSpec{
+	var podSpec = &corev1.PodSpec{
 		InitContainers:                jobManagerSpec.InitContainers,
 		Containers:                    containers,
 		Volumes:                       jobManagerSpec.Volumes,
@@ -150,9 +150,9 @@ func getDesiredJobManagerStatefulSet(
 		ServiceAccountName:            getServiceAccountName(serviceAccount),
 		TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 	}
-	podSpec = addFlinkConfig(getConfigMapName(flinkCluster.Name), podSpec)
-	podSpec = addHadoopConfig(flinkCluster.Spec.HadoopConfig, podSpec)
-	podSpec = addGCPConfig(flinkCluster.Spec.GCPConfig, podSpec)
+	setFlinkConfig(getConfigMapName(flinkCluster.Name), podSpec)
+	setHadoopConfig(flinkCluster.Spec.HadoopConfig, podSpec)
+	setGCPConfig(flinkCluster.Spec.GCPConfig, podSpec)
 	podSpec.Containers = append(podSpec.Containers, jobManagerSpec.Sidecars...)
 
 	var pvcs []corev1.PersistentVolumeClaim
@@ -181,7 +181,7 @@ func getDesiredJobManagerStatefulSet(
 					Labels:      podLabels,
 					Annotations: jobManagerSpec.PodAnnotations,
 				},
-				Spec: podSpec,
+				Spec: *podSpec,
 			},
 		},
 	}
@@ -414,7 +414,7 @@ func getDesiredTaskManagerStatefulSet(
 		},
 	}}
 
-	var podSpec = corev1.PodSpec{
+	var podSpec = &corev1.PodSpec{
 		InitContainers:                taskManagerSpec.InitContainers,
 		Containers:                    containers,
 		Volumes:                       taskManagerSpec.Volumes,
@@ -425,9 +425,9 @@ func getDesiredTaskManagerStatefulSet(
 		ServiceAccountName:            getServiceAccountName(serviceAccount),
 		TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 	}
-	podSpec = addFlinkConfig(getConfigMapName(flinkCluster.Name), podSpec)
-	podSpec = addHadoopConfig(flinkCluster.Spec.HadoopConfig, podSpec)
-	podSpec = addGCPConfig(flinkCluster.Spec.GCPConfig, podSpec)
+	setFlinkConfig(getConfigMapName(flinkCluster.Name), podSpec)
+	setHadoopConfig(flinkCluster.Spec.HadoopConfig, podSpec)
+	setGCPConfig(flinkCluster.Spec.GCPConfig, podSpec)
 	podSpec.Containers = append(podSpec.Containers, taskManagerSpec.Sidecars...)
 
 	var pvcs []corev1.PersistentVolumeClaim
@@ -458,7 +458,7 @@ func getDesiredTaskManagerStatefulSet(
 					Labels:      podLabels,
 					Annotations: taskManagerSpec.PodAnnotations,
 				},
-				Spec: podSpec,
+				Spec: *podSpec,
 			},
 		},
 	}
@@ -649,7 +649,7 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 
 	jobArgs = append(jobArgs, jobSpec.Args...)
 
-	var podSpec = corev1.PodSpec{
+	var podSpec = &corev1.PodSpec{
 		InitContainers: convertContainers(jobSpec.InitContainers, volumeMounts, envVars),
 		Containers: []corev1.Container{
 			{
@@ -672,11 +672,11 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 		Tolerations:        jobSpec.Tolerations,
 	}
 	if hasRemoteFile {
-		podSpec = addUsrLib(podSpec)
+		setUsrLib(podSpec)
 	}
-	podSpec = addFlinkConfig(getConfigMapName(flinkCluster.Name), podSpec)
-	podSpec = addHadoopConfig(flinkCluster.Spec.HadoopConfig, podSpec)
-	podSpec = addGCPConfig(flinkCluster.Spec.GCPConfig, podSpec)
+	setFlinkConfig(getConfigMapName(flinkCluster.Name), podSpec)
+	setHadoopConfig(flinkCluster.Spec.HadoopConfig, podSpec)
+	setGCPConfig(flinkCluster.Spec.GCPConfig, podSpec)
 
 	// Disable the retry mechanism of k8s Job, all retries should be initiated
 	// by the operator based on the job restart policy. This is because Flink
@@ -700,7 +700,7 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 					Labels:      podLabels,
 					Annotations: jobSpec.PodAnnotations,
 				},
-				Spec: podSpec,
+				Spec: *podSpec,
 			},
 			BackoffLimit: &backoffLimit,
 		},
@@ -739,7 +739,7 @@ func convertFromSavepoint(jobSpec *v1beta1.JobSpec, jobStatus *v1beta1.JobStatus
 	return nil
 }
 
-func addUsrLib(podSpec corev1.PodSpec) corev1.PodSpec {
+func setUsrLib(podSpec *corev1.PodSpec) bool {
 	volumes := []corev1.Volume{{Name: "usrlib"}}
 	volumeMounts := []corev1.VolumeMount{{
 		Name:      "usrlib",
@@ -753,7 +753,7 @@ func addUsrLib(podSpec corev1.PodSpec) corev1.PodSpec {
 	podSpec.Containers = convertContainers(podSpec.Containers, volumeMounts, envVars)
 	podSpec.InitContainers = convertContainers(podSpec.InitContainers, volumeMounts, envVars)
 	podSpec.Volumes = appendVolumes(podSpec.Volumes, volumes...)
-	return podSpec
+	return true
 }
 
 func appendVolumes(volumes []corev1.Volume, newVolumes ...corev1.Volume) []corev1.Volume {
@@ -1015,7 +1015,7 @@ func calFlinkMemoryProcessSize(cluster *v1beta1.FlinkCluster) map[string]string 
 	return flinkProcessMemory
 }
 
-func addFlinkConfig(name string, podSpec corev1.PodSpec) corev1.PodSpec {
+func setFlinkConfig(name string, podSpec *corev1.PodSpec) bool {
 	var envVars []corev1.EnvVar
 	volumes := []corev1.Volume{{
 		Name: flinkConfigMapVolume,
@@ -1035,8 +1035,7 @@ func addFlinkConfig(name string, podSpec corev1.PodSpec) corev1.PodSpec {
 	podSpec.Containers = convertContainers(podSpec.Containers, volumeMounts, envVars)
 	podSpec.InitContainers = convertContainers(podSpec.InitContainers, volumeMounts, envVars)
 	podSpec.Volumes = appendVolumes(podSpec.Volumes, volumes...)
-	return podSpec
-
+	return true
 }
 
 func convertSubmitJobScript(clusterName string) (*corev1.Volume, *corev1.VolumeMount, *corev1.VolumeMount) {
@@ -1062,9 +1061,9 @@ func convertSubmitJobScript(clusterName string) (*corev1.Volume, *corev1.VolumeM
 	return confVol, scriptMount, confMount
 }
 
-func addHadoopConfig(hadoopConfig *v1beta1.HadoopConfig, podSpec corev1.PodSpec) corev1.PodSpec {
+func setHadoopConfig(hadoopConfig *v1beta1.HadoopConfig, podSpec *corev1.PodSpec) bool {
 	if hadoopConfig == nil {
-		return podSpec
+		return false
 	}
 
 	var volumes = []corev1.Volume{{
@@ -1090,12 +1089,12 @@ func addHadoopConfig(hadoopConfig *v1beta1.HadoopConfig, podSpec corev1.PodSpec)
 	podSpec.Containers = convertContainers(podSpec.Containers, volumeMounts, envVars)
 	podSpec.InitContainers = convertContainers(podSpec.InitContainers, volumeMounts, envVars)
 	podSpec.Volumes = appendVolumes(podSpec.Volumes, volumes...)
-	return podSpec
+	return true
 }
 
-func addGCPConfig(gcpConfig *v1beta1.GCPConfig, podSpec corev1.PodSpec) corev1.PodSpec {
+func setGCPConfig(gcpConfig *v1beta1.GCPConfig, podSpec *corev1.PodSpec) bool {
 	if gcpConfig == nil {
-		return podSpec
+		return false
 	}
 
 	var saConfig = gcpConfig.ServiceAccount
@@ -1127,7 +1126,7 @@ func addGCPConfig(gcpConfig *v1beta1.GCPConfig, podSpec corev1.PodSpec) corev1.P
 	podSpec.Containers = convertContainers(podSpec.Containers, volumeMounts, envVars)
 	podSpec.InitContainers = convertContainers(podSpec.InitContainers, volumeMounts, envVars)
 	podSpec.Volumes = appendVolumes(podSpec.Volumes, volumes...)
-	return podSpec
+	return true
 }
 
 func getClusterLabels(cluster v1beta1.FlinkCluster) map[string]string {
