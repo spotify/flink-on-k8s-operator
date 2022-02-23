@@ -41,8 +41,7 @@ var testEnv *envtest.Environment
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 
-	RunSpecs(t,
-		"v1beta1 Suite")
+	RunSpecs(t, "v1beta1 Suite")
 }
 
 var _ = BeforeSuite(func() {
