@@ -43,8 +43,9 @@ const (
 
 // JobMode defines the running mode for the job.
 const (
-	JobModeBlocking = "Blocking"
-	JobModeDetached = "Detached"
+	JobModeBlocking    = "Blocking"
+	JobModeApplication = "Application"
+	JobModeDetached    = "Detached"
 )
 
 type JobMode string

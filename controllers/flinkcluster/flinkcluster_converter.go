@@ -112,7 +112,7 @@ func newJobManagerPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
 	envVars = append(envVars, flinkCluster.Spec.EnvVars...)
 	jobSpec := flinkCluster.Spec.Job
 	addUsrLib := false
-	if jobSpec != nil && *jobSpec.Mode == v1beta1.JobModeBlocking && jobSpec.JarFile != nil {
+	if jobSpec != nil && *jobSpec.Mode == v1beta1.JobModeApplication && jobSpec.JarFile != nil {
 		envVars = addEnvVar(envVars, jobJarUriEnvVar, *jobSpec.JarFile)
 		addUsrLib = isRemoteFile(*jobSpec.JarFile)
 		args = []string{"standalone-job"}
@@ -189,7 +189,7 @@ func getDesiredJobManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1
 		return nil
 	}
 	if flinkCluster.Spec.Job != nil &&
-		*flinkCluster.Spec.Job.Mode == v1beta1.JobModeBlocking {
+		*flinkCluster.Spec.Job.Mode == v1beta1.JobModeApplication {
 		return nil
 	}
 
@@ -430,7 +430,7 @@ func newTaskManagerPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
 
 	jobSpec := flinkCluster.Spec.Job
 	addUsrLib := false
-	if jobSpec != nil && *jobSpec.Mode == v1beta1.JobModeBlocking && jobSpec.JarFile != nil {
+	if jobSpec != nil && *jobSpec.Mode == v1beta1.JobModeApplication && jobSpec.JarFile != nil {
 		envVars = addEnvVar(envVars, jobJarUriEnvVar, *jobSpec.JarFile)
 		addUsrLib = isRemoteFile(*jobSpec.JarFile)
 	}
@@ -647,12 +647,8 @@ func newJobSubmitterPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec 
 		jobArgs = append(jobArgs, "--sysoutLogging")
 	}
 
-	if jobSpec.Mode != nil {
-		switch *jobSpec.Mode {
-		case v1beta1.JobModeBlocking:
-		case v1beta1.JobModeDetached:
-			jobArgs = append(jobArgs, "--detached")
-		}
+	if jobSpec.Mode != nil && *jobSpec.Mode == v1beta1.JobModeDetached {
+		jobArgs = append(jobArgs, "--detached")
 	}
 
 	var securityContext = jobSpec.SecurityContext
@@ -852,7 +848,7 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 		return nil
 	}
 
-	if *jobSpec.Mode == v1beta1.JobModeBlocking {
+	if *jobSpec.Mode == v1beta1.JobModeApplication {
 		return getDesiredJobManagerJob(flinkCluster)
 	} else {
 		return getDesiredSubmitterJob(flinkCluster)
