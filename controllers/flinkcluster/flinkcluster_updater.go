@@ -63,7 +63,7 @@ func (updater *ClusterStatusUpdater) updateStatusIfChanged() (
 
 	// New status derived from the cluster's components.
 	var newStatus = updater.deriveClusterStatus(
-		&updater.observed.cluster.Status, &updater.observed)
+		updater.observed.cluster, &updater.observed)
 
 	// Compare
 	var changed = updater.isStatusChanged(oldStatus, newStatus)
@@ -187,12 +187,20 @@ func (updater *ClusterStatusUpdater) createStatusChangeEvent(
 }
 
 func (updater *ClusterStatusUpdater) deriveClusterStatus(
-	recorded *v1beta1.FlinkClusterStatus,
+	cluster *v1beta1.FlinkCluster,
 	observed *ObservedClusterState) v1beta1.FlinkClusterStatus {
+	var totalComponents int
+	if IsApplicationModeCluster(cluster) {
+		// jmService, tmStatefulSet.
+		totalComponents = 2
+	} else {
+		// jmStatefulSet, jmService, tmStatefulSet.
+		totalComponents = 3
+	}
+
+	var recorded = cluster.Status
 	var status = v1beta1.FlinkClusterStatus{}
 	var runningComponents = 0
-	// jmStatefulSet, jmService, tmStatefulSet.
-	var totalComponents = 3
 
 	// ConfigMap.
 	var observedConfigMap = observed.configMap
@@ -504,10 +512,16 @@ func (updater *ClusterStatusUpdater) getFlinkJobID() *string {
 		return &observedFlinkJob.Id
 	}
 
+	var observedJobSubmitter = updater.observed.flinkJobSubmitter
+	if observedJobSubmitter.pod != nil {
+		if jobId, ok := observedJobSubmitter.pod.Labels["job-id"]; ok && jobId != "" {
+			return &jobId
+		}
+	}
+
 	// Observed from job submitter (when Flink API is not ready).
-	var observedJobSubmitterLog = updater.observed.flinkJobSubmitter.log
-	if observedJobSubmitterLog != nil && observedJobSubmitterLog.jobID != "" {
-		return &observedJobSubmitterLog.jobID
+	if observedJobSubmitter.log != nil && observedJobSubmitter.log.jobID != "" {
+		return &observedJobSubmitter.log.jobID
 	}
 
 	// Recorded.
@@ -567,6 +581,14 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 		}
 		newJob.ID = observedFlinkJob.Id
 		newJob.Name = observedFlinkJob.Name
+	case oldJob.IsActive() && observedSubmitter.job != nil && observedSubmitter.job.Status.Active == 0:
+		if observedSubmitter.job.Status.Succeeded == 1 {
+			newJobState = v1beta1.JobStateSucceeded
+		} else if observedSubmitter.job.Status.Failed == 1 {
+			newJobState = v1beta1.JobStateFailed
+		} else {
+			newJobState = oldJob.State
+		}
 	// When Flink job not found in JobManager or JobManager is unavailable
 	case isFlinkAPIReady(observed.flinkJob.list):
 		if oldJob.State == v1beta1.JobStateRunning {

@@ -816,8 +816,9 @@ func TestGetDesiredClusterState(t *testing.T) {
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"app":     "flink",
-						"cluster": "flinkjobcluster-sample",
+						"app":                                "flink",
+						"cluster":                            "flinkjobcluster-sample",
+						"flinkoperator.k8s.io/revision-name": "flinkjobcluster-sample-85dc8f749",
 					},
 					Annotations: map[string]string{
 						"example.com": "example",
@@ -1036,6 +1037,7 @@ func TestSecurityContext(t *testing.T) {
 		RunAsUser:  &userAndGroupId,
 		RunAsGroup: &userAndGroupId,
 	}
+	var jobMode v1beta1.JobMode = v1beta1.JobModeDetached
 
 	// Provided security context
 	var observed = &ObservedClusterState{
@@ -1046,6 +1048,7 @@ func TestSecurityContext(t *testing.T) {
 			},
 			Spec: v1beta1.FlinkClusterSpec{
 				Job: &v1beta1.JobSpec{
+					Mode:            &jobMode,
 					SecurityContext: &securityContext,
 				},
 				JobManager: &v1beta1.JobManagerSpec{
@@ -1088,7 +1091,7 @@ func TestSecurityContext(t *testing.T) {
 				Namespace: "default",
 			},
 			Spec: v1beta1.FlinkClusterSpec{
-				Job: &v1beta1.JobSpec{},
+				Job: &v1beta1.JobSpec{Mode: &jobMode},
 				JobManager: &v1beta1.JobManagerSpec{
 					AccessScope: v1beta1.AccessScopeVPC,
 					Ports: v1beta1.JobManagerPorts{

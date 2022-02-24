@@ -480,7 +480,8 @@ func (v *Validator) validateJob(jobSpec *JobSpec) error {
 		return nil
 	}
 
-	if jobSpec.JarFile == nil && jobSpec.PyFile == nil && jobSpec.PyModule == nil {
+	applicationMode := jobSpec.Mode != nil && *jobSpec.Mode == JobModeApplication
+	if !applicationMode && jobSpec.JarFile == nil && jobSpec.PyFile == nil && jobSpec.PyModule == nil {
 		return fmt.Errorf("job jarFile or pythonFile or pythonModule is unspecified")
 	}
 
@@ -594,6 +595,7 @@ func (v *Validator) validateCleanupAction(
 func (v *Validator) validateJobMode(property string, value JobMode) error {
 	switch value {
 	case JobModeBlocking:
+	case JobModeApplication:
 	case JobModeDetached:
 	default:
 		return fmt.Errorf("invalid %v: %v", property, value)
