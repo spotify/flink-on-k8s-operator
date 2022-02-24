@@ -75,21 +75,50 @@ var (
 )
 
 // Gets the desired state of a cluster.
-func getDesiredClusterState(observed *ObservedClusterState) model.DesiredClusterState {
-	var cluster = observed.cluster
-
+func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredClusterState {
+	state := &model.DesiredClusterState{}
+	cluster := observed.cluster
 	// The cluster has been deleted, all resources should be cleaned up.
 	if cluster == nil {
-		return model.DesiredClusterState{}
+		return state
 	}
-	return model.DesiredClusterState{
-		ConfigMap:     getDesiredConfigMap(cluster),
-		JmStatefulSet: getDesiredJobManagerStatefulSet(cluster),
-		JmService:     getDesiredJobManagerService(cluster),
-		JmIngress:     getDesiredJobManagerIngress(cluster),
-		TmStatefulSet: getDesiredTaskManagerStatefulSet(cluster),
-		Job:           getDesiredJob(observed),
+
+	jobSpec := cluster.Spec.Job
+	applicationMode := jobSpec != nil && *jobSpec.Mode == v1beta1.JobModeApplication
+
+	if !shouldCleanup(cluster, "ConfigMap") {
+		state.ConfigMap = newConfigMap(cluster)
 	}
+
+	if !shouldCleanup(cluster, "JobManagerStatefulSet") && !applicationMode {
+		state.JmStatefulSet = newJobManagerStatefulSet(cluster)
+	}
+
+	if !shouldCleanup(cluster, "TaskManagerStatefulSet") {
+		state.TmStatefulSet = newTaskManagerStatefulSet(cluster)
+	}
+
+	if !shouldCleanup(cluster, "JobManagerService") {
+		state.JmService = newJobManagerService(cluster)
+	}
+
+	if !shouldCleanup(cluster, "JobManagerIngress") {
+		state.JmIngress = newJobManagerIngress(cluster)
+	}
+
+	jobStatus := cluster.Status.Components.Job
+	keepJobState := (shouldStopJob(cluster) || jobStatus.IsStopped()) &&
+		(!shouldUpdateJob(observed) && !jobStatus.ShouldRestart(jobSpec))
+	createJob := jobSpec != nil && !keepJobState
+	if createJob {
+		if applicationMode {
+			state.Job = newJobManagerJob(cluster)
+		} else {
+			state.Job = newJobSubmitterJob(cluster)
+		}
+	}
+
+	return state
 }
 
 func newJobManagerBaseContainer(flinkCluster *v1beta1.FlinkCluster) *corev1.Container {
@@ -152,16 +181,7 @@ func newJobManagerPodSpec(mainContainer *corev1.Container, flinkCluster *v1beta1
 }
 
 // Gets the desired JobManager StatefulSet spec from the FlinkCluster spec.
-func getDesiredJobManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1.StatefulSet {
-
-	if shouldCleanup(flinkCluster, "JobManagerStatefulSet") {
-		return nil
-	}
-	if flinkCluster.Spec.Job != nil &&
-		*flinkCluster.Spec.Job.Mode == v1beta1.JobModeApplication {
-		return nil
-	}
-
+func newJobManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1.StatefulSet {
 	var jobManagerSpec = flinkCluster.Spec.JobManager
 	var jobManagerStatefulSetName = getJobManagerStatefulSetName(flinkCluster.Name)
 	var podLabels = getComponentLabels(*flinkCluster, "jobmanager")
@@ -205,13 +225,7 @@ func getDesiredJobManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1
 }
 
 // Gets the desired JobManager service spec from a cluster spec.
-func getDesiredJobManagerService(
-	flinkCluster *v1beta1.FlinkCluster) *corev1.Service {
-
-	if shouldCleanup(flinkCluster, "JobManagerService") {
-		return nil
-	}
-
+func newJobManagerService(flinkCluster *v1beta1.FlinkCluster) *corev1.Service {
 	var clusterNamespace = flinkCluster.Namespace
 	var clusterName = flinkCluster.Name
 	var jobManagerSpec = flinkCluster.Spec.JobManager
@@ -278,14 +292,10 @@ func getDesiredJobManagerService(
 }
 
 // Gets the desired JobManager ingress spec from a cluster spec.
-func getDesiredJobManagerIngress(
+func newJobManagerIngress(
 	flinkCluster *v1beta1.FlinkCluster) *networkingv1.Ingress {
 	var jobManagerIngressSpec = flinkCluster.Spec.JobManager.Ingress
 	if jobManagerIngressSpec == nil {
-		return nil
-	}
-
-	if shouldCleanup(flinkCluster, "JobManagerIngress") {
 		return nil
 	}
 
@@ -438,27 +448,22 @@ func newTaskManagerPodSpec(mainContainer *corev1.Container, flinkCluster *v1beta
 	podSpec.Containers = append(podSpec.Containers, taskManagerSpec.Sidecars...)
 
 	jobSpec := flinkCluster.Spec.Job
-	if jobSpec != nil && jobSpec.JarFile != nil && *jobSpec.Mode == v1beta1.JobModeApplication {
+	if jobSpec != nil &&
+		jobSpec.JarFile != nil &&
+		*jobSpec.Mode == v1beta1.JobModeApplication &&
+		isRemoteFile(*jobSpec.JarFile) {
 		envVars := addEnvVar(flinkCluster.Spec.EnvVars, jobJarUriEnvVar, *jobSpec.JarFile)
 		mainContainer.Env = appendEnvVars(mainContainer.Env, envVars...)
 		podSpec.Containers = convertContainers(podSpec.Containers, []corev1.VolumeMount{}, envVars)
 		podSpec.InitContainers = convertContainers(podSpec.InitContainers, []corev1.VolumeMount{}, envVars)
-
-		if isRemoteFile(*jobSpec.JarFile) {
-			setUsrLib(podSpec)
-		}
+		setUsrLib(podSpec)
 	}
 
 	return podSpec
 }
 
 // Gets the desired TaskManager StatefulSet spec from a cluster spec.
-func getDesiredTaskManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1.StatefulSet {
-
-	if shouldCleanup(flinkCluster, "TaskManagerStatefulSet") {
-		return nil
-	}
-
+func newTaskManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1.StatefulSet {
 	var taskManagerSpec = flinkCluster.Spec.TaskManager
 	var taskManagerStatefulSetName = getTaskManagerStatefulSetName(flinkCluster.Name)
 	var podLabels = getComponentLabels(*flinkCluster, "taskmanager")
@@ -478,7 +483,7 @@ func getDesiredTaskManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv
 		}
 	}
 
-	var taskManagerStatefulSet = &appsv1.StatefulSet{
+	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       flinkCluster.Namespace,
 			Name:            taskManagerStatefulSetName,
@@ -500,17 +505,11 @@ func getDesiredTaskManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv
 			},
 		},
 	}
-	return taskManagerStatefulSet
 }
 
 // Gets the desired configMap.
-func getDesiredConfigMap(
-	flinkCluster *v1beta1.FlinkCluster) *corev1.ConfigMap {
+func newConfigMap(flinkCluster *v1beta1.FlinkCluster) *corev1.ConfigMap {
 	appVersion, _ := version.NewVersion(flinkCluster.Spec.FlinkVersion)
-
-	if shouldCleanup(flinkCluster, "ConfigMap") {
-		return nil
-	}
 
 	var clusterNamespace = flinkCluster.Namespace
 	var clusterName = flinkCluster.Name
@@ -566,11 +565,10 @@ func getDesiredConfigMap(
 	configData["submit-job.sh"] = submitJobScript
 	var configMap = &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: clusterNamespace,
-			Name:      configMapName,
-			OwnerReferences: []metav1.OwnerReference{
-				ToOwnerReference(flinkCluster)},
-			Labels: labels,
+			Namespace:       clusterNamespace,
+			Name:            configMapName,
+			OwnerReferences: []metav1.OwnerReference{ToOwnerReference(flinkCluster)},
+			Labels:          labels,
 		},
 		Data: configData,
 	}
@@ -744,6 +742,11 @@ func newJobSubmitterJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 }
 
 func newJobManagerJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
+	var jobSpec = flinkCluster.Spec.Job
+	if jobSpec == nil {
+		return nil
+	}
+
 	var clusterSpec = flinkCluster.Spec
 	var status = flinkCluster.Status
 	var jobManagerSpec = clusterSpec.JobManager
@@ -752,10 +755,8 @@ func newJobManagerJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 	podLabels = mergeLabels(podLabels, jobManagerSpec.PodLabels)
 	podLabels = mergeLabels(podLabels, map[string]string{"job-id": jobId})
 	var jobLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
-
 	var jobName = getJobManagerJobName(flinkCluster.Name)
 
-	jobSpec := flinkCluster.Spec.Job
 	args := []string{"standalone-job"}
 
 	if parallelism, err := calJobParallelism(flinkCluster); err == nil {
@@ -820,30 +821,6 @@ func newJobManagerJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 			},
 			BackoffLimit: &backoffLimit,
 		},
-	}
-}
-
-// Gets the desired job spec from a cluster spec.
-func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
-	var flinkCluster = observed.cluster
-	var recorded = flinkCluster.Status
-	var jobSpec = flinkCluster.Spec.Job
-	var jobStatus = recorded.Components.Job
-
-	if jobSpec == nil {
-		return nil
-	}
-
-	// When the job should be stopped, keep that state unless update is triggered or the job must to be restarted.
-	if (shouldStopJob(flinkCluster) || jobStatus.IsStopped()) &&
-		(!shouldUpdateJob(observed) && !jobStatus.ShouldRestart(jobSpec)) {
-		return nil
-	}
-
-	if *jobSpec.Mode == v1beta1.JobModeApplication {
-		return newJobManagerJob(flinkCluster)
-	} else {
-		return newJobSubmitterJob(flinkCluster)
 	}
 }
 

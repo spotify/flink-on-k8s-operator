@@ -180,7 +180,7 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 
 	log.Info("---------- 3. Compute the desired state ----------")
 
-	*desired = getDesiredClusterState(observed)
+	*desired = *getDesiredClusterState(observed)
 	if desired.ConfigMap != nil {
 		log.Info("Desired state", "ConfigMap", *desired.ConfigMap)
 	} else {
