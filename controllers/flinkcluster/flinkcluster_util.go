@@ -558,3 +558,8 @@ func getFlinkJobSubmitLogFromString(podLog string) *SubmitterLog {
 		return &SubmitterLog{jobID: "", message: podLog}
 	}
 }
+
+func IsApplicationModeCluster(cluster *v1beta1.FlinkCluster) bool {
+	jobSpec := cluster.Spec.Job
+	return jobSpec != nil && *jobSpec.Mode == v1beta1.JobModeApplication
+}
