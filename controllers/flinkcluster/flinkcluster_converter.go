@@ -361,10 +361,8 @@ func getDesiredJobManagerIngress(
 	return jobManagerIngress
 }
 
-func newTaskManagerPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
-	var clusterSpec = flinkCluster.Spec
+func newTaskMangerBaseContainer(flinkCluster *v1beta1.FlinkCluster) *corev1.Container {
 	var imageSpec = flinkCluster.Spec.Image
-	var serviceAccount = clusterSpec.ServiceAccountName
 	var taskManagerSpec = flinkCluster.Spec.TaskManager
 	var dataPort = corev1.ContainerPort{Name: "data", ContainerPort: *taskManagerSpec.Ports.Data}
 	var rpcPort = corev1.ContainerPort{Name: "rpc", ContainerPort: *taskManagerSpec.Ports.RPC}
@@ -399,18 +397,10 @@ func newTaskManagerPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
 
 	envVars = append(envVars, flinkCluster.Spec.EnvVars...)
 
-	jobSpec := flinkCluster.Spec.Job
-	addUsrLib := false
-	if jobSpec != nil && *jobSpec.Mode == v1beta1.JobModeApplication && jobSpec.JarFile != nil {
-		envVars = addEnvVar(envVars, jobJarUriEnvVar, *jobSpec.JarFile)
-		addUsrLib = isRemoteFile(*jobSpec.JarFile)
-	}
-
-	var containers = []corev1.Container{{
+	return &corev1.Container{
 		Name:            "taskmanager",
 		Image:           imageSpec.Name,
 		ImagePullPolicy: imageSpec.PullPolicy,
-		Args:            []string{"taskmanager"},
 		Ports:           ports,
 		LivenessProbe:   taskManagerSpec.LivenessProbe,
 		ReadinessProbe:  taskManagerSpec.ReadinessProbe,
@@ -425,11 +415,18 @@ func newTaskManagerPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
 				},
 			},
 		},
-	}}
+	}
+}
+
+func newTaskManagerPodSpec(mainContainer *corev1.Container, flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
+	var clusterSpec = flinkCluster.Spec
+	var imageSpec = flinkCluster.Spec.Image
+	var serviceAccount = clusterSpec.ServiceAccountName
+	var taskManagerSpec = flinkCluster.Spec.TaskManager
 
 	var podSpec = &corev1.PodSpec{
-		InitContainers:                convertContainers(taskManagerSpec.InitContainers, []corev1.VolumeMount{}, envVars),
-		Containers:                    containers,
+		InitContainers:                taskManagerSpec.InitContainers,
+		Containers:                    []corev1.Container{*mainContainer},
 		Volumes:                       taskManagerSpec.Volumes,
 		NodeSelector:                  taskManagerSpec.NodeSelector,
 		Tolerations:                   taskManagerSpec.Tolerations,
@@ -438,13 +435,23 @@ func newTaskManagerPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
 		ServiceAccountName:            getServiceAccountName(serviceAccount),
 		TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 	}
-	if addUsrLib {
-		setUsrLib(podSpec)
-	}
+
 	setFlinkConfig(getConfigMapName(flinkCluster.Name), podSpec)
 	setHadoopConfig(flinkCluster.Spec.HadoopConfig, podSpec)
 	setGCPConfig(flinkCluster.Spec.GCPConfig, podSpec)
 	podSpec.Containers = append(podSpec.Containers, taskManagerSpec.Sidecars...)
+
+	jobSpec := flinkCluster.Spec.Job
+	if jobSpec != nil && jobSpec.JarFile != nil && *jobSpec.Mode == v1beta1.JobModeApplication {
+		envVars := addEnvVar(flinkCluster.Spec.EnvVars, jobJarUriEnvVar, *jobSpec.JarFile)
+		mainContainer.Env = appendEnvVars(mainContainer.Env, envVars...)
+		podSpec.Containers = convertContainers(podSpec.Containers, []corev1.VolumeMount{}, envVars)
+		podSpec.InitContainers = convertContainers(podSpec.InitContainers, []corev1.VolumeMount{}, envVars)
+
+		if isRemoteFile(*jobSpec.JarFile) {
+			setUsrLib(podSpec)
+		}
+	}
 
 	return podSpec
 }
@@ -462,10 +469,9 @@ func getDesiredTaskManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv
 	podLabels = mergeLabels(podLabels, taskManagerSpec.PodLabels)
 	var statefulSetLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
 
-	podSpec := newTaskManagerPodSpec(flinkCluster)
-	if podSpec == nil {
-		return nil
-	}
+	mainContainer := newTaskMangerBaseContainer(flinkCluster)
+	mainContainer.Args = []string{"taskmanager"}
+	podSpec := newTaskManagerPodSpec(mainContainer, flinkCluster)
 
 	var pvcs []corev1.PersistentVolumeClaim
 	if taskManagerSpec.VolumeClaimTemplates != nil {
@@ -478,11 +484,10 @@ func getDesiredTaskManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv
 
 	var taskManagerStatefulSet = &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: flinkCluster.Namespace,
-			Name:      taskManagerStatefulSetName,
-			OwnerReferences: []metav1.OwnerReference{
-				ToOwnerReference(flinkCluster)},
-			Labels: statefulSetLabels,
+			Namespace:       flinkCluster.Namespace,
+			Name:            taskManagerStatefulSetName,
+			OwnerReferences: []metav1.OwnerReference{ToOwnerReference(flinkCluster)},
+			Labels:          statefulSetLabels,
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Replicas:             taskManagerSpec.Replicas,
@@ -793,6 +798,7 @@ func getDesiredJobManagerJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 	if jobSpec != nil && jobSpec.JarFile != nil {
 		envVars := addEnvVar(flinkCluster.Spec.EnvVars, jobJarUriEnvVar, *jobSpec.JarFile)
 		mainContainer.Env = appendEnvVars(mainContainer.Env, envVars...)
+		podSpec.Containers = convertContainers(podSpec.Containers, []corev1.VolumeMount{}, envVars)
 		podSpec.InitContainers = convertContainers(podSpec.InitContainers, []corev1.VolumeMount{}, envVars)
 
 		if isRemoteFile(*jobSpec.JarFile) {
