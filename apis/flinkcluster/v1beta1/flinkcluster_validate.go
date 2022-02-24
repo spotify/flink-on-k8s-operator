@@ -480,7 +480,8 @@ func (v *Validator) validateJob(jobSpec *JobSpec) error {
 		return nil
 	}
 
-	if jobSpec.JarFile == nil && jobSpec.PyFile == nil && jobSpec.PyModule == nil {
+	applicationMode := jobSpec.Mode != nil && *jobSpec.Mode == JobModeApplication
+	if !applicationMode && jobSpec.JarFile == nil && jobSpec.PyFile == nil && jobSpec.PyModule == nil {
 		return fmt.Errorf("job jarFile or pythonFile or pythonModule is unspecified")
 	}
 
