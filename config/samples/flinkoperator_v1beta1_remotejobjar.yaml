@@ -7,25 +7,41 @@ spec:
   image:
     name: flink:1.14.2
   jobManager:
+    volumes:
+      - name: usrlib
+    volumeMounts:
+      - mountPath: /opt/flink/usrlib
+        name: usrlib
     initContainers:
       - name: downloader
         image: curlimages/curl
         command:
-          ["sh", "-c", "cd ${FLINK_USR_LIB_DIR}; curl -O ${FLINK_JOB_JAR_URI}"]
+          ["sh", "-c", "cd /opt/flink/usrlib; curl -O ${FLINK_JOB_JAR_URI}"]
         resources:
           limits:
             cpu: 100m
             memory: 512Mi
+        volumeMounts:
+          - mountPath: /opt/flink/usrlib
+            name: usrlib
   taskManager:
+    volumes:
+      - name: usrlib
+    volumeMounts:
+      - mountPath: /opt/flink/usrlib
+        name: usrlib
     initContainers:
       - name: downloader
         image: curlimages/curl
         command:
-          ["sh", "-c", "cd ${FLINK_USR_LIB_DIR}; curl -O ${FLINK_JOB_JAR_URI}"]
+          ["sh", "-c", "cd /opt/flink/usrlib; curl -O ${FLINK_JOB_JAR_URI}"]
         resources:
           limits:
             cpu: 100m
             memory: 512Mi
+        volumeMounts:
+          - mountPath: /opt/flink/usrlib
+            name: usrlib
   job:
     mode: Application
     cleanupPolicy:

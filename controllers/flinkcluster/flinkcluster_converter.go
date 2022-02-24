@@ -19,7 +19,6 @@ package flinkcluster
 import (
 	"fmt"
 	"math"
-	"path"
 	"regexp"
 	"sort"
 	"strconv"
@@ -51,9 +50,7 @@ const (
 	submitJobScriptPath     = "/opt/flink-operator/submit-job.sh"
 	gcpServiceAccountVolume = "gcp-service-account-volume"
 	hadoopConfigVolume      = "hadoop-config-volume"
-	usrLibDir               = "/opt/flink/usrlib"
 	jobManagerAddrEnvVar    = "FLINK_JM_ADDR"
-	usrLibPathEnvVar        = "FLINK_USR_LIB_DIR"
 	jobJarUriEnvVar         = "FLINK_JOB_JAR_URI"
 	jobPyFileUriEnvVar      = "FLINK_JOB_PY_FILE_URI"
 	jobPyFilesUriEnvVar     = "FLINK_JOB_PY_FILES_URI"
@@ -450,13 +447,11 @@ func newTaskManagerPodSpec(mainContainer *corev1.Container, flinkCluster *v1beta
 	jobSpec := flinkCluster.Spec.Job
 	if jobSpec != nil &&
 		jobSpec.JarFile != nil &&
-		*jobSpec.Mode == v1beta1.JobModeApplication &&
-		isRemoteFile(*jobSpec.JarFile) {
+		*jobSpec.Mode == v1beta1.JobModeApplication {
 		envVars := addEnvVar(flinkCluster.Spec.EnvVars, jobJarUriEnvVar, *jobSpec.JarFile)
 		mainContainer.Env = appendEnvVars(mainContainer.Env, envVars...)
 		podSpec.Containers = convertContainers(podSpec.Containers, []corev1.VolumeMount{}, envVars)
 		podSpec.InitContainers = convertContainers(podSpec.InitContainers, []corev1.VolumeMount{}, envVars)
-		setUsrLib(podSpec)
 	}
 
 	return podSpec
@@ -636,23 +631,19 @@ func newJobSubmitterPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec 
 	sbsVolume, sbsMount, confMount := convertSubmitJobScript(clusterName)
 	volumes = append(volumes, *sbsVolume)
 	volumeMounts = append(volumeMounts, *sbsMount, *confMount)
-	hasRemoteFile := false
 
 	if jobSpec.JarFile != nil {
-		hasRemoteFile = isRemoteFile(*jobSpec.JarFile)
-		jobArgs = append(jobArgs, getLocalPath(*jobSpec.JarFile))
+		jobArgs = append(jobArgs, *jobSpec.JarFile)
 		envVars = addEnvVar(envVars, jobJarUriEnvVar, *jobSpec.JarFile)
 	}
 
 	if jobSpec.PyFile != nil {
-		hasRemoteFile = isRemoteFile(*jobSpec.PyFile)
-		jobArgs = append(jobArgs, "--python", getLocalPath(*jobSpec.PyFile))
+		jobArgs = append(jobArgs, "--python", *jobSpec.PyFile)
 		envVars = addEnvVar(envVars, jobPyFileUriEnvVar, *jobSpec.PyFile)
 	}
 
 	if jobSpec.PyFiles != nil {
-		hasRemoteFile = isRemoteFile(*jobSpec.PyFiles)
-		jobArgs = append(jobArgs, "--pyFiles", getLocalPath(*jobSpec.PyFiles))
+		jobArgs = append(jobArgs, "--pyFiles", *jobSpec.PyFiles)
 		envVars = addEnvVar(envVars, jobPyFilesUriEnvVar, *jobSpec.PyFiles)
 	}
 
@@ -684,9 +675,7 @@ func newJobSubmitterPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec 
 		NodeSelector:       jobSpec.NodeSelector,
 		Tolerations:        jobSpec.Tolerations,
 	}
-	if hasRemoteFile {
-		setUsrLib(podSpec)
-	}
+
 	setFlinkConfig(getConfigMapName(flinkCluster.Name), podSpec)
 	setHadoopConfig(flinkCluster.Spec.HadoopConfig, podSpec)
 	setGCPConfig(flinkCluster.Spec.GCPConfig, podSpec)
@@ -709,11 +698,6 @@ func newJobSubmitterJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 	podLabels = mergeLabels(podLabels, jobManagerSpec.PodLabels)
 	var jobLabels = mergeLabels(podLabels, getRevisionHashLabels(&recorded.Revision))
 
-	podSpec := newJobSubmitterPodSpec(flinkCluster)
-	if podSpec == nil {
-		return nil
-	}
-
 	// Disable the retry mechanism of k8s Job, all retries should be initiated
 	// by the operator based on the job restart policy. This is because Flink
 	// jobs are stateful, if a job fails after running for 10 hours, we probably
@@ -734,7 +718,7 @@ func newJobSubmitterJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 					Labels:      podLabels,
 					Annotations: jobSpec.PodAnnotations,
 				},
-				Spec: *podSpec,
+				Spec: *newJobSubmitterPodSpec(flinkCluster),
 			},
 			BackoffLimit: &backoffLimit,
 		},
@@ -768,8 +752,7 @@ func newJobManagerJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 		args = append(args, "--fromSavepoint", *fromSavepoint)
 	}
 
-	if jobSpec.AllowNonRestoredState != nil &&
-		*jobSpec.AllowNonRestoredState {
+	if jobSpec.AllowNonRestoredState != nil && *jobSpec.AllowNonRestoredState {
 		args = append(args, "--allowNonRestoredState")
 	}
 
@@ -791,10 +774,6 @@ func newJobManagerJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 		mainContainer.Env = appendEnvVars(mainContainer.Env, envVars...)
 		podSpec.Containers = convertContainers(podSpec.Containers, []corev1.VolumeMount{}, envVars)
 		podSpec.InitContainers = convertContainers(podSpec.InitContainers, []corev1.VolumeMount{}, envVars)
-
-		if isRemoteFile(*jobSpec.JarFile) {
-			setUsrLib(podSpec)
-		}
 	}
 
 	// Disable the retry mechanism of k8s Job, all retries should be initiated
@@ -853,23 +832,6 @@ func convertFromSavepoint(jobSpec *v1beta1.JobSpec, jobStatus *v1beta1.JobStatus
 		return &jobStatus.FromSavepoint
 	}
 	return nil
-}
-
-func setUsrLib(podSpec *corev1.PodSpec) bool {
-	volumes := []corev1.Volume{{Name: "usrlib"}}
-	volumeMounts := []corev1.VolumeMount{{
-		Name:      "usrlib",
-		MountPath: usrLibDir,
-	}}
-	envVars := []corev1.EnvVar{{
-		Name:  usrLibPathEnvVar,
-		Value: usrLibDir,
-	}}
-
-	podSpec.Containers = convertContainers(podSpec.Containers, volumeMounts, envVars)
-	podSpec.InitContainers = convertContainers(podSpec.InitContainers, volumeMounts, envVars)
-	podSpec.Volumes = appendVolumes(podSpec.Volumes, volumes...)
-	return true
 }
 
 func appendVolumes(volumes []corev1.Volume, newVolumes ...corev1.Volume) []corev1.Volume {
@@ -1281,23 +1243,6 @@ func mergeLabels(labels1 map[string]string, labels2 map[string]string) map[strin
 		mergedLabels[k] = v
 	}
 	return mergedLabels
-}
-
-func isRemoteFile(filePath string) bool {
-	return strings.Contains(filePath, "://")
-}
-
-// getLocalPath puts the URI in the env variable and rewrite the path
-// to a local path if the file is remote and returns the local path.
-// The entrypoint script of the container will download it before submitting it to Flink.
-func getLocalPath(filePath string) string {
-	var localPath = filePath
-	if isRemoteFile(filePath) {
-		var parts = strings.Split(filePath, "/")
-		localPath = path.Join(usrLibDir, parts[len(parts)-1])
-	}
-
-	return localPath
 }
 
 const (
