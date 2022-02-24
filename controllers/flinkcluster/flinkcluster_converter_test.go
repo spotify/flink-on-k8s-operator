@@ -816,8 +816,9 @@ func TestGetDesiredClusterState(t *testing.T) {
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"app":     "flink",
-						"cluster": "flinkjobcluster-sample",
+						"app":                                "flink",
+						"cluster":                            "flinkjobcluster-sample",
+						"flinkoperator.k8s.io/revision-name": "flinkjobcluster-sample-85dc8f749",
 					},
 					Annotations: map[string]string{
 						"example.com": "example",

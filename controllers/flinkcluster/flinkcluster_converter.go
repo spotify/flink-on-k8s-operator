@@ -106,13 +106,8 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 	jobStatus := cluster.Status.Components.Job
 	keepJobState := (shouldStopJob(cluster) || jobStatus.IsStopped()) &&
 		(!shouldUpdateJob(observed) && !jobStatus.ShouldRestart(jobSpec))
-	createJob := jobSpec != nil && !keepJobState
-	if createJob {
-		if applicationMode {
-			state.Job = newJobManagerJob(cluster)
-		} else {
-			state.Job = newJobSubmitterJob(cluster)
-		}
+	if jobSpec != nil && !keepJobState {
+		state.Job = newJob(cluster)
 	}
 
 	return state
@@ -717,20 +712,37 @@ func newJobSubmitterPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec 
 	return podSpec
 }
 
-// Gets the desired job spec from a cluster spec.
-func newJobSubmitterJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
-	var recorded = flinkCluster.Status
-	var jobSpec = flinkCluster.Spec.Job
-
+func newJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
+	jobSpec := flinkCluster.Spec.Job
 	if jobSpec == nil {
 		return nil
 	}
 
-	var jobManagerSpec = flinkCluster.Spec.JobManager
-	var jobName = getSubmitterJobName(flinkCluster.Name)
-	var podLabels = getClusterLabels(*flinkCluster)
-	podLabels = mergeLabels(podLabels, jobManagerSpec.PodLabels)
-	var jobLabels = mergeLabels(podLabels, getRevisionHashLabels(&recorded.Revision))
+	recorded := flinkCluster.Status
+	jobManagerSpec := flinkCluster.Spec.JobManager
+	labels := getClusterLabels(*flinkCluster)
+	labels = mergeLabels(labels, getRevisionHashLabels(&recorded.Revision))
+
+	var jobName string
+	var annotations map[string]string
+	var podSpec *corev1.PodSpec
+
+	if IsApplicationModeCluster(flinkCluster) {
+		labels = mergeLabels(labels, getComponentLabels(*flinkCluster, "jobmanager"))
+		labels = mergeLabels(labels, jobManagerSpec.PodLabels)
+		labels = mergeLabels(labels, map[string]string{
+			"job-id": flink.GenJobId(flinkCluster.Namespace, flinkCluster.Name),
+		})
+		jobName = getJobManagerJobName(flinkCluster.Name)
+		annotations = jobManagerSpec.PodAnnotations
+		mainContainer := newJobManagerContainer(flinkCluster)
+		podSpec = newJobManagerPodSpec(mainContainer, flinkCluster)
+	} else {
+		jobName = getSubmitterJobName(flinkCluster.Name)
+		labels = mergeLabels(labels, jobSpec.PodLabels)
+		annotations = jobSpec.PodAnnotations
+		podSpec = newJobSubmitterPodSpec(flinkCluster)
+	}
 
 	// Disable the retry mechanism of k8s Job, all retries should be initiated
 	// by the operator based on the job restart policy. This is because Flink
@@ -739,64 +751,20 @@ func newJobSubmitterJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 	// the job from the latest savepoint which means strictly speaking it is no
 	// longer the same job as the previous one because the `--fromSavepoint`
 	// parameter has changed.
+	podSpec.RestartPolicy = corev1.RestartPolicyNever
+
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       flinkCluster.Namespace,
 			Name:            jobName,
 			OwnerReferences: []metav1.OwnerReference{ToOwnerReference(flinkCluster)},
-			Labels:          jobLabels,
+			Labels:          labels,
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels:      podLabels,
-					Annotations: jobSpec.PodAnnotations,
-				},
-				Spec: *newJobSubmitterPodSpec(flinkCluster),
-			},
-			BackoffLimit: &backoffLimit,
-		},
-	}
-}
-
-func newJobManagerJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
-	var jobSpec = flinkCluster.Spec.Job
-	if jobSpec == nil {
-		return nil
-	}
-
-	var clusterSpec = flinkCluster.Spec
-	var jobManagerSpec = clusterSpec.JobManager
-	var podLabels = getComponentLabels(*flinkCluster, "jobmanager")
-	podLabels = mergeLabels(podLabels, jobManagerSpec.PodLabels)
-	podLabels = mergeLabels(podLabels, map[string]string{
-		"job-id": flink.GenJobId(flinkCluster.Namespace, flinkCluster.Name),
-	})
-	var jobLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
-
-	mainContainer := newJobManagerContainer(flinkCluster)
-	podSpec := newJobManagerPodSpec(mainContainer, flinkCluster)
-	podSpec.RestartPolicy = corev1.RestartPolicyNever
-
-	// Disable the retry mechanism of k8s Job, all retries should be initiated
-	// by the operator based on the job restart policy. This is because Flink
-	// jobs are stateful, if a job fails after running for 10 hours, we probably
-	// don't want to start over from the beginning, instead we want to resume
-	// the job from the latest savepoint which means strictly speaking it is no
-	// longer the same job as the previous one because the `--fromSavepoint`
-	// parameter has changed.
-	return &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       flinkCluster.Namespace,
-			Name:            getJobManagerJobName(flinkCluster.Name),
-			OwnerReferences: []metav1.OwnerReference{ToOwnerReference(flinkCluster)},
-			Labels:          jobLabels,
-		},
-		Spec: batchv1.JobSpec{
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels:      podLabels,
-					Annotations: jobManagerSpec.PodAnnotations,
+					Labels:      labels,
+					Annotations: annotations,
 				},
 				Spec: *podSpec,
 			},
