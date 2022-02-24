@@ -27,7 +27,7 @@ spec:
             cpu: 100m
             memory: 512Mi
   job:
-    mode: Blocking
+    mode: Application
     cleanupPolicy:
       afterJobSucceeds: DeleteCluster
       afterJobFails: DeleteCluster

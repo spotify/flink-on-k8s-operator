@@ -171,9 +171,6 @@ func getDesiredJobManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1
 	mainContainer := newJobManagerBaseContainer(flinkCluster)
 	mainContainer.Args = []string{"jobmanager"}
 	podSpec := newJobManagerPodSpec(mainContainer, flinkCluster)
-	if podSpec == nil {
-		return nil
-	}
 
 	var pvcs []corev1.PersistentVolumeClaim
 	if jobManagerSpec.VolumeClaimTemplates != nil {
@@ -184,7 +181,7 @@ func getDesiredJobManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1
 		}
 	}
 
-	var jobManagerStatefulSet = &appsv1.StatefulSet{
+	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       flinkCluster.Namespace,
 			Name:            jobManagerStatefulSetName,
@@ -205,7 +202,6 @@ func getDesiredJobManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1
 			},
 		},
 	}
-	return jobManagerStatefulSet
 }
 
 // Gets the desired JobManager service spec from a cluster spec.
@@ -627,14 +623,10 @@ func newJobSubmitterPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec 
 		jobArgs = append(jobArgs, "--detached")
 	}
 
-	var securityContext = jobSpec.SecurityContext
-
-	var envVars []corev1.EnvVar
-	envVars = append(envVars,
-		corev1.EnvVar{
-			Name:  jobManagerAddrEnvVar,
-			Value: jobManagerAddress,
-		})
+	envVars := []corev1.EnvVar{{
+		Name:  jobManagerAddrEnvVar,
+		Value: jobManagerAddress,
+	}}
 	envVars = append(envVars, flinkCluster.Spec.EnvVars...)
 
 	var volumes []corev1.Volume
@@ -672,7 +664,7 @@ func newJobSubmitterPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec 
 
 	jobArgs = append(jobArgs, jobSpec.Args...)
 
-	var podSpec = &corev1.PodSpec{
+	podSpec := &corev1.PodSpec{
 		InitContainers: convertContainers(jobSpec.InitContainers, volumeMounts, envVars),
 		Containers: []corev1.Container{
 			{
@@ -689,7 +681,7 @@ func newJobSubmitterPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec 
 		RestartPolicy:      corev1.RestartPolicyNever,
 		Volumes:            volumes,
 		ImagePullSecrets:   imageSpec.PullSecrets,
-		SecurityContext:    securityContext,
+		SecurityContext:    jobSpec.SecurityContext,
 		ServiceAccountName: getServiceAccountName(serviceAccount),
 		NodeSelector:       jobSpec.NodeSelector,
 		Tolerations:        jobSpec.Tolerations,
@@ -705,7 +697,7 @@ func newJobSubmitterPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec 
 }
 
 // Gets the desired job spec from a cluster spec.
-func getDesiredSubmitterJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
+func newJobSubmitterJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 	var recorded = flinkCluster.Status
 	var jobSpec = flinkCluster.Spec.Job
 
@@ -731,13 +723,12 @@ func getDesiredSubmitterJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 	// the job from the latest savepoint which means strictly speaking it is no
 	// longer the same job as the previous one because the `--fromSavepoint`
 	// parameter has changed.
-	var job = &batchv1.Job{
+	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: flinkCluster.Namespace,
-			Name:      jobName,
-			OwnerReferences: []metav1.OwnerReference{
-				ToOwnerReference(flinkCluster)},
-			Labels: jobLabels,
+			Namespace:       flinkCluster.Namespace,
+			Name:            jobName,
+			OwnerReferences: []metav1.OwnerReference{ToOwnerReference(flinkCluster)},
+			Labels:          jobLabels,
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
@@ -750,10 +741,9 @@ func getDesiredSubmitterJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 			BackoffLimit: &backoffLimit,
 		},
 	}
-	return job
 }
 
-func getDesiredJobManagerJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
+func newJobManagerJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 	var clusterSpec = flinkCluster.Spec
 	var status = flinkCluster.Status
 	var jobManagerSpec = clusterSpec.JobManager
@@ -806,16 +796,6 @@ func getDesiredJobManagerJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 		}
 	}
 
-	//FIXME: Add Volume claim support
-	// var pvcs []corev1.PersistentVolumeClaim
-	// if jobManagerSpec.VolumeClaimTemplates != nil {
-	// 	pvcs = make([]corev1.PersistentVolumeClaim, len(jobManagerSpec.VolumeClaimTemplates))
-	// 	for i, pvc := range jobManagerSpec.VolumeClaimTemplates {
-	// 		pvc.OwnerReferences = []metav1.OwnerReference{ToOwnerReference(flinkCluster)}
-	// 		pvcs[i] = pvc
-	// 	}
-	// }
-
 	// Disable the retry mechanism of k8s Job, all retries should be initiated
 	// by the operator based on the job restart policy. This is because Flink
 	// jobs are stateful, if a job fails after running for 10 hours, we probably
@@ -823,7 +803,7 @@ func getDesiredJobManagerJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 	// the job from the latest savepoint which means strictly speaking it is no
 	// longer the same job as the previous one because the `--fromSavepoint`
 	// parameter has changed.
-	var job = &batchv1.Job{
+	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       flinkCluster.Namespace,
 			Name:            jobName,
@@ -841,7 +821,6 @@ func getDesiredJobManagerJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 			BackoffLimit: &backoffLimit,
 		},
 	}
-	return job
 }
 
 // Gets the desired job spec from a cluster spec.
@@ -862,9 +841,9 @@ func getDesiredJob(observed *ObservedClusterState) *batchv1.Job {
 	}
 
 	if *jobSpec.Mode == v1beta1.JobModeApplication {
-		return getDesiredJobManagerJob(flinkCluster)
+		return newJobManagerJob(flinkCluster)
 	} else {
-		return getDesiredSubmitterJob(flinkCluster)
+		return newJobSubmitterJob(flinkCluster)
 	}
 }
 
