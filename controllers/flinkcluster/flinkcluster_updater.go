@@ -190,7 +190,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 	cluster *v1beta1.FlinkCluster,
 	observed *ObservedClusterState) v1beta1.FlinkClusterStatus {
 	var totalComponents int
-	if cluster.Spec.Job != nil && *cluster.Spec.Job.Mode == v1beta1.JobModeApplication {
+	if IsApplicationModeCluster(cluster) {
 		// jmService, tmStatefulSet.
 		totalComponents = 2
 	} else {
@@ -581,8 +581,14 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 		}
 		newJob.ID = observedFlinkJob.Id
 		newJob.Name = observedFlinkJob.Name
-	case oldJob.IsActive() && observedSubmitter.job != nil && observedSubmitter.job.Status.Succeeded == 1:
-		newJobState = v1beta1.JobStateSucceeded
+	case oldJob.IsActive() && observedSubmitter.job != nil && observedSubmitter.job.Status.Active == 0:
+		if observedSubmitter.job.Status.Succeeded == 1 {
+			newJobState = v1beta1.JobStateSucceeded
+		} else if observedSubmitter.job.Status.Failed == 1 {
+			newJobState = v1beta1.JobStateFailed
+		} else {
+			newJobState = oldJob.State
+		}
 	// When Flink job not found in JobManager or JobManager is unavailable
 	case isFlinkAPIReady(observed.flinkJob.list):
 		if oldJob.State == v1beta1.JobStateRunning {
