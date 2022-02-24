@@ -92,11 +92,9 @@ func getDesiredClusterState(observed *ObservedClusterState) model.DesiredCluster
 	}
 }
 
-func newJobManagerPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
+func newJobManagerBaseContainer(flinkCluster *v1beta1.FlinkCluster) *corev1.Container {
 	var clusterSpec = flinkCluster.Spec
-	var status = flinkCluster.Status
 	var imageSpec = clusterSpec.Image
-	var serviceAccount = clusterSpec.ServiceAccountName
 	var jobManagerSpec = clusterSpec.JobManager
 	var rpcPort = corev1.ContainerPort{Name: "rpc", ContainerPort: *jobManagerSpec.Ports.RPC}
 	var blobPort = corev1.ContainerPort{Name: "blob", ContainerPort: *jobManagerSpec.Ports.Blob}
@@ -107,48 +105,15 @@ func newJobManagerPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
 		ports = append(ports, corev1.ContainerPort{Name: port.Name, ContainerPort: port.ContainerPort, Protocol: corev1.Protocol(port.Protocol)})
 	}
 
-	args := []string{"jobmanager"}
-	var envVars []corev1.EnvVar
-	envVars = append(envVars, flinkCluster.Spec.EnvVars...)
-	jobSpec := flinkCluster.Spec.Job
-	addUsrLib := false
-	if jobSpec != nil && *jobSpec.Mode == v1beta1.JobModeApplication && jobSpec.JarFile != nil {
-		envVars = addEnvVar(envVars, jobJarUriEnvVar, *jobSpec.JarFile)
-		addUsrLib = isRemoteFile(*jobSpec.JarFile)
-		args = []string{"standalone-job"}
-
-		if parallelism, err := calJobParallelism(flinkCluster); err == nil {
-			args = append(args, fmt.Sprintf("-Dparallelism.default=%d", parallelism))
-		}
-
-		var fromSavepoint = convertFromSavepoint(jobSpec, status.Components.Job, &status.Revision)
-		if fromSavepoint != nil {
-			args = append(args, "--fromSavepoint", *fromSavepoint)
-		}
-
-		if jobSpec.AllowNonRestoredState != nil &&
-			*jobSpec.AllowNonRestoredState {
-			args = append(args, "--allowNonRestoredState")
-		}
-
-		args = append(args,
-			"--job-id", flink.GenJobId(flinkCluster.Namespace, flinkCluster.Name),
-			"--job-classname", *jobSpec.ClassName,
-		)
-
-		args = append(args, jobSpec.Args...)
-	}
-
-	var containers = []corev1.Container{{
+	return &corev1.Container{
 		Name:            "jobmanager",
 		Image:           imageSpec.Name,
 		ImagePullPolicy: imageSpec.PullPolicy,
-		Args:            args,
 		Ports:           ports,
 		LivenessProbe:   jobManagerSpec.LivenessProbe,
 		ReadinessProbe:  jobManagerSpec.ReadinessProbe,
 		Resources:       jobManagerSpec.Resources,
-		Env:             envVars,
+		Env:             flinkCluster.Spec.EnvVars,
 		EnvFrom:         flinkCluster.Spec.EnvFrom,
 		VolumeMounts:    jobManagerSpec.VolumeMounts,
 		Lifecycle: &corev1.Lifecycle{
@@ -158,11 +123,18 @@ func newJobManagerPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
 				},
 			},
 		},
-	}}
+	}
+}
+
+func newJobManagerPodSpec(mainContainer *corev1.Container, flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
+	var clusterSpec = flinkCluster.Spec
+	var imageSpec = clusterSpec.Image
+	var serviceAccount = clusterSpec.ServiceAccountName
+	var jobManagerSpec = clusterSpec.JobManager
 
 	var podSpec = &corev1.PodSpec{
-		InitContainers:                convertContainers(jobManagerSpec.InitContainers, []corev1.VolumeMount{}, envVars),
-		Containers:                    containers,
+		InitContainers:                jobManagerSpec.InitContainers,
+		Containers:                    []corev1.Container{*mainContainer},
 		Volumes:                       jobManagerSpec.Volumes,
 		NodeSelector:                  jobManagerSpec.NodeSelector,
 		Tolerations:                   jobManagerSpec.Tolerations,
@@ -170,9 +142,6 @@ func newJobManagerPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
 		SecurityContext:               jobManagerSpec.SecurityContext,
 		ServiceAccountName:            getServiceAccountName(serviceAccount),
 		TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
-	}
-	if addUsrLib {
-		setUsrLib(podSpec)
 	}
 	setFlinkConfig(getConfigMapName(flinkCluster.Name), podSpec)
 	setHadoopConfig(flinkCluster.Spec.HadoopConfig, podSpec)
@@ -199,7 +168,9 @@ func getDesiredJobManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1
 	podLabels = mergeLabels(podLabels, jobManagerSpec.PodLabels)
 	var statefulSetLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
 
-	podSpec := newJobManagerPodSpec(flinkCluster)
+	mainContainer := newJobManagerBaseContainer(flinkCluster)
+	mainContainer.Args = []string{"jobmanager"}
+	podSpec := newJobManagerPodSpec(mainContainer, flinkCluster)
 	if podSpec == nil {
 		return nil
 	}
@@ -779,6 +750,7 @@ func getDesiredSubmitterJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 
 func getDesiredJobManagerJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 	var clusterSpec = flinkCluster.Spec
+	var status = flinkCluster.Status
 	var jobManagerSpec = clusterSpec.JobManager
 	var jobId = flink.GenJobId(flinkCluster.Namespace, flinkCluster.Name)
 	var podLabels = getComponentLabels(*flinkCluster, "jobmanager")
@@ -787,11 +759,46 @@ func getDesiredJobManagerJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 	var jobLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
 
 	var jobName = getJobManagerJobName(flinkCluster.Name)
-	podSpec := newJobManagerPodSpec(flinkCluster)
-	if podSpec == nil {
-		return nil
+
+	jobSpec := flinkCluster.Spec.Job
+	args := []string{"standalone-job"}
+
+	if parallelism, err := calJobParallelism(flinkCluster); err == nil {
+		args = append(args, fmt.Sprintf("-Dparallelism.default=%d", parallelism))
 	}
+
+	var fromSavepoint = convertFromSavepoint(jobSpec, status.Components.Job, &status.Revision)
+	if fromSavepoint != nil {
+		args = append(args, "--fromSavepoint", *fromSavepoint)
+	}
+
+	if jobSpec.AllowNonRestoredState != nil &&
+		*jobSpec.AllowNonRestoredState {
+		args = append(args, "--allowNonRestoredState")
+	}
+
+	args = append(args,
+		"--job-id", jobId,
+		"--job-classname", *jobSpec.ClassName,
+	)
+
+	args = append(args, jobSpec.Args...)
+
+	mainContainer := newJobManagerBaseContainer(flinkCluster)
+	mainContainer.Args = args
+
+	podSpec := newJobManagerPodSpec(mainContainer, flinkCluster)
 	podSpec.RestartPolicy = corev1.RestartPolicyNever
+
+	if jobSpec != nil && jobSpec.JarFile != nil {
+		envVars := addEnvVar(flinkCluster.Spec.EnvVars, jobJarUriEnvVar, *jobSpec.JarFile)
+		mainContainer.Env = appendEnvVars(mainContainer.Env, envVars...)
+		podSpec.InitContainers = convertContainers(podSpec.InitContainers, []corev1.VolumeMount{}, envVars)
+
+		if isRemoteFile(*jobSpec.JarFile) {
+			setUsrLib(podSpec)
+		}
+	}
 
 	//FIXME: Add Volume claim support
 	// var pvcs []corev1.PersistentVolumeClaim
