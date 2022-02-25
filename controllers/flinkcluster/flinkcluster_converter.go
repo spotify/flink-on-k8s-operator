@@ -183,7 +183,7 @@ func newJobManagerPodSpec(mainContainer *corev1.Container, flinkCluster *v1beta1
 	var jobManagerSpec = clusterSpec.JobManager
 
 	var podSpec = &corev1.PodSpec{
-		InitContainers:                jobManagerSpec.InitContainers,
+		InitContainers:                convertContainers(jobManagerSpec.InitContainers, []corev1.VolumeMount{}, clusterSpec.EnvVars),
 		Containers:                    []corev1.Container{*mainContainer},
 		Volumes:                       jobManagerSpec.Volumes,
 		NodeSelector:                  jobManagerSpec.NodeSelector,
@@ -452,7 +452,7 @@ func newTaskManagerPodSpec(mainContainer *corev1.Container, flinkCluster *v1beta
 	var taskManagerSpec = flinkCluster.Spec.TaskManager
 
 	var podSpec = &corev1.PodSpec{
-		InitContainers:                taskManagerSpec.InitContainers,
+		InitContainers:                convertContainers(taskManagerSpec.InitContainers, []corev1.VolumeMount{}, clusterSpec.EnvVars),
 		Containers:                    []corev1.Container{*mainContainer},
 		Volumes:                       taskManagerSpec.Volumes,
 		NodeSelector:                  taskManagerSpec.NodeSelector,
