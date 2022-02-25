@@ -847,7 +847,6 @@ func TestGetDesiredClusterState(t *testing.T) {
 							Env: []corev1.EnvVar{
 								{Name: "FLINK_JM_ADDR", Value: "flinkjobcluster-sample-jobmanager:8081"},
 								{Name: "FOO", Value: "abc"},
-								{Name: "FLINK_JOB_JAR_URI", Value: "/cache/my-job.jar"},
 								{Name: "HADOOP_CONF_DIR", Value: "/etc/hadoop/conf"},
 								{Name: "GOOGLE_APPLICATION_CREDENTIALS", Value: "/etc/gcp_service_account/gcp_service_account_key.json"},
 							},
@@ -874,7 +873,6 @@ func TestGetDesiredClusterState(t *testing.T) {
 							Env: []corev1.EnvVar{
 								{Name: "FLINK_JM_ADDR", Value: "flinkjobcluster-sample-jobmanager:8081"},
 								{Name: "FOO", Value: "abc"},
-								{Name: "FLINK_JOB_JAR_URI", Value: "/cache/my-job.jar"},
 								{Name: "HADOOP_CONF_DIR", Value: "/etc/hadoop/conf"},
 								{
 									Name:  "GOOGLE_APPLICATION_CREDENTIALS",
