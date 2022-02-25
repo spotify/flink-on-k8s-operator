@@ -24,7 +24,8 @@ RUN echo "Downloading ${FLINK_HADOOP_JAR_URI}" && \
   wget -q -O /opt/flink/lib/${FLINK_HADOOP_JAR_NAME} ${FLINK_HADOOP_JAR_URI}
 
 # Install Python and pyflink .
-RUN apt-get install -y build-essential libssl-dev zlib1g-dev libbz2-dev libffi-dev && \
+RUN apt-get update && \
+  apt-get install -y build-essential libssl-dev zlib1g-dev libbz2-dev libffi-dev && \
   wget https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz && \
   tar -xvf Python-${PYTHON_VERSION}.tgz && \
   cd Python-${PYTHON_VERSION} && \
