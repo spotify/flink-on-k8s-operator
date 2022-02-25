@@ -563,3 +563,7 @@ func IsApplicationModeCluster(cluster *v1beta1.FlinkCluster) bool {
 	jobSpec := cluster.Spec.Job
 	return jobSpec != nil && *jobSpec.Mode == v1beta1.JobModeApplication
 }
+
+func IsApplicationMode(jobSpec *v1beta1.JobSpec) bool {
+	return jobSpec != nil && *jobSpec.Mode == v1beta1.JobModeApplication
+}

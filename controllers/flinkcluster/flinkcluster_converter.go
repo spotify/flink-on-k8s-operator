@@ -198,14 +198,6 @@ func newJobManagerPodSpec(mainContainer *corev1.Container, flinkCluster *v1beta1
 	setGCPConfig(flinkCluster.Spec.GCPConfig, podSpec)
 	podSpec.Containers = append(podSpec.Containers, jobManagerSpec.Sidecars...)
 
-	jobSpec := flinkCluster.Spec.Job
-	if IsApplicationModeCluster(flinkCluster) && jobSpec.JarFile != nil {
-		envVars := []corev1.EnvVar{{Name: jobJarUriEnvVar, Value: *jobSpec.JarFile}}
-		mainContainer.Env = appendEnvVars(mainContainer.Env, envVars...)
-		podSpec.Containers = convertContainers(podSpec.Containers, []corev1.VolumeMount{}, envVars)
-		podSpec.InitContainers = convertContainers(podSpec.InitContainers, []corev1.VolumeMount{}, envVars)
-	}
-
 	return podSpec
 }
 
@@ -476,14 +468,6 @@ func newTaskManagerPodSpec(mainContainer *corev1.Container, flinkCluster *v1beta
 	setGCPConfig(flinkCluster.Spec.GCPConfig, podSpec)
 	podSpec.Containers = append(podSpec.Containers, taskManagerSpec.Sidecars...)
 
-	jobSpec := flinkCluster.Spec.Job
-	if IsApplicationModeCluster(flinkCluster) && jobSpec.JarFile != nil {
-		envVars := []corev1.EnvVar{{Name: jobJarUriEnvVar, Value: *jobSpec.JarFile}}
-		mainContainer.Env = appendEnvVars(mainContainer.Env, envVars...)
-		podSpec.Containers = convertContainers(podSpec.Containers, []corev1.VolumeMount{}, envVars)
-		podSpec.InitContainers = convertContainers(podSpec.InitContainers, []corev1.VolumeMount{}, envVars)
-	}
-
 	return podSpec
 }
 
@@ -663,17 +647,14 @@ func newJobSubmitterPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec 
 
 	if jobSpec.JarFile != nil {
 		jobArgs = append(jobArgs, *jobSpec.JarFile)
-		envVars = addEnvVar(envVars, jobJarUriEnvVar, *jobSpec.JarFile)
 	}
 
 	if jobSpec.PyFile != nil {
 		jobArgs = append(jobArgs, "--python", *jobSpec.PyFile)
-		envVars = addEnvVar(envVars, jobPyFileUriEnvVar, *jobSpec.PyFile)
 	}
 
 	if jobSpec.PyFiles != nil {
 		jobArgs = append(jobArgs, "--pyFiles", *jobSpec.PyFiles)
-		envVars = addEnvVar(envVars, jobPyFilesUriEnvVar, *jobSpec.PyFiles)
 	}
 
 	if jobSpec.PyModule != nil {
