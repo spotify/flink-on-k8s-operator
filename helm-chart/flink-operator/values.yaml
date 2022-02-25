@@ -51,3 +51,8 @@ podAnnotations: {}
 
 nodeSelector: {}
 tolerations: {}
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 90%
+  maxUnavailable: 1
