@@ -931,7 +931,7 @@ func (reconciler *ClusterReconciler) updateStatus(
 		if controlStatus != nil {
 			newStatus.Control = controlStatus
 		}
-		setTimestamp(&newStatus.LastUpdateTime)
+		SetTimestamp(&newStatus.LastUpdateTime)
 		log.Info("Updating cluster status", "clusterClone", clusterClone, "newStatus", newStatus)
 		statusUpdateErr = reconciler.k8sClient.Status().Update(reconciler.context, clusterClone)
 		if statusUpdateErr == nil {
@@ -966,8 +966,8 @@ func (reconciler *ClusterReconciler) updateJobDeployStatus() error {
 	newJob.CompletionTime = nil
 
 	// Mark as job submitter is deployed.
-	setTimestamp(&newJob.DeployTime)
-	setTimestamp(&clusterClone.Status.LastUpdateTime)
+	SetTimestamp(&newJob.DeployTime)
+	SetTimestamp(&clusterClone.Status.LastUpdateTime)
 
 	// Latest savepoint location should be fromSavepoint.
 	var fromSavepoint = getFromSavepoint(desiredJobSubmitter.Spec)
@@ -992,7 +992,7 @@ func (reconciler *ClusterReconciler) getNewSavepointStatus(triggerID string, tri
 	var jobID = reconciler.getFlinkJobID()
 	var savepointState string
 	var now string
-	setTimestamp(&now)
+	SetTimestamp(&now)
 
 	if triggerSuccess {
 		savepointState = v1beta1.SavepointStateInProgress

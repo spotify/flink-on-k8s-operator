@@ -600,34 +600,9 @@ func newJobSubmitterPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec 
 	var jobManagerAddress = fmt.Sprintf(
 		"%s:%d", jobManagerServiceName, *jobManagerSpec.Ports.UI)
 
-	var jobArgs = []string{"bash", submitJobScriptPath}
-	jobArgs = append(jobArgs, "--jobmanager", jobManagerAddress)
-	if jobSpec.ClassName != nil {
-		jobArgs = append(jobArgs, "--class", *jobSpec.ClassName)
-	}
-
 	var fromSavepoint = convertFromSavepoint(jobSpec, status.Components.Job, &status.Revision)
-	if fromSavepoint != nil {
-		jobArgs = append(jobArgs, "--fromSavepoint", *fromSavepoint)
-	}
-
-	if jobSpec.AllowNonRestoredState != nil &&
-		*jobSpec.AllowNonRestoredState {
-		jobArgs = append(jobArgs, "--allowNonRestoredState")
-	}
-
-	if parallelism, err := calJobParallelism(flinkCluster); err == nil {
-		jobArgs = append(jobArgs, "--parallelism", fmt.Sprint(parallelism))
-	}
-
-	if jobSpec.NoLoggingToStdout != nil &&
-		*jobSpec.NoLoggingToStdout {
-		jobArgs = append(jobArgs, "--sysoutLogging")
-	}
-
-	if jobSpec.Mode != nil && *jobSpec.Mode == v1beta1.JobModeDetached {
-		jobArgs = append(jobArgs, "--detached")
-	}
+	parallelism, _ := calJobParallelism(flinkCluster)
+	var jobArgs = BuildSessionJobArgs(jobSpec, jobManagerAddress, fromSavepoint, parallelism)
 
 	envVars := []corev1.EnvVar{{
 		Name:  jobManagerAddrEnvVar,
@@ -645,23 +620,13 @@ func newJobSubmitterPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec 
 	volumes = append(volumes, *sbsVolume)
 	volumeMounts = append(volumeMounts, *sbsMount, *confMount)
 
-	if jobSpec.JarFile != nil {
-		jobArgs = append(jobArgs, *jobSpec.JarFile)
-	}
-
 	if jobSpec.PyFile != nil {
-		jobArgs = append(jobArgs, "--python", *jobSpec.PyFile)
+		envVars = addEnvVar(envVars, jobPyFileUriEnvVar, *jobSpec.PyFile)
 	}
 
 	if jobSpec.PyFiles != nil {
-		jobArgs = append(jobArgs, "--pyFiles", *jobSpec.PyFiles)
+		envVars = addEnvVar(envVars, jobPyFilesUriEnvVar, *jobSpec.PyFiles)
 	}
-
-	if jobSpec.PyModule != nil {
-		jobArgs = append(jobArgs, "--pyModule", *jobSpec.PyModule)
-	}
-
-	jobArgs = append(jobArgs, jobSpec.Args...)
 
 	podSpec := &corev1.PodSpec{
 		InitContainers: convertContainers(jobSpec.InitContainers, volumeMounts, envVars),
@@ -820,13 +785,13 @@ func appendVolumeMounts(volumeMounts []corev1.VolumeMount, newVolumeMounts ...co
 }
 
 func addEnvVar(envVars []corev1.EnvVar, name, value string) []corev1.EnvVar {
-	return appendEnvVars(envVars, corev1.EnvVar{
+	return AppendEnvVars(envVars, corev1.EnvVar{
 		Name:  name,
 		Value: value,
 	})
 }
 
-func appendEnvVars(envVars []corev1.EnvVar, newEnvVars ...corev1.EnvVar) []corev1.EnvVar {
+func AppendEnvVars(envVars []corev1.EnvVar, newEnvVars ...corev1.EnvVar) []corev1.EnvVar {
 	for _, envVar := range newEnvVars {
 		var conflict = false
 		for _, env := range envVars {
@@ -846,7 +811,7 @@ func appendEnvVars(envVars []corev1.EnvVar, newEnvVars ...corev1.EnvVar) []corev
 // Copy any non-duplicate volume mounts and env vars to the specified containers
 func convertContainer(container corev1.Container, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.Container {
 	container.VolumeMounts = appendVolumeMounts(container.VolumeMounts, volumeMounts...)
-	container.Env = appendEnvVars(container.Env, envVars...)
+	container.Env = AppendEnvVars(container.Env, envVars...)
 
 	return container
 }
@@ -1247,4 +1212,54 @@ func getLogConf(spec v1beta1.FlinkClusterSpec) map[string]string {
 		result["logback-console.xml"] = DefaultLogbackConfig
 	}
 	return result
+}
+
+func BuildSessionJobArgs(jobSpec *v1beta1.JobSpec, jobManagerAddress string, fromSavepoint *string, parallelism int32) []string {
+	var jobArgs = []string{"bash", submitJobScriptPath}
+	jobArgs = append(jobArgs, "--jobmanager", jobManagerAddress)
+	if jobSpec.ClassName != nil {
+		jobArgs = append(jobArgs, "--class", *jobSpec.ClassName)
+	}
+
+	if fromSavepoint != nil {
+		jobArgs = append(jobArgs, "--fromSavepoint", *fromSavepoint)
+	}
+
+	if jobSpec.AllowNonRestoredState != nil &&
+		*jobSpec.AllowNonRestoredState {
+		jobArgs = append(jobArgs, "--allowNonRestoredState")
+	}
+
+	if parallelism > 0 {
+		jobArgs = append(jobArgs, "--parallelism", fmt.Sprint(parallelism))
+	}
+
+	if jobSpec.NoLoggingToStdout != nil &&
+		*jobSpec.NoLoggingToStdout {
+		jobArgs = append(jobArgs, "--sysoutLogging")
+	}
+
+	if jobSpec.Mode != nil && *jobSpec.Mode == v1beta1.JobModeDetached {
+		jobArgs = append(jobArgs, "--detached")
+	}
+
+	if jobSpec.JarFile != nil {
+		jobArgs = append(jobArgs, *jobSpec.JarFile)
+	}
+
+	if jobSpec.PyFile != nil {
+		jobArgs = append(jobArgs, "--python", *jobSpec.PyFile)
+	}
+
+	if jobSpec.PyFiles != nil {
+		jobArgs = append(jobArgs, "--pyFiles", *jobSpec.PyFiles)
+	}
+
+	if jobSpec.PyModule != nil {
+		jobArgs = append(jobArgs, "--pyModule", *jobSpec.PyModule)
+	}
+
+	jobArgs = append(jobArgs, jobSpec.Args...)
+
+	return jobArgs
 }
