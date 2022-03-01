@@ -19,7 +19,7 @@ package flinkcluster
 // This script is part of the cluster's ConfigMap and is mounted into the
 // job (submitter) container at `/opt/flink-operator/submit-job.sh` for job
 // submission.
-var submitJobScript = `
+var SubmitJobScript = `
 #! /usr/bin/env bash
 
 # This script checks the status of the JobManager and submits the Flink job when ready.
@@ -150,7 +150,7 @@ function submit_job() {
     if [ $job_exit_code -ne 0 ]; then
         write_term_log_msg "Job failed with a non-zero exit code: ${job_exit_code}" "submit_log"
         return 1
-    fi        
+    fi
 
     # On success, write log
     write_term_log_msg "Successfully submitted!" "submit_log"

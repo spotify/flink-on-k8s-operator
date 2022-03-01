@@ -1012,7 +1012,7 @@ taskmanager.rpc.port: 6122
 			"log4j-console.properties": "foo",
 			"log4j-cli.properties":     "baz",
 			"logback-console.xml":      "bar",
-			"submit-job.sh":            submitJobScript,
+			"submit-job.sh":            SubmitJobScript,
 		},
 	}
 	assert.Assert(t, desiredState.ConfigMap != nil)

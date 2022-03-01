@@ -574,7 +574,7 @@ func newConfigMap(flinkCluster *v1beta1.FlinkCluster) *corev1.ConfigMap {
 	}
 	var configData = getLogConf(flinkCluster.Spec)
 	configData["flink-conf.yaml"] = getFlinkProperties(flinkProps)
-	configData["submit-job.sh"] = submitJobScript
+	configData["submit-job.sh"] = SubmitJobScript
 	var configMap = &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       clusterNamespace,
