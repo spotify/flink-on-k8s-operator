@@ -768,12 +768,12 @@ func convertFromSavepoint(jobSpec *v1beta1.JobSpec, jobStatus *v1beta1.JobStatus
 	switch {
 	// Creating for the first time
 	case jobStatus == nil:
-		if !isBlank(jobSpec.FromSavepoint) {
+		if !IsBlank(jobSpec.FromSavepoint) {
 			return jobSpec.FromSavepoint
 		}
 		return nil
 	// Updating with FromSavepoint provided
-	case revision.IsUpdateTriggered() && !isBlank(jobSpec.FromSavepoint):
+	case revision.IsUpdateTriggered() && !IsBlank(jobSpec.FromSavepoint):
 		return jobSpec.FromSavepoint
 	// Latest savepoint
 	case jobStatus.SavepointLocation != "":

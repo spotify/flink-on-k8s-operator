@@ -632,7 +632,7 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 				newJob.RestartCount++
 			}
 		case newJob.State == v1beta1.JobStateRunning:
-			setTimestamp(&newJob.StartTime)
+			SetTimestamp(&newJob.StartTime)
 			newJob.CompletionTime = nil
 			// When job started, the savepoint is not the final state of the job any more.
 			if oldJob.FinalSavepoint {
@@ -675,7 +675,7 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 		// Currently savepoint complete timestamp is not included in savepoints API response.
 		// Whereas checkpoint API returns the timestamp latest_ack_timestamp.
 		// Note: https://ci.apache.org/projects/flink/flink-docs-stable/ops/rest_api.html#jobs-jobid-checkpoints-details-checkpointid
-		setTimestamp(&newJob.SavepointTime)
+		SetTimestamp(&newJob.SavepointTime)
 	}
 
 	return newJob
@@ -953,7 +953,7 @@ func deriveControlStatus(
 		}
 		// Update time when state changed.
 		if c.State != v1beta1.ControlStateInProgress {
-			setTimestamp(&c.UpdateTime)
+			SetTimestamp(&c.UpdateTime)
 		}
 		return c
 	}
