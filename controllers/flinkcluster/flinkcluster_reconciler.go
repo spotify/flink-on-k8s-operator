@@ -666,7 +666,7 @@ func (reconciler *ClusterReconciler) trySuspendJob() (*v1beta1.SavepointStatus, 
 	var log = reconciler.log
 	var recorded = reconciler.observed.cluster.Status
 
-	if !canTakeSavepoint(*reconciler.observed.cluster) {
+	if !canTakeSavepoint(reconciler.observed.cluster) {
 		return nil, nil
 	}
 
@@ -753,7 +753,7 @@ func (reconciler *ClusterReconciler) cancelJobs(
 // Takes a savepoint if possible then stops the job.
 func (reconciler *ClusterReconciler) cancelFlinkJob(jobID string, takeSavepoint bool) error {
 	var log = reconciler.log
-	if takeSavepoint && canTakeSavepoint(*reconciler.observed.cluster) {
+	if takeSavepoint && canTakeSavepoint(reconciler.observed.cluster) {
 		log.Info("Taking savepoint before stopping job", "jobID", jobID)
 		var err = reconciler.takeSavepoint(jobID)
 		if err != nil {
@@ -802,7 +802,7 @@ func (reconciler *ClusterReconciler) shouldTakeSavepoint() v1beta1.SavepointReas
 	var savepoint = observed.cluster.Status.Savepoint
 	var newRequestedControl = getNewControlRequest(cluster)
 
-	if !canTakeSavepoint(*reconciler.observed.cluster) {
+	if !canTakeSavepoint(reconciler.observed.cluster) {
 		return ""
 	}
 
