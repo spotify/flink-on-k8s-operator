@@ -4,7 +4,7 @@ flinkOperatorNamespace:
 
 # Watch custom resources in the namespace, ignore other namespaces. If empty, all namespaces will be watched.
 watchNamespace:
-  - flink-job
+  name: "flink-job"
 
 # The number of replicas of the operator Deployment
 replicas: 1

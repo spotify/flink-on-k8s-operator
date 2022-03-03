@@ -64,7 +64,7 @@ spec:
         args:
         - --metrics-addr=127.0.0.1:8080
         - --enable-leader-election
-        - --watch-namespace=
+        - --watch-namespace={{ .Values.watchNamespace.name }}
         - --zap-devel=false
         command:
         - /flink-operator
