@@ -596,7 +596,7 @@ func newJobSubmitterPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec 
 	var serviceAccount = clusterSpec.ServiceAccountName
 	var jobManagerSpec = clusterSpec.JobManager
 	var clusterName = flinkCluster.Name
-	var jobManagerServiceName = clusterName + "-jobmanager"
+	var jobManagerServiceName = getJobManagerServiceName(clusterName)
 	var jobManagerAddress = fmt.Sprintf(
 		"%s:%d", jobManagerServiceName, *jobManagerSpec.Ports.UI)
 
