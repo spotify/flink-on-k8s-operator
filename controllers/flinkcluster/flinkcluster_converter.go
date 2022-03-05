@@ -1243,6 +1243,9 @@ func getLogConf(spec v1beta1.FlinkClusterSpec) map[string]string {
 	if _, isPresent := result["log4j-console.properties"]; !isPresent {
 		result["log4j-console.properties"] = DefaultLog4jConfig
 	}
+	if _, isPresent := result["log4j-cli.properties"]; !isPresent {
+		result["log4j-cli.properties"] = DefaultLog4jConfig
+	}
 	if _, isPresent := result["logback-console.xml"]; !isPresent {
 		result["logback-console.xml"] = DefaultLogbackConfig
 	}

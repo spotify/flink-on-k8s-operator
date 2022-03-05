@@ -305,6 +305,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 					"extra-file.txt":           "hello!",
 					"log4j-console.properties": "foo",
 					"logback-console.xml":      "bar",
+					"log4j-cli.properties":     "baz",
 				},
 			},
 			Status: v1beta1.FlinkClusterStatus{
@@ -1009,6 +1010,7 @@ taskmanager.rpc.port: 6122
 			"flink-conf.yaml":          flinkConfYaml,
 			"extra-file.txt":           "hello!",
 			"log4j-console.properties": "foo",
+			"log4j-cli.properties":     "baz",
 			"logback-console.xml":      "bar",
 			"submit-job.sh":            submitJobScript,
 		},
@@ -1270,6 +1272,7 @@ func Test_getLogConf(t *testing.T) {
 			args: args{v1beta1.FlinkClusterSpec{LogConfig: nil}},
 			want: map[string]string{
 				"log4j-console.properties": DefaultLog4jConfig,
+				"log4j-cli.properties":     DefaultLog4jConfig,
 				"logback-console.xml":      DefaultLogbackConfig,
 			},
 		},
@@ -1280,6 +1283,7 @@ func Test_getLogConf(t *testing.T) {
 			}}},
 			want: map[string]string{
 				"log4j-console.properties": DefaultLog4jConfig,
+				"log4j-cli.properties":     DefaultLog4jConfig,
 				"logback-console.xml":      "xyz",
 			},
 		},
@@ -1290,18 +1294,33 @@ func Test_getLogConf(t *testing.T) {
 			}}},
 			want: map[string]string{
 				"log4j-console.properties": "xyz",
+				"log4j-cli.properties":     DefaultLog4jConfig,
 				"logback-console.xml":      DefaultLogbackConfig,
 			},
 		},
 		{
-			name: "map with both keys overrides defaults",
+			name: "map missing log4j-cli.properties uses default",
+			args: args{v1beta1.FlinkClusterSpec{LogConfig: map[string]string{
+				"log4j-console.properties": "xyz",
+				"logback-console.xml":      "xyz",
+			}}},
+			want: map[string]string{
+				"log4j-console.properties": "xyz",
+				"log4j-cli.properties":     DefaultLog4jConfig,
+				"logback-console.xml":      "xyz",
+			},
+		},
+		{
+			name: "map with all three keys overrides defaults",
 			args: args{v1beta1.FlinkClusterSpec{LogConfig: map[string]string{
 				"log4j-console.properties": "hello",
+				"log4j-cli.properties":     "xyz",
 				"logback-console.xml":      "world",
 			}}},
 			want: map[string]string{
 				"log4j-console.properties": "hello",
 				"logback-console.xml":      "world",
+				"log4j-cli.properties":     "xyz",
 			},
 		},
 		{
@@ -1312,6 +1331,7 @@ func Test_getLogConf(t *testing.T) {
 			}}},
 			want: map[string]string{
 				"log4j-console.properties": "abc",
+				"log4j-cli.properties":     DefaultLog4jConfig,
 				"logback-console.xml":      DefaultLogbackConfig,
 				"file.txt":                 "def",
 			},
