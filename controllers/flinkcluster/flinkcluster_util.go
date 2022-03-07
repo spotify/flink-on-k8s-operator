@@ -112,7 +112,7 @@ func getJobManagerIngressName(clusterName string) string {
 	return clusterName + "-jobmanager"
 }
 
-// Gets TaskManager name
+// Gets TaskManager StatefulSet name
 func getTaskManagerStatefulSetName(clusterName string) string {
 	return clusterName + "-taskmanager"
 }
