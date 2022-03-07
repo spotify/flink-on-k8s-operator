@@ -4,7 +4,7 @@ flinkOperatorNamespace:
 
 # Watch custom resources in the namespace, ignore other namespaces. If empty, all namespaces will be watched.
 watchNamespace:
-  - flink-job
+  name: "flink-job"
 
 # The number of replicas of the operator Deployment
 replicas: 1
@@ -22,7 +22,7 @@ serviceAccount:
 rbac:
   create: true
 
-# The defination of the operator image
+# The definition of the operator image
 operatorImage:
   name: ghcr.io/spotify/flink-operator:latest
   pullPolicy: IfNotPresent

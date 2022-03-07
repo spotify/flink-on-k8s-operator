@@ -156,7 +156,7 @@ spec:
           mountPath: "/webhook_to_create/"
       dnsPolicy: ClusterFirst
       restartPolicy: Never
-      serviceAccountName: {{ include "flink-operator.fullname" . }}
+      serviceAccountName: {{ template "flink-operator.serviceAccountName" . }}
       volumes:
       - name: cert-configmap
         configMap:
