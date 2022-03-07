@@ -843,7 +843,7 @@ func appendEnvVars(envVars []corev1.EnvVar, newEnvVars ...corev1.EnvVar) []corev
 	return envVars
 }
 
-// Copy any non-duplicate volume mounts and env vars to the specified containers
+// Copy any non-duplicate volume mounts and env vars to each specified container
 func convertContainer(container corev1.Container, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.Container {
 	container.VolumeMounts = appendVolumeMounts(container.VolumeMounts, volumeMounts...)
 	container.Env = appendEnvVars(container.Env, envVars...)
@@ -851,7 +851,7 @@ func convertContainer(container corev1.Container, volumeMounts []corev1.VolumeMo
 	return container
 }
 
-// Copy any non-duplicate volume mounts and env vars to each specified container
+// Copy any non-duplicate volume mounts and env vars to the specified containers
 func convertContainers(containers []corev1.Container, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) []corev1.Container {
 	var updatedContainers = []corev1.Container{}
 	for _, container := range containers {

@@ -92,7 +92,7 @@ func getFlinkAPIBaseURL(cluster *v1beta1.FlinkCluster) string {
 		*cluster.Spec.JobManager.Ports.UI)
 }
 
-// Gets JobManager ingress name
+// Gets ConfigMap name
 func getConfigMapName(clusterName string) string {
 	return clusterName + "-configmap"
 }
@@ -112,7 +112,7 @@ func getJobManagerIngressName(clusterName string) string {
 	return clusterName + "-jobmanager"
 }
 
-// Gets TaskManager name
+// Gets TaskManager StatefulSet name
 func getTaskManagerStatefulSetName(clusterName string) string {
 	return clusterName + "-taskmanager"
 }
