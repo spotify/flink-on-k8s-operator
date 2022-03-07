@@ -103,11 +103,15 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 		state.JmIngress = newJobManagerIngress(cluster)
 	}
 
-	jobStatus := cluster.Status.Components.Job
-	keepJobState := (shouldStopJob(cluster) || jobStatus.IsStopped()) &&
-		(!shouldUpdateJob(observed) && !jobStatus.ShouldRestart(jobSpec))
-	if jobSpec != nil && !keepJobState {
-		state.Job = newJob(cluster)
+	if jobSpec != nil {
+		jobStatus := cluster.Status.Components.Job
+
+		keepJobState := (shouldStopJob(cluster) || jobStatus.IsStopped()) &&
+			(!shouldUpdateJob(observed) && !jobStatus.ShouldRestart(jobSpec))
+
+		if !keepJobState {
+			state.Job = newJob(cluster)
+		}
 	}
 
 	return state
