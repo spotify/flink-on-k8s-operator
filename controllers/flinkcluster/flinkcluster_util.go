@@ -160,7 +160,7 @@ func isBlank(s *string) bool {
 }
 
 // Checks whether it is possible to take savepoint.
-func canTakeSavepoint(cluster v1beta1.FlinkCluster) bool {
+func canTakeSavepoint(cluster *v1beta1.FlinkCluster) bool {
 	var jobSpec = cluster.Spec.Job
 	var savepointStatus = cluster.Status.Savepoint
 	var job = cluster.Status.Components.Job

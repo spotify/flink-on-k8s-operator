@@ -209,7 +209,7 @@ func newJobManagerPodSpec(mainContainer *corev1.Container, flinkCluster *v1beta1
 func newJobManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1.StatefulSet {
 	var jobManagerSpec = flinkCluster.Spec.JobManager
 	var jobManagerStatefulSetName = getJobManagerStatefulSetName(flinkCluster.Name)
-	var podLabels = getComponentLabels(*flinkCluster, "jobmanager")
+	var podLabels = getComponentLabels(flinkCluster, "jobmanager")
 	podLabels = mergeLabels(podLabels, jobManagerSpec.PodLabels)
 	var statefulSetLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
 
@@ -270,7 +270,7 @@ func newJobManagerService(flinkCluster *v1beta1.FlinkCluster) *corev1.Service {
 		Port:       *jobManagerSpec.Ports.UI,
 		TargetPort: intstr.FromString("ui")}
 	var jobManagerServiceName = getJobManagerServiceName(clusterName)
-	var podLabels = getComponentLabels(*flinkCluster, "jobmanager")
+	var podLabels = getComponentLabels(flinkCluster, "jobmanager")
 	podLabels = mergeLabels(podLabels, jobManagerSpec.PodLabels)
 	var serviceLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
 	var jobManagerService = &corev1.Service{
@@ -332,7 +332,7 @@ func newJobManagerIngress(
 	var ingressHost string
 	var ingressTLS []networkingv1.IngressTLS
 	var labels = mergeLabels(
-		getComponentLabels(*flinkCluster, "jobmanager"),
+		getComponentLabels(flinkCluster, "jobmanager"),
 		getRevisionHashLabels(&flinkCluster.Status.Revision))
 	var pathType = networkingv1.PathTypePrefix
 	if jobManagerIngressSpec.HostFormat != nil {
@@ -479,7 +479,7 @@ func newTaskManagerPodSpec(mainContainer *corev1.Container, flinkCluster *v1beta
 func newTaskManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1.StatefulSet {
 	var taskManagerSpec = flinkCluster.Spec.TaskManager
 	var taskManagerStatefulSetName = getTaskManagerStatefulSetName(flinkCluster.Name)
-	var podLabels = getComponentLabels(*flinkCluster, "taskmanager")
+	var podLabels = getComponentLabels(flinkCluster, "taskmanager")
 	podLabels = mergeLabels(podLabels, taskManagerSpec.PodLabels)
 	var statefulSetLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
 
@@ -530,7 +530,7 @@ func newConfigMap(flinkCluster *v1beta1.FlinkCluster) *corev1.ConfigMap {
 	var tmPorts = flinkCluster.Spec.TaskManager.Ports
 	var configMapName = getConfigMapName(clusterName)
 	var labels = mergeLabels(
-		getClusterLabels(*flinkCluster),
+		getClusterLabels(flinkCluster),
 		getRevisionHashLabels(&flinkCluster.Status.Revision))
 	// Properties which should be provided from real deployed environment.
 	var flinkProps = map[string]string{
@@ -705,7 +705,7 @@ func newJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 
 	recorded := flinkCluster.Status
 	jobManagerSpec := flinkCluster.Spec.JobManager
-	labels := getClusterLabels(*flinkCluster)
+	labels := getClusterLabels(flinkCluster)
 	labels = mergeLabels(labels, getRevisionHashLabels(&recorded.Revision))
 
 	var jobName string
@@ -713,7 +713,7 @@ func newJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 	var podSpec *corev1.PodSpec
 
 	if IsApplicationModeCluster(flinkCluster) {
-		labels = mergeLabels(labels, getComponentLabels(*flinkCluster, "jobmanager"))
+		labels = mergeLabels(labels, getComponentLabels(flinkCluster, "jobmanager"))
 		labels = mergeLabels(labels, jobManagerSpec.PodLabels)
 		labels = mergeLabels(labels, map[string]string{
 			"job-id": flink.GenJobId(flinkCluster.Namespace, flinkCluster.Name),
@@ -1162,7 +1162,7 @@ func setGCPConfig(gcpConfig *v1beta1.GCPConfig, podSpec *corev1.PodSpec) bool {
 	return true
 }
 
-func getClusterLabels(cluster v1beta1.FlinkCluster) map[string]string {
+func getClusterLabels(cluster *v1beta1.FlinkCluster) map[string]string {
 	return map[string]string{
 		"cluster": cluster.Name,
 		"app":     "flink",
@@ -1177,7 +1177,7 @@ func getServiceAccountName(serviceAccount *string) string {
 	return ""
 }
 
-func getComponentLabels(cluster v1beta1.FlinkCluster, component string) map[string]string {
+func getComponentLabels(cluster *v1beta1.FlinkCluster, component string) map[string]string {
 	return mergeLabels(getClusterLabels(cluster), map[string]string{
 		"component": component,
 	})

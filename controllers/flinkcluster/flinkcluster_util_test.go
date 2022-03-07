@@ -145,7 +145,7 @@ func TestCanTakeSavepoint(t *testing.T) {
 	var cluster = v1beta1.FlinkCluster{
 		Spec: v1beta1.FlinkClusterSpec{},
 	}
-	var take = canTakeSavepoint(cluster)
+	var take = canTakeSavepoint(&cluster)
 	assert.Equal(t, take, false)
 
 	// no savepointDir and job status
@@ -154,7 +154,7 @@ func TestCanTakeSavepoint(t *testing.T) {
 			Job: &v1beta1.JobSpec{},
 		},
 	}
-	take = canTakeSavepoint(cluster)
+	take = canTakeSavepoint(&cluster)
 	assert.Equal(t, take, false)
 
 	// no job status, job is to be started
@@ -164,7 +164,7 @@ func TestCanTakeSavepoint(t *testing.T) {
 			Job: &v1beta1.JobSpec{SavepointsDir: &savepointDir},
 		},
 	}
-	take = canTakeSavepoint(cluster)
+	take = canTakeSavepoint(&cluster)
 	assert.Equal(t, take, true)
 
 	// running job and no progressing savepoint
@@ -177,7 +177,7 @@ func TestCanTakeSavepoint(t *testing.T) {
 			Job: &v1beta1.JobStatus{State: "Running"},
 		}},
 	}
-	take = canTakeSavepoint(cluster)
+	take = canTakeSavepoint(&cluster)
 	assert.Equal(t, take, true)
 
 	// progressing savepoint
@@ -193,7 +193,7 @@ func TestCanTakeSavepoint(t *testing.T) {
 			Savepoint: &v1beta1.SavepointStatus{State: v1beta1.SavepointStateInProgress},
 		},
 	}
-	take = canTakeSavepoint(cluster)
+	take = canTakeSavepoint(&cluster)
 	assert.Equal(t, take, false)
 }
 
