@@ -38,6 +38,8 @@ spec:
       labels:
         control-plane: controller-manager
         app: flink-operator
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
     spec:
       securityContext:
         runAsNonRoot: false
