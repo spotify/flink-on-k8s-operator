@@ -143,19 +143,19 @@ func (tc *TimeConverter) ToString(timestamp time.Time) string {
 	return timestamp.Format(time.RFC3339)
 }
 
-// setTimestamp sets the current timestamp to the target.
-func setTimestamp(target *string) {
+// SetTimestamp sets the current timestamp to the target.
+func SetTimestamp(target *string) {
 	var tc = &TimeConverter{}
 	var now = time.Now()
 	*target = tc.ToString(now)
 }
 
-func getTime(timeStr string) time.Time {
+func GetTime(timeStr string) time.Time {
 	var tc TimeConverter
 	return tc.FromString(timeStr)
 }
 
-func isBlank(s *string) bool {
+func IsBlank(s *string) bool {
 	return s == nil || strings.TrimSpace(*s) == ""
 }
 
@@ -292,7 +292,7 @@ func getControlStatus(controlName string, state string) *v1beta1.FlinkClusterCon
 	var controlStatus = new(v1beta1.FlinkClusterControlStatus)
 	controlStatus.Name = controlName
 	controlStatus.State = state
-	setTimestamp(&controlStatus.UpdateTime)
+	SetTimestamp(&controlStatus.UpdateTime)
 	return controlStatus
 }
 
