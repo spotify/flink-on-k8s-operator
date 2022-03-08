@@ -823,13 +823,6 @@ func appendVolumeMounts(volumeMounts []corev1.VolumeMount, newVolumeMounts ...co
 	return volumeMounts
 }
 
-func addEnvVar(envVars []corev1.EnvVar, name, value string) []corev1.EnvVar {
-	return appendEnvVars(envVars, corev1.EnvVar{
-		Name:  name,
-		Value: value,
-	})
-}
-
 func appendEnvVars(envVars []corev1.EnvVar, newEnvVars ...corev1.EnvVar) []corev1.EnvVar {
 	for _, envVar := range newEnvVars {
 		var conflict = false
