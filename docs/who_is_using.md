@@ -5,3 +5,4 @@
 | SK telecom   | @elanv                     | Production  | AI & Analytics Data Platform |
 | Netease      | @ouyangwulin               | Production  | Flink Platform               |
 | Nextdoor     | @pjthepooh                 | Production  | Event tracking               |
+| Airwallex    | @haoxins                   | Production  | ML & Metric computing        |
