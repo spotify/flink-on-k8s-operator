@@ -28,7 +28,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 const (
@@ -326,6 +329,17 @@ func (v *Validator) validateImage(imageSpec *ImageSpec) error {
 
 func (v *Validator) validateJobManager(flinkVersion *version.Version, jmSpec *JobManagerSpec) error {
 	var err error
+	if jmSpec == nil {
+		return nil
+	}
+
+	fp := field.NewPath("spec.jobManager")
+	if errors := validation.ValidateAnnotations(jmSpec.PodAnnotations, fp.Child("podAnnotations")); len(errors) > 0 {
+		return fmt.Errorf(errors.ToAggregate().Error())
+	}
+	if errors := v1validation.ValidateLabels(jmSpec.PodLabels, fp.Child("podLabels")); len(errors) > 0 {
+		return fmt.Errorf(errors.ToAggregate().Error())
+	}
 
 	// Replicas.
 	if jmSpec.Replicas == nil || *jmSpec.Replicas != 1 {
@@ -409,6 +423,18 @@ func (v *Validator) validateJobManager(flinkVersion *version.Version, jmSpec *Jo
 }
 
 func (v *Validator) validateTaskManager(flinkVersion *version.Version, tmSpec *TaskManagerSpec) error {
+	if tmSpec == nil {
+		return nil
+	}
+
+	fp := field.NewPath("spec.taskManager")
+	if errors := validation.ValidateAnnotations(tmSpec.PodAnnotations, fp.Child("podAnnotations")); len(errors) > 0 {
+		return fmt.Errorf(errors.ToAggregate().Error())
+	}
+	if errors := v1validation.ValidateLabels(tmSpec.PodLabels, fp.Child("podLabels")); len(errors) > 0 {
+		return fmt.Errorf(errors.ToAggregate().Error())
+	}
+
 	// Replicas.
 	if tmSpec.Replicas == nil || *tmSpec.Replicas < 1 {
 		return fmt.Errorf("invalid TaskManager replicas, it must >= 1")
@@ -478,6 +504,14 @@ func (v *Validator) validateTaskManager(flinkVersion *version.Version, tmSpec *T
 func (v *Validator) validateJob(jobSpec *JobSpec) error {
 	if jobSpec == nil {
 		return nil
+	}
+
+	fp := field.NewPath("spec.job")
+	if errors := validation.ValidateAnnotations(jobSpec.PodAnnotations, fp.Child("podAnnotations")); len(errors) > 0 {
+		return fmt.Errorf(errors.ToAggregate().Error())
+	}
+	if errors := v1validation.ValidateLabels(jobSpec.PodLabels, fp.Child("podLabels")); len(errors) > 0 {
+		return fmt.Errorf(errors.ToAggregate().Error())
 	}
 
 	applicationMode := jobSpec.Mode != nil && *jobSpec.Mode == JobModeApplication

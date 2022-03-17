@@ -19,6 +19,7 @@ package v1beta1
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -1083,5 +1084,98 @@ func getSimpleFlinkCluster() FlinkCluster {
 				Mode: &jobMode,
 			},
 		},
+	}
+}
+
+func TestFlinkClusterValidation(t *testing.T) {
+	longName := strings.Repeat("a", 254)
+
+	invalidJobManagerAnnotations := func() *FlinkCluster {
+		cluster := getSimpleFlinkCluster()
+		cluster.Spec.JobManager.PodAnnotations = map[string]string{
+			longName: "bar",
+		}
+		return &cluster
+	}
+	invalidJobManagerLabels := func() *FlinkCluster {
+		cluster := getSimpleFlinkCluster()
+		cluster.Spec.JobManager.PodLabels = map[string]string{
+			longName: "bar",
+		}
+		return &cluster
+	}
+	invalidTaskManagerAnnotations := func() *FlinkCluster {
+		cluster := getSimpleFlinkCluster()
+		cluster.Spec.TaskManager.PodAnnotations = map[string]string{
+			longName: "bar",
+		}
+		return &cluster
+	}
+	invalidTaskManagerLabels := func() *FlinkCluster {
+		cluster := getSimpleFlinkCluster()
+		cluster.Spec.TaskManager.PodLabels = map[string]string{
+			longName: "bar",
+		}
+		return &cluster
+	}
+	invalidJobAnnotations := func() *FlinkCluster {
+		cluster := getSimpleFlinkCluster()
+		cluster.Spec.Job.PodAnnotations = map[string]string{
+			longName: "bar",
+		}
+		return &cluster
+	}
+	invalidJobLabels := func() *FlinkCluster {
+		cluster := getSimpleFlinkCluster()
+		cluster.Spec.Job.PodLabels = map[string]string{
+			longName: "bar",
+		}
+		return &cluster
+	}
+
+	data := []struct {
+		testName    string
+		run         func() *FlinkCluster
+		expectedErr string
+	}{
+		{
+			"invalid jm annotations",
+			invalidJobManagerAnnotations,
+			fmt.Sprintf("spec.jobManager.podAnnotations: Invalid value: \"%s\": name part must be no more than 63 characters", longName),
+		},
+		{
+			"invalid jm labels",
+			invalidJobManagerLabels,
+			fmt.Sprintf("spec.jobManager.podLabels: Invalid value: \"%s\": name part must be no more than 63 characters", longName),
+		},
+		{
+			"invalid tm annotations",
+			invalidTaskManagerAnnotations,
+			fmt.Sprintf("spec.taskManager.podAnnotations: Invalid value: \"%s\": name part must be no more than 63 characters", longName),
+		},
+		{
+			"invalid tm labels",
+			invalidTaskManagerLabels,
+			fmt.Sprintf("spec.taskManager.podLabels: Invalid value: \"%s\": name part must be no more than 63 characters", longName),
+		},
+		{
+			"invalid job annotations",
+			invalidJobAnnotations,
+			fmt.Sprintf("spec.job.podAnnotations: Invalid value: \"%s\": name part must be no more than 63 characters", longName),
+		},
+		{
+			"invalid job labels",
+			invalidJobLabels,
+			fmt.Sprintf("spec.job.podLabels: Invalid value: \"%s\": name part must be no more than 63 characters", longName),
+		},
+	}
+
+	for _, tt := range data {
+		t.Run(tt.testName, func(t *testing.T) {
+			err := validator.ValidateCreate(tt.run())
+			if err != nil {
+				assert.Equal(t, err.Error(), tt.expectedErr)
+			}
+		})
 	}
 }
