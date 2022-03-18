@@ -198,6 +198,9 @@ type JobManagerSpec struct {
 	// _(Optional)_ Define JobManager Service annotations for configuration.
 	ServiceAnnotations map[string]string `json:"ServiceAnnotations,omitempty"`
 
+	// _(Optional)_ Define JobManager Service labels for configuration.
+	ServiceLabels map[string]string `json:"ServiceLabels,omitempty"`
+
 	// _(Optional)_ Provide external access to JobManager UI/API.
 	Ingress *JobManagerIngressSpec `json:"ingress,omitempty"`
 

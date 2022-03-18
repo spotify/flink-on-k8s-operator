@@ -1651,6 +1651,10 @@ spec:
                       additionalProperties:
                         type: string
                       type: object
+                    ServiceLabels:
+                      additionalProperties:
+                        type: string
+                      type: object
                     accessScope:
                       type: string
                     extraPorts:

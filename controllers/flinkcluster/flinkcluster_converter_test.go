@@ -485,9 +485,6 @@ func TestGetDesiredClusterState(t *testing.T) {
 			Name:      "flinkjobcluster-sample-jobmanager",
 			Namespace: "default",
 			Labels: map[string]string{
-				"app":             "flink",
-				"cluster":         "flinkjobcluster-sample",
-				"component":       "jobmanager",
 				RevisionNameLabel: "flinkjobcluster-sample-85dc8f749",
 			},
 			Annotations: map[string]string{

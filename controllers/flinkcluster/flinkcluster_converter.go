@@ -272,7 +272,7 @@ func newJobManagerService(flinkCluster *v1beta1.FlinkCluster) *corev1.Service {
 	var jobManagerServiceName = getJobManagerServiceName(clusterName)
 	var podLabels = getComponentLabels(flinkCluster, "jobmanager")
 	podLabels = mergeLabels(podLabels, jobManagerSpec.PodLabels)
-	var serviceLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
+	var serviceLabels = mergeLabels(jobManagerSpec.ServiceLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
 	var serviceAnnotations = jobManagerSpec.ServiceAnnotations
 
 	var jobManagerService = &corev1.Service{

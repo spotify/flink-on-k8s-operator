@@ -1663,6 +1663,10 @@ spec:
                       additionalProperties:
                         type: string
                       type: object
+                    ServiceLabels:
+                      additionalProperties:
+                        type: string
+                      type: object
                     extraPorts:
                       items:
                         properties:
