@@ -273,13 +273,16 @@ func newJobManagerService(flinkCluster *v1beta1.FlinkCluster) *corev1.Service {
 	var podLabels = getComponentLabels(flinkCluster, "jobmanager")
 	podLabels = mergeLabels(podLabels, jobManagerSpec.PodLabels)
 	var serviceLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
+	var serviceAnnotations = jobManagerSpec.ServiceAnnotations
+
 	var jobManagerService = &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: clusterNamespace,
 			Name:      jobManagerServiceName,
 			OwnerReferences: []metav1.OwnerReference{
 				ToOwnerReference(flinkCluster)},
-			Labels: serviceLabels,
+			Labels:      serviceLabels,
+			Annotations: serviceAnnotations,
 		},
 		Spec: corev1.ServiceSpec{
 			Selector: podLabels,
@@ -292,20 +295,17 @@ func newJobManagerService(flinkCluster *v1beta1.FlinkCluster) *corev1.Service {
 	switch jobManagerSpec.AccessScope {
 	case v1beta1.AccessScopeCluster:
 		jobManagerService.Spec.Type = corev1.ServiceTypeClusterIP
-		jobManagerService.Annotations = jobManagerSpec.ServiceAnnotations
 	case v1beta1.AccessScopeVPC:
 		jobManagerService.Spec.Type = corev1.ServiceTypeLoadBalancer
-		jobManagerService.Annotations =
+		jobManagerService.Annotations = mergeLabels(serviceAnnotations,
 			map[string]string{
 				"networking.gke.io/load-balancer-type":                         "Internal",
 				"networking.gke.io/internal-load-balancer-allow-global-access": "true",
-			}
+			})
 	case v1beta1.AccessScopeExternal:
 		jobManagerService.Spec.Type = corev1.ServiceTypeLoadBalancer
-		jobManagerService.Annotations = jobManagerSpec.ServiceAnnotations
 	case v1beta1.AccessScopeNodePort:
 		jobManagerService.Spec.Type = corev1.ServiceTypeNodePort
-		jobManagerService.Annotations = jobManagerSpec.ServiceAnnotations
 	case v1beta1.AccessScopeHeadless:
 		// Headless services do not allocate any sort of VIP or LoadBalancer, and merely
 		// collect a set of Pod IPs that are assumed to be independently routable:
