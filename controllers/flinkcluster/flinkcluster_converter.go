@@ -292,6 +292,7 @@ func newJobManagerService(flinkCluster *v1beta1.FlinkCluster) *corev1.Service {
 	switch jobManagerSpec.AccessScope {
 	case v1beta1.AccessScopeCluster:
 		jobManagerService.Spec.Type = corev1.ServiceTypeClusterIP
+		jobManagerService.Annotations = jobManagerSpec.ServiceAnnotations
 	case v1beta1.AccessScopeVPC:
 		jobManagerService.Spec.Type = corev1.ServiceTypeLoadBalancer
 		jobManagerService.Annotations =
@@ -301,8 +302,10 @@ func newJobManagerService(flinkCluster *v1beta1.FlinkCluster) *corev1.Service {
 			}
 	case v1beta1.AccessScopeExternal:
 		jobManagerService.Spec.Type = corev1.ServiceTypeLoadBalancer
+		jobManagerService.Annotations = jobManagerSpec.ServiceAnnotations
 	case v1beta1.AccessScopeNodePort:
 		jobManagerService.Spec.Type = corev1.ServiceTypeNodePort
+		jobManagerService.Annotations = jobManagerSpec.ServiceAnnotations
 	case v1beta1.AccessScopeHeadless:
 		// Headless services do not allocate any sort of VIP or LoadBalancer, and merely
 		// collect a set of Pod IPs that are assumed to be independently routable:
