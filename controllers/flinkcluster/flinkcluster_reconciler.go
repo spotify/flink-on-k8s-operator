@@ -132,7 +132,7 @@ func (reconciler *ClusterReconciler) reconcileBatchScheduler() error {
 	options := schedulerTypes.SchedulerOptions{
 		ClusterName:       cluster.Name,
 		ClusterNamespace:  cluster.Namespace,
-		Queue:             schedulerSpec.PriorityClassName,
+		Queue:             schedulerSpec.Queue,
 		PriorityClassName: schedulerSpec.PriorityClassName,
 		OwnerReferences:   []metav1.OwnerReference{ToOwnerReference(cluster)},
 	}
