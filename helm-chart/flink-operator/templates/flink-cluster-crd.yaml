@@ -1659,6 +1659,14 @@ spec:
                   properties:
                     accessScope:
                       type: string
+                    ServiceAnnotations:
+                      additionalProperties:
+                        type: string
+                      type: object
+                    ServiceLabels:
+                      additionalProperties:
+                        type: string
+                      type: object
                     extraPorts:
                       items:
                         properties:

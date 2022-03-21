@@ -494,6 +494,20 @@ func (in *JobManagerSpec) DeepCopyInto(out *JobManagerSpec) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.ServiceAnnotations != nil {
+		in, out := &in.ServiceAnnotations, &out.ServiceAnnotations
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
+	if in.ServiceLabels != nil {
+		in, out := &in.ServiceLabels, &out.ServiceLabels
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.Ingress != nil {
 		in, out := &in.Ingress, &out.Ingress
 		*out = new(JobManagerIngressSpec)

@@ -1647,6 +1647,14 @@ spec:
                   type: object
                 jobManager:
                   properties:
+                    ServiceAnnotations:
+                      additionalProperties:
+                        type: string
+                      type: object
+                    ServiceLabels:
+                      additionalProperties:
+                        type: string
+                      type: object
                     accessScope:
                       type: string
                     extraPorts:
