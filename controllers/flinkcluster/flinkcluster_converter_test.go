@@ -486,6 +486,9 @@ func TestGetDesiredClusterState(t *testing.T) {
 			Namespace: "default",
 			Labels: map[string]string{
 				RevisionNameLabel: "flinkjobcluster-sample-85dc8f749",
+				"app":             "flink",
+				"cluster":         "flinkjobcluster-sample",
+				"component":       "jobmanager",
 			},
 			Annotations: map[string]string{
 				"networking.gke.io/load-balancer-type":                         "Internal",

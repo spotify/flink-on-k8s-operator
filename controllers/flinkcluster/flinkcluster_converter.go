@@ -270,9 +270,9 @@ func newJobManagerService(flinkCluster *v1beta1.FlinkCluster) *corev1.Service {
 		Port:       *jobManagerSpec.Ports.UI,
 		TargetPort: intstr.FromString("ui")}
 	var jobManagerServiceName = getJobManagerServiceName(clusterName)
-	var podLabels = getComponentLabels(flinkCluster, "jobmanager")
-	podLabels = mergeLabels(podLabels, jobManagerSpec.PodLabels)
-	var serviceLabels = mergeLabels(jobManagerSpec.ServiceLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
+	selectorLabels := getComponentLabels(flinkCluster, "jobmanager")
+	serviceLabels := mergeLabels(selectorLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
+	serviceLabels = mergeLabels(serviceLabels, jobManagerSpec.ServiceLabels)
 	var serviceAnnotations = jobManagerSpec.ServiceAnnotations
 
 	var jobManagerService = &corev1.Service{
@@ -285,7 +285,7 @@ func newJobManagerService(flinkCluster *v1beta1.FlinkCluster) *corev1.Service {
 			Annotations: serviceAnnotations,
 		},
 		Spec: corev1.ServiceSpec{
-			Selector: podLabels,
+			Selector: selectorLabels,
 			Ports:    []corev1.ServicePort{rpcPort, blobPort, queryPort, uiPort},
 		},
 	}
