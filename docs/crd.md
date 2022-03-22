@@ -304,6 +304,8 @@ _Appears in:_
 | `podLabels` _object (keys:string, values:string)_ | _(Optional)_ JobManager StatefulSet pod template labels. [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/) |
 | `livenessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core)_ | Container liveness probe If omitted, a [default value](https://github.com/spotify/flink-on-k8s-operator/blob/a88ed2b/api/v1beta1/flinkcluster_default.go#L113-L123) will be used. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) |
 | `readinessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core)_ | Container readiness probe If omitted, a [default value](https://github.com/spotify/flink-on-k8s-operator/blob/a88ed2b/api/v1beta1/flinkcluster_default.go#L129-L139) will be used. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) |
+| `ServiceAnnotations` _object (keys:string, values:string)_ | _(Optional)_ JobManager Service annotations. [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/) |
+| `ServiceLabels` _object (keys:string, values:string)_ | _(Optional)_ JobManager Service labels. [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/) |
 
 
 #### JobSpec
@@ -473,9 +475,3 @@ _Appears in:_
 | `podLabels` _object (keys:string, values:string)_ | _(Optional)_ TaskManager StatefulSet pod template labels. [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/) |
 | `livenessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core)_ | Container liveness probe If omitted, a [default value](https://github.com/spotify/flink-on-k8s-operator/blob/a88ed2b/api/v1beta1/flinkcluster_default.go#L177-L187) will be used. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) |
 | `readinessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core)_ | Container readiness probe If omitted, a [default value](https://github.com/spotify/flink-on-k8s-operator/blob/a88ed2b/api/v1beta1/flinkcluster_default.go#L193-L203) will be used. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) |
-
-
-
-
-
-
