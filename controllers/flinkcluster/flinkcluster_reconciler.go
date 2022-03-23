@@ -34,6 +34,7 @@ import (
 	schedulerTypes "github.com/spotify/flink-on-k8s-operator/internal/batchscheduler/types"
 	"github.com/spotify/flink-on-k8s-operator/internal/flink"
 	"github.com/spotify/flink-on-k8s-operator/internal/model"
+	"github.com/spotify/flink-on-k8s-operator/internal/util"
 
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -572,7 +573,7 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 		if recorded.Revision.IsUpdateTriggered() {
 			log.Info("Preparing job update")
 			var takeSavepoint = jobSpec.TakeSavepointOnUpdate == nil || *jobSpec.TakeSavepointOnUpdate
-			var shouldSuspend = takeSavepoint && IsBlank(jobSpec.FromSavepoint)
+			var shouldSuspend = takeSavepoint && util.IsBlank(jobSpec.FromSavepoint)
 			if shouldSuspend {
 				newSavepointStatus, err = reconciler.trySuspendJob()
 			} else if shouldUpdateJob(&observed) {
@@ -826,7 +827,7 @@ func (reconciler *ClusterReconciler) shouldTakeSavepoint() v1beta1.SavepointReas
 	case jobSpec.AutoSavepointSeconds != nil:
 		// When previous try was failed, check retry interval.
 		if savepoint.IsFailed() && savepoint.TriggerReason == v1beta1.SavepointReasonScheduled {
-			var nextRetryTime = GetTime(savepoint.UpdateTime).Add(SavepointRetryIntervalSeconds * time.Second)
+			var nextRetryTime = util.GetTime(savepoint.UpdateTime).Add(SavepointRetryIntervalSeconds * time.Second)
 			if time.Now().After(nextRetryTime) {
 				return v1beta1.SavepointReasonScheduled
 			} else {
@@ -931,7 +932,7 @@ func (reconciler *ClusterReconciler) updateStatus(
 		if controlStatus != nil {
 			newStatus.Control = controlStatus
 		}
-		SetTimestamp(&newStatus.LastUpdateTime)
+		util.SetTimestamp(&newStatus.LastUpdateTime)
 		log.Info("Updating cluster status", "clusterClone", clusterClone, "newStatus", newStatus)
 		statusUpdateErr = reconciler.k8sClient.Status().Update(reconciler.context, clusterClone)
 		if statusUpdateErr == nil {
@@ -966,8 +967,8 @@ func (reconciler *ClusterReconciler) updateJobDeployStatus() error {
 	newJob.CompletionTime = nil
 
 	// Mark as job submitter is deployed.
-	SetTimestamp(&newJob.DeployTime)
-	SetTimestamp(&clusterClone.Status.LastUpdateTime)
+	util.SetTimestamp(&newJob.DeployTime)
+	util.SetTimestamp(&clusterClone.Status.LastUpdateTime)
 
 	// Latest savepoint location should be fromSavepoint.
 	var fromSavepoint = getFromSavepoint(desiredJobSubmitter.Spec)
@@ -992,7 +993,7 @@ func (reconciler *ClusterReconciler) getNewSavepointStatus(triggerID string, tri
 	var jobID = reconciler.getFlinkJobID()
 	var savepointState string
 	var now string
-	SetTimestamp(&now)
+	util.SetTimestamp(&now)
 
 	if triggerSuccess {
 		savepointState = v1beta1.SavepointStateInProgress
@@ -1014,7 +1015,7 @@ func (reconciler *ClusterReconciler) getNewSavepointStatus(triggerID string, tri
 // Convert raw time to object and add `addedSeconds` to it,
 // getting a time object for the parsed `rawTime` with `addedSeconds` added to it.
 func getTimeAfterAddedSeconds(rawTime string, addedSeconds int64) time.Time {
-	var tc = &TimeConverter{}
+	var tc = &util.TimeConverter{}
 	var lastTriggerTime = time.Time{}
 	if len(rawTime) != 0 {
 		lastTriggerTime = tc.FromString(rawTime)

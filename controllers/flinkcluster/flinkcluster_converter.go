@@ -29,6 +29,7 @@ import (
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
 	"github.com/spotify/flink-on-k8s-operator/internal/flink"
 	"github.com/spotify/flink-on-k8s-operator/internal/model"
+	"github.com/spotify/flink-on-k8s-operator/internal/util"
 
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -775,12 +776,12 @@ func convertFromSavepoint(jobSpec *v1beta1.JobSpec, jobStatus *v1beta1.JobStatus
 	switch {
 	// Creating for the first time
 	case jobStatus == nil:
-		if !IsBlank(jobSpec.FromSavepoint) {
+		if !util.IsBlank(jobSpec.FromSavepoint) {
 			return jobSpec.FromSavepoint
 		}
 		return nil
 	// Updating with FromSavepoint provided
-	case revision.IsUpdateTriggered() && !IsBlank(jobSpec.FromSavepoint):
+	case revision.IsUpdateTriggered() && !util.IsBlank(jobSpec.FromSavepoint):
 		return jobSpec.FromSavepoint
 	// Latest savepoint
 	case jobStatus.SavepointLocation != "":

@@ -31,6 +31,7 @@ import (
 
 	"github.com/go-logr/logr"
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
+	"github.com/spotify/flink-on-k8s-operator/internal/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
@@ -76,7 +77,7 @@ func (updater *ClusterStatusUpdater) updateStatusIfChanged() (
 			updater.observed.cluster.Status,
 			"new", newStatus)
 		updater.createStatusChangeEvents(oldStatus, newStatus)
-		var tc = &TimeConverter{}
+		var tc = &util.TimeConverter{}
 		newStatus.LastUpdateTime = tc.ToString(time.Now())
 		return true, updater.updateClusterStatus(newStatus)
 	}
@@ -632,7 +633,7 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 				newJob.RestartCount++
 			}
 		case newJob.State == v1beta1.JobStateRunning:
-			SetTimestamp(&newJob.StartTime)
+			util.SetTimestamp(&newJob.StartTime)
 			newJob.CompletionTime = nil
 			// When job started, the savepoint is not the final state of the job any more.
 			if oldJob.FinalSavepoint {
@@ -675,7 +676,7 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 		// Currently savepoint complete timestamp is not included in savepoints API response.
 		// Whereas checkpoint API returns the timestamp latest_ack_timestamp.
 		// Note: https://ci.apache.org/projects/flink/flink-docs-stable/ops/rest_api.html#jobs-jobid-checkpoints-details-checkpointid
-		SetTimestamp(&newJob.SavepointTime)
+		util.SetTimestamp(&newJob.SavepointTime)
 	}
 
 	return newJob
@@ -953,7 +954,7 @@ func deriveControlStatus(
 		}
 		// Update time when state changed.
 		if c.State != v1beta1.ControlStateInProgress {
-			SetTimestamp(&c.UpdateTime)
+			util.SetTimestamp(&c.UpdateTime)
 		}
 		return c
 	}
@@ -981,10 +982,10 @@ func deriveRevisionStatus(
 	}
 
 	// Update revision status.
-	r.NextRevision = getRevisionWithNameNumber(observedRevision.nextRevision)
+	r.NextRevision = util.GetRevisionWithNameNumber(observedRevision.nextRevision)
 	if r.CurrentRevision == "" {
 		if recordedRevision.CurrentRevision == "" {
-			r.CurrentRevision = getRevisionWithNameNumber(observedRevision.currentRevision)
+			r.CurrentRevision = util.GetRevisionWithNameNumber(observedRevision.currentRevision)
 		} else {
 			r.CurrentRevision = recordedRevision.CurrentRevision
 		}

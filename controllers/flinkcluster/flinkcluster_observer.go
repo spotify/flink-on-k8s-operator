@@ -26,6 +26,7 @@ import (
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
 	"github.com/spotify/flink-on-k8s-operator/internal/controllers/history"
 	flink "github.com/spotify/flink-on-k8s-operator/internal/flink"
+	"github.com/spotify/flink-on-k8s-operator/internal/util"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -604,7 +605,7 @@ func (observer *ClusterStateObserver) syncRevisionStatus(observed *ObservedClust
 	}
 
 	// create a new revision from the current cluster
-	nextRevision, err := newRevision(cluster, getNextRevisionNumber(revisions), &collisionCount)
+	nextRevision, err := newRevision(cluster, util.GetNextRevisionNumber(revisions), &collisionCount)
 	if err != nil {
 		return err
 	}
@@ -675,7 +676,7 @@ func (observer *ClusterStateObserver) truncateHistory(observed *ObservedClusterS
 		historyLimit = 10
 	}
 
-	nonLiveHistory := getNonLiveHistory(revisions, historyLimit)
+	nonLiveHistory := util.GetNonLiveHistory(revisions, historyLimit)
 
 	// delete any non-live history to maintain the revision limit.
 	for i := 0; i < len(nonLiveHistory); i++ {
