@@ -29,11 +29,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
+	"github.com/spotify/flink-on-k8s-operator/internal/util"
 	"gotest.tools/v3/assert"
 )
 
 func TestTimeConverter(t *testing.T) {
-	var tc = &TimeConverter{}
+	var tc = &util.TimeConverter{}
 
 	var str1 = "2019-10-23T05:10:36Z"
 	var tm1 = tc.FromString(str1)
@@ -199,11 +200,11 @@ func TestCanTakeSavepoint(t *testing.T) {
 
 func TestGetNextRevisionNumber(t *testing.T) {
 	var revisions []*appsv1.ControllerRevision
-	var nextRevision = getNextRevisionNumber(revisions)
+	var nextRevision = util.GetNextRevisionNumber(revisions)
 	assert.Equal(t, nextRevision, int64(1))
 
 	revisions = []*appsv1.ControllerRevision{{Revision: 1}, {Revision: 2}}
-	nextRevision = getNextRevisionNumber(revisions)
+	nextRevision = util.GetNextRevisionNumber(revisions)
 	assert.Equal(t, nextRevision, int64(3))
 }
 
@@ -308,7 +309,7 @@ func TestGetUpdateState(t *testing.T) {
 }
 
 func TestHasTimeElapsed(t *testing.T) {
-	var tc = &TimeConverter{}
+	var tc = &util.TimeConverter{}
 	var timeToCheckStr = "2020-01-01T00:00:00+00:00"
 	var timeToCompare = tc.FromString("2020-01-01T00:00:20+00:00")
 	var elapsed = hasTimeElapsed(timeToCheckStr, timeToCompare, 10)
@@ -348,12 +349,12 @@ func TestGetNonLiveHistory(t *testing.T) {
 	revisions := []*appsv1.ControllerRevision{&revison0, &revison1}
 
 	historyLimit := 1
-	nonLiveHistory := getNonLiveHistory(revisions, historyLimit)
+	nonLiveHistory := util.GetNonLiveHistory(revisions, historyLimit)
 	assert.Equal(t, len(nonLiveHistory), 1)
 	assert.Equal(t, nonLiveHistory[0].Revision, int64(0))
 
 	historyLimit = 3
-	nonLiveHistory = getNonLiveHistory(revisions, historyLimit)
+	nonLiveHistory = util.GetNonLiveHistory(revisions, historyLimit)
 	assert.Equal(t, len(nonLiveHistory), 0)
 }
 
