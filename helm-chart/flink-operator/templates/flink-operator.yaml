@@ -58,7 +58,8 @@ spec:
         - --upstream=http://127.0.0.1:8080/
         - --logtostderr=true
         - --v=10
-        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0
+        image: {{ .Values.rbacProxyImage.name }}
+        imagePullPolicy: {{ .Values.rbacProxyImage.pullPolicy }}
         ports:
         - containerPort: 8443
           name: https
@@ -71,6 +72,7 @@ spec:
         command:
         - /flink-operator
         image: {{ .Values.operatorImage.name }}
+        imagePullPolicy: {{ .Values.operatorImage.pullPolicy }}
         ports:
         - containerPort: 9443
           name: webhook-server

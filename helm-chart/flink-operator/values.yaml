@@ -4,7 +4,7 @@ flinkOperatorNamespace:
 
 # Watch custom resources in the namespace, ignore other namespaces. If empty, all namespaces will be watched.
 watchNamespace:
-  name: "flink-job"
+  name: ""
 
 # The number of replicas of the operator Deployment
 replicas: 1
@@ -25,6 +25,11 @@ rbac:
 # The definition of the operator image
 operatorImage:
   name: ghcr.io/spotify/flink-operator:latest
+  pullPolicy: IfNotPresent
+
+# The definition of the kube-rbac-proxy image
+rbacProxyImage:
+  name: gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0
   pullPolicy: IfNotPresent
 
 # Defines security context for operator container
