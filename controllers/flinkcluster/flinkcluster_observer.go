@@ -18,6 +18,7 @@ package flinkcluster
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -177,7 +178,7 @@ func (observer *ClusterStateObserver) observe(
 
 	// JobManager StatefulSet.
 	var observedJmStatefulSet = new(appsv1.StatefulSet)
-	err = observer.observeJobManagerStatefulSet(observedJmStatefulSet)
+	err = observer.observeJobManagerStatefulSet(observed, observedJmStatefulSet)
 	if err != nil {
 		if client.IgnoreNotFound(err) != nil {
 			log.Error(err, "Failed to get JobManager StatefulSet")
@@ -262,6 +263,37 @@ func (observer *ClusterStateObserver) observe(
 	return nil
 }
 
+func (observer *ClusterStateObserver) checkInitContainersForErrors(pod *corev1.Pod, observed *ObservedClusterState) (string, error) {
+	var log = observer.log
+	if pod != nil {
+		for _, cs := range pod.Status.InitContainerStatuses {
+			if cs.State.Terminated != nil && cs.State.Terminated.ExitCode != 0 && cs.RestartCount > 1 {
+				log.Error(errors.New("init container failure in pod "+pod.Name), "name", cs.Name, "exitCode", cs.State.Terminated.ExitCode)
+				l, err := getPodLogs(observer.k8sClientset, pod)
+				if err != nil {
+					log.Error(err, "Failed to get log stream from pod", "pod", pod.Name)
+				}
+				observed.flinkJob = FlinkJob{
+					status: &flink.Job{
+						Id:    "",
+						State: "FAILED",
+					},
+					exceptions: &flink.JobExceptions{
+						Exceptions: []flink.JobException{
+							{
+								Exception: l,
+								Location:  fmt.Sprintf("%s/%s/%s", pod.Namespace, pod.Name, cs.Name),
+							},
+						},
+					},
+				}
+				return l, err
+			}
+		}
+	}
+	return "", nil
+}
+
 func (observer *ClusterStateObserver) observeJob(
 	observed *ObservedClusterState) error {
 	// Either the cluster has been deleted or it is a session cluster.
@@ -306,6 +338,17 @@ func (observer *ClusterStateObserver) observeJob(
 			log.Error(err, "Failed to get log stream from the job submitter pod. Will try again in the next iteration.")
 			submitterLog = nil
 		}
+	}
+
+	l, err := observer.checkInitContainersForErrors(jobPod, observed)
+	if err != nil {
+		submitterLog = getFlinkJobSubmitLogFromString(l)
+		observed.flinkJobSubmitter = FlinkJobSubmitter{
+			job: job,
+			pod: jobPod,
+			log: submitterLog,
+		}
+		return nil
 	}
 
 	observed.flinkJobSubmitter = FlinkJobSubmitter{
@@ -442,10 +485,29 @@ func (observer *ClusterStateObserver) observeConfigMap(
 }
 
 func (observer *ClusterStateObserver) observeJobManagerStatefulSet(
+	observed *ObservedClusterState,
 	observedStatefulSet *appsv1.StatefulSet) error {
 	var clusterNamespace = observer.request.Namespace
 	var clusterName = observer.request.Name
 	var jmStatefulSetName = getJobManagerStatefulSetName(clusterName)
+	var i int32 = 0
+	for ; i < *observedStatefulSet.Spec.Replicas; i++ {
+		podName := fmt.Sprintf("%s-%d", jmStatefulSetName, i)
+		// get pod for podName
+		pod := &corev1.Pod{}
+		err := observer.k8sClient.Get(
+			observer.context,
+			types.NamespacedName{
+				Namespace: clusterNamespace,
+				Name:      podName,
+			},
+			pod)
+		if err != nil {
+			// if init containers have errors, the FlinkJob will be updated with a failed status
+			observer.checkInitContainersForErrors(pod, observed)
+		}
+	}
+
 	return observer.observeStatefulSet(
 		clusterNamespace, jmStatefulSetName, "JobManager", observedStatefulSet)
 }
