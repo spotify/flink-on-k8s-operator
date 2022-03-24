@@ -39,6 +39,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	initContainerMaxRetries = 1
+)
+
 // ClusterStateObserver gets the observed state of the cluster.
 type ClusterStateObserver struct {
 	k8sClient    client.Client
@@ -267,7 +271,7 @@ func (observer *ClusterStateObserver) checkInitContainersForErrors(pod *corev1.P
 	var log = observer.log
 	if pod != nil {
 		for _, cs := range pod.Status.InitContainerStatuses {
-			if cs.State.Terminated != nil && cs.State.Terminated.ExitCode != 0 && cs.RestartCount > 1 {
+			if cs.State.Terminated != nil && cs.State.Terminated.ExitCode != 0 && cs.RestartCount > initContainerMaxRetries {
 				log.Error(errors.New("init container failure in pod "+pod.Name), "name", cs.Name, "exitCode", cs.State.Terminated.ExitCode)
 				l, err := getPodLogs(observer.k8sClientset, pod)
 				if err != nil {
