@@ -25,6 +25,7 @@ import (
 
 	"github.com/go-logr/logr"
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
+
 	"github.com/spotify/flink-on-k8s-operator/internal/controllers/history"
 	flink "github.com/spotify/flink-on-k8s-operator/internal/flink"
 	"github.com/spotify/flink-on-k8s-operator/internal/util"
@@ -273,7 +274,7 @@ func (observer *ClusterStateObserver) checkInitContainersForErrors(pod *corev1.P
 		for _, cs := range pod.Status.InitContainerStatuses {
 			if cs.State.Terminated != nil && cs.State.Terminated.ExitCode != 0 && cs.RestartCount > initContainerMaxRetries {
 				log.Error(errors.New("init container failure in pod "+pod.Name), "name", cs.Name, "exitCode", cs.State.Terminated.ExitCode)
-				l, err := getPodLogs(observer.k8sClientset, pod)
+				l, err := util.GetPodLogs(observer.k8sClientset, pod)
 				if err != nil {
 					log.Error(err, "Failed to get log stream from pod", "pod", pod.Name)
 				}
