@@ -269,7 +269,7 @@ func (observer *ClusterStateObserver) observe(
 
 func (observer *ClusterStateObserver) checkInitContainersForErrors(pod *corev1.Pod, observed *ObservedClusterState) (string, error) {
 	var log = observer.log
-	if pod != nil {
+	if pod != nil && strings.Contains(pod.Status.Message, "Init:") { // one of Init:N/M || Init:Error || Init:CrashLoopBackOff
 		for _, cs := range pod.Status.InitContainerStatuses {
 			if cs.State.Terminated != nil && cs.State.Terminated.ExitCode != 0 && cs.RestartCount > initContainerMaxRetries {
 				log.Error(errors.New("init container failure in pod "+pod.Name), "name", cs.Name, "exitCode", cs.State.Terminated.ExitCode)
