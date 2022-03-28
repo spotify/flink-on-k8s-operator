@@ -218,26 +218,6 @@ func getPodResource(spec *corev1.PodSpec) *corev1.ResourceRequirements {
 	return reqs
 }
 
-// func addResourceList(list, req, limit corev1.ResourceList) {
-// 	for name, quantity := range req {
-
-// 		if value, ok := list[name]; !ok {
-// 			list[name] = quantity.DeepCopy()
-// 		} else {
-// 			value.Add(quantity)
-// 			list[name] = value
-// 		}
-// 	}
-
-// 	// If Requests is omitted for a container,
-// 	// it defaults to Limits if that is explicitly specified.
-// 	for name, quantity := range limit {
-// 		if _, ok := list[name]; !ok {
-// 			list[name] = quantity.DeepCopy()
-// 		}
-// 	}
-// }
-
 func addResourceRequirements(acc, req *corev1.ResourceRequirements) {
 	for name, quantity := range req.Requests {
 		if value, ok := acc.Requests[name]; !ok {
