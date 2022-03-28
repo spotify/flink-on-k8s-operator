@@ -241,12 +241,15 @@ func addResourceRequirements(acc, req *corev1.ResourceRequirements) {
 func buildMinResource(req *corev1.ResourceRequirements) *corev1.ResourceList {
 	minResource := corev1.ResourceList{}
 	for name, quantity := range req.Requests {
+		minResource[name] = quantity.DeepCopy()
 		n := corev1.ResourceName(fmt.Sprintf("requests.%s", name))
 		minResource[n] = quantity.DeepCopy()
 	}
+
 	for name, quantity := range req.Limits {
 		n := corev1.ResourceName(fmt.Sprintf("limits.%s", name))
 		minResource[n] = quantity.DeepCopy()
 	}
+
 	return &minResource
 }
