@@ -106,6 +106,15 @@ func (updater *ClusterStatusUpdater) createStatusChangeEvents(
 			newStatus.Components.ConfigMap.State)
 	}
 
+	// PodDisruptionBudget.
+	if oldStatus.Components.PodDisruptionBudget.State !=
+		newStatus.Components.PodDisruptionBudget.State {
+		updater.createStatusChangeEvent(
+			"PodDisruptionBudget",
+			oldStatus.Components.PodDisruptionBudget.State,
+			newStatus.Components.PodDisruptionBudget.State)
+	}
+
 	// JobManager service.
 	if oldStatus.Components.JobManagerService.State !=
 		newStatus.Components.JobManagerService.State {
@@ -215,6 +224,22 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 		status.Components.ConfigMap =
 			v1beta1.FlinkClusterComponentState{
 				Name:  recorded.Components.ConfigMap.Name,
+				State: v1beta1.ComponentStateDeleted,
+			}
+	}
+
+	// PodDisruptionBudget.
+	var observedPodDisruptionBudget = observed.podDisruptionBudget
+	if !isComponentUpdated(observedPodDisruptionBudget, observed.cluster) && shouldUpdateCluster(observed) {
+		recorded.Components.PodDisruptionBudget.DeepCopyInto(&status.Components.PodDisruptionBudget)
+		status.Components.PodDisruptionBudget.State = v1beta1.ComponentStateUpdating
+	} else if observedPodDisruptionBudget != nil {
+		status.Components.PodDisruptionBudget.Name = observedPodDisruptionBudget.Name
+		status.Components.PodDisruptionBudget.State = v1beta1.ComponentStateReady
+	} else if recorded.Components.PodDisruptionBudget.Name != "" {
+		status.Components.PodDisruptionBudget =
+			v1beta1.FlinkClusterComponentState{
+				Name:  recorded.Components.PodDisruptionBudget.Name,
 				State: v1beta1.ComponentStateDeleted,
 			}
 	}
@@ -711,6 +736,16 @@ func (updater *ClusterStatusUpdater) isStatusChanged(
 			currentStatus.Components.ConfigMap,
 			"new",
 			newStatus.Components.ConfigMap)
+		changed = true
+	}
+	if newStatus.Components.PodDisruptionBudget !=
+		currentStatus.Components.PodDisruptionBudget {
+		updater.log.Info(
+			"PodDisruptionBudget status changed",
+			"current",
+			currentStatus.Components.PodDisruptionBudget,
+			"new",
+			newStatus.Components.PodDisruptionBudget)
 		changed = true
 	}
 	if newStatus.Components.JobManagerStatefulSet !=

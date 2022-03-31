@@ -40,6 +40,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -81,6 +82,11 @@ func (reconciler *ClusterReconciler) reconcile() (ctrl.Result, error) {
 	}
 
 	err = reconciler.reconcileConfigMap()
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	err = reconciler.reconcilePodDisruptionBudget()
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -459,6 +465,72 @@ func (reconciler *ClusterReconciler) deleteConfigMap(
 		log.Error(err, "Failed to delete configMap")
 	} else {
 		log.Info("ConfigMap deleted")
+	}
+	return err
+}
+
+func (reconciler *ClusterReconciler) reconcilePodDisruptionBudget() error {
+	var desiredPodDisruptionBudget = reconciler.desired.PodDisruptionBudget
+	var observedPodDisruptionBudget = reconciler.observed.podDisruptionBudget
+
+	if desiredPodDisruptionBudget != nil && observedPodDisruptionBudget == nil {
+		return reconciler.createPodDisruptionBudget(desiredPodDisruptionBudget, "PodDisruptionBudget")
+	}
+
+	if desiredPodDisruptionBudget != nil && observedPodDisruptionBudget != nil {
+		var cluster = reconciler.observed.cluster
+		if shouldUpdateCluster(&reconciler.observed) && !isComponentUpdated(observedPodDisruptionBudget, cluster) {
+			var err error
+			if *reconciler.observed.cluster.Spec.RecreateOnUpdate {
+				err = reconciler.deleteOldComponent(desiredPodDisruptionBudget, observedPodDisruptionBudget, "PodDisruptionBudget")
+			} else {
+				err = reconciler.updateComponent(desiredPodDisruptionBudget, "PodDisruptionBudget")
+			}
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+		reconciler.log.Info("PodDisruptionBudget already exists, no action")
+		return nil
+	}
+
+	if desiredPodDisruptionBudget == nil && observedPodDisruptionBudget != nil {
+		return reconciler.deletePodDisruptionBudget(observedPodDisruptionBudget, "PodDisruptionBudget")
+	}
+
+	return nil
+}
+
+func (reconciler *ClusterReconciler) createPodDisruptionBudget(
+	pdb *policyv1.PodDisruptionBudget, component string) error {
+	var context = reconciler.context
+	var log = reconciler.log.WithValues("component", component)
+	var k8sClient = reconciler.k8sClient
+
+	log.Info("Creating PodDisruptionBudget", "PodDisruptionBudget", *pdb)
+	var err = k8sClient.Create(context, pdb)
+	if err != nil {
+		log.Info("Failed to create PodDisruptionBudget", "error", err)
+	} else {
+		log.Info("PodDisruptionBudget created")
+	}
+	return err
+}
+
+func (reconciler *ClusterReconciler) deletePodDisruptionBudget(
+	pdb *policyv1.PodDisruptionBudget, component string) error {
+	var context = reconciler.context
+	var log = reconciler.log.WithValues("component", component)
+	var k8sClient = reconciler.k8sClient
+
+	log.Info("Deleting PodDisruptionBudget", "PodDisruptionBudget", pdb)
+	var err = k8sClient.Delete(context, pdb)
+	err = client.IgnoreNotFound(err)
+	if err != nil {
+		log.Error(err, "Failed to delete PodDisruptionBudget")
+	} else {
+		log.Info("PodDisruptionBudget deleted")
 	}
 	return err
 }

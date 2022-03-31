@@ -31,6 +31,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -58,6 +59,7 @@ type ObservedClusterState struct {
 	jmService              *corev1.Service
 	jmIngress              *networkingv1.Ingress
 	tmStatefulSet          *appsv1.StatefulSet
+	podDisruptionBudget    *policyv1.PodDisruptionBudget
 	persistentVolumeClaims *corev1.PersistentVolumeClaimList
 	flinkJob               FlinkJob
 	flinkJobSubmitter      FlinkJobSubmitter
@@ -173,6 +175,21 @@ func (observer *ClusterStateObserver) observe(
 	} else {
 		log.Info("Observed configMap", "state", *observedConfigMap)
 		observed.configMap = observedConfigMap
+	}
+
+	// PodDisruptionBudget.
+	var observedPodDisruptionBudget = new(policyv1.PodDisruptionBudget)
+	err = observer.observePodDisruptionBudget(observedPodDisruptionBudget)
+	if err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			log.Error(err, "Failed to get PodDisruptionBudget")
+			return err
+		}
+		log.Info("Observed PodDisruptionBudget", "state", "nil")
+		observedPodDisruptionBudget = nil
+	} else {
+		log.Info("Observed PodDisruptionBudget", "state", *observedPodDisruptionBudget)
+		observed.podDisruptionBudget = observedPodDisruptionBudget
 	}
 
 	// JobManager StatefulSet.
@@ -425,6 +442,20 @@ func (observer *ClusterStateObserver) observeRevisions(
 	*revisions = append(*revisions, controllerRevisions...)
 
 	return err
+}
+
+func (observer *ClusterStateObserver) observePodDisruptionBudget(
+	observedPodDisruptionBudget *policyv1.PodDisruptionBudget) error {
+	var clusterNamespace = observer.request.Namespace
+	var clusterName = observer.request.Name
+
+	return observer.k8sClient.Get(
+		observer.context,
+		types.NamespacedName{
+			Namespace: clusterNamespace,
+			Name:      getPodDisruptionBudgetName(clusterName),
+		},
+		observedPodDisruptionBudget)
 }
 
 func (observer *ClusterStateObserver) observeConfigMap(

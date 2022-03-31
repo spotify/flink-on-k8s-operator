@@ -96,6 +96,11 @@ func getConfigMapName(clusterName string) string {
 	return clusterName + "-configmap"
 }
 
+// Gets PodDisruptionBudgetName name
+func getPodDisruptionBudgetName(clusterName string) string {
+	return clusterName + "-poddisruptionbudget"
+}
+
 // Gets JobManager StatefulSet name
 func getJobManagerStatefulSetName(clusterName string) string {
 	return clusterName + "-jobmanager"

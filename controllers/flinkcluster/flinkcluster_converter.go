@@ -35,6 +35,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -45,18 +46,20 @@ import (
 // underlying Kubernetes resource specs.
 
 const (
-	preStopSleepSeconds     = 30
-	flinkConfigMapPath      = "/opt/flink/conf"
-	flinkConfigMapVolume    = "flink-config-volume"
-	submitJobScriptPath     = "/opt/flink-operator/submit-job.sh"
-	gcpServiceAccountVolume = "gcp-service-account-volume"
-	hadoopConfigVolume      = "hadoop-config-volume"
-	jobManagerAddrEnvVar    = "FLINK_JM_ADDR"
-	jobJarUriEnvVar         = "FLINK_JOB_JAR_URI"
-	jobPyFileUriEnvVar      = "FLINK_JOB_PY_FILE_URI"
-	jobPyFilesUriEnvVar     = "FLINK_JOB_PY_FILES_URI"
-	hadoopConfDirEnvVar     = "HADOOP_CONF_DIR"
-	gacEnvVar               = "GOOGLE_APPLICATION_CREDENTIALS"
+	preStopSleepSeconds           = 30
+	flinkConfigMapPath            = "/opt/flink/conf"
+	flinkConfigMapVolume          = "flink-config-volume"
+	submitJobScriptPath           = "/opt/flink-operator/submit-job.sh"
+	gcpServiceAccountVolume       = "gcp-service-account-volume"
+	hadoopConfigVolume            = "hadoop-config-volume"
+	jobManagerAddrEnvVar          = "FLINK_JM_ADDR"
+	jobJarUriEnvVar               = "FLINK_JOB_JAR_URI"
+	jobPyFileUriEnvVar            = "FLINK_JOB_PY_FILE_URI"
+	jobPyFilesUriEnvVar           = "FLINK_JOB_PY_FILES_URI"
+	hadoopConfDirEnvVar           = "HADOOP_CONF_DIR"
+	gacEnvVar                     = "GOOGLE_APPLICATION_CREDENTIALS"
+	maxUnavailableDefault         = "0%"
+	maxUnavailableApplicationMode = "50%"
 )
 
 var (
@@ -87,7 +90,9 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 	if !shouldCleanup(cluster, "ConfigMap") {
 		state.ConfigMap = newConfigMap(cluster)
 	}
-
+	if !shouldCleanup(cluster, "PodDisruptionBudget") {
+		state.PodDisruptionBudget = newPodDisruptionBudget(cluster)
+	}
 	if !shouldCleanup(cluster, "JobManagerStatefulSet") && !applicationMode {
 		state.JmStatefulSet = newJobManagerStatefulSet(cluster)
 	}
@@ -518,6 +523,44 @@ func newTaskManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1.State
 					Annotations: taskManagerSpec.PodAnnotations,
 				},
 				Spec: *podSpec,
+			},
+		},
+	}
+}
+
+// Gets the desired PodDisruptionBudget.
+func newPodDisruptionBudget(flinkCluster *v1beta1.FlinkCluster) *policyv1.PodDisruptionBudget {
+	var jobSpec = flinkCluster.Spec.Job
+	if jobSpec == nil {
+		return nil
+	}
+	var clusterNamespace = flinkCluster.Namespace
+	var clusterName = flinkCluster.Name
+	var pdbName = getPodDisruptionBudgetName(clusterName)
+	var labels = mergeLabels(
+		getClusterLabels(flinkCluster),
+		getRevisionHashLabels(&flinkCluster.Status.Revision))
+
+	// TODO Q: @regadas, should we expose the unavailability to the Flink Cluster
+	// or determining it automatically from the JobMode is fine?
+	var maxUnavailablePods intstr.IntOrString
+	if jobSpec.Mode != nil && *jobSpec.Mode == v1beta1.JobModeApplication {
+		maxUnavailablePods = intstr.FromString(maxUnavailableApplicationMode)
+	} else {
+		maxUnavailablePods = intstr.FromString(maxUnavailableDefault)
+	}
+
+	return &policyv1.PodDisruptionBudget{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:       clusterNamespace,
+			Name:            pdbName,
+			OwnerReferences: []metav1.OwnerReference{ToOwnerReference(flinkCluster)},
+			Labels:          labels,
+		},
+		Spec: policyv1.PodDisruptionBudgetSpec{
+			MaxUnavailable: &maxUnavailablePods,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: labels,
 			},
 		},
 	}

@@ -186,6 +186,11 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 	} else {
 		log.Info("Desired state", "ConfigMap", "nil")
 	}
+	if desired.PodDisruptionBudget != nil {
+		log.Info("Desired state", "PodDisruptionBudget", *desired.PodDisruptionBudget)
+	} else {
+		log.Info("Desired state", "PodDisruptionBudget", "nil")
+	}
 	if desired.JmStatefulSet != nil {
 		log.Info("Desired state", "JobManager StatefulSet", *desired.JmStatefulSet)
 	} else {
