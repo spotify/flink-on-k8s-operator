@@ -6531,6 +6531,16 @@ spec:
                         - name
                         - state
                       type: object
+                    podDisruptionBudget:
+                      properties:
+                        name:
+                          type: string
+                        state:
+                          type: string
+                      required:
+                        - name
+                        - state
+                      type: object
                     taskManagerStatefulSet:
                       properties:
                         name:
@@ -6545,6 +6555,7 @@ spec:
                     - configMap
                     - jobManagerService
                     - jobManagerStatefulSet
+                    - podDisruptionBudget
                     - taskManagerStatefulSet
                   type: object
                 control:
