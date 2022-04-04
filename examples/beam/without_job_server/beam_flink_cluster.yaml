@@ -3,17 +3,11 @@ kind: FlinkCluster
 metadata:
   name: beam-flink-cluster
 spec:
+  flinkVersion: 1.10.1
   image:
     name: flink:1.10.1
-  jobManager:
-    resources:
-      limits:
-        memory: "1Gi"
   taskManager:
     replicas: 2
-    resources:
-      limits:
-        memory: "2Gi"
     sidecars:
       - name: beam-worker-pool
         image: apache/beam_python3.7_sdk:2.22.0
