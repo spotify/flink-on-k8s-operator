@@ -11,13 +11,15 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-func GetPodLogs(clientset *kubernetes.Clientset, pod *corev1.Pod) (string, error) {
+func GetPodLogs(clientset *kubernetes.Clientset, pod *corev1.Pod, containerName string) (string, error) {
 	if pod == nil {
 		return "", fmt.Errorf("no job pod found, even though submission completed")
 	}
 	pods := clientset.CoreV1().Pods(pod.Namespace)
 
-	req := pods.GetLogs(pod.Name, &corev1.PodLogOptions{})
+	req := pods.GetLogs(pod.Name, &corev1.PodLogOptions{
+		Container: containerName,
+	})
 	podLogs, err := req.Stream(context.TODO())
 	if err != nil {
 		return "", fmt.Errorf("failed to get logs for pod %s: %v", pod.Name, err)
