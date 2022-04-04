@@ -458,7 +458,7 @@ func getFlinkJobDeploymentState(flinkJobState string) string {
 
 // getFlinkJobSubmitLog extract logs from the job submitter pod.
 func getFlinkJobSubmitLog(clientset *kubernetes.Clientset, observedPod *corev1.Pod) (*SubmitterLog, error) {
-	log, err := util.GetPodLogs(clientset, observedPod)
+	log, err := util.GetPodLogs(clientset, observedPod, "main")
 	if err != nil {
 		return nil, err
 	}
