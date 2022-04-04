@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"golang.org/x/net/context"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -183,19 +184,17 @@ func getClusterResource(state *model.DesiredClusterState) (*corev1.ResourceRequi
 	var size int32
 
 	if state.JmStatefulSet != nil {
-		size += *state.JmStatefulSet.Spec.Replicas
-		for i := int32(0); i < *state.JmStatefulSet.Spec.Replicas; i++ {
-			jmResource := getPodResource(&state.JmStatefulSet.Spec.Template.Spec)
-			addResourceRequirements(reqs, jmResource)
-		}
+		spec := state.JmStatefulSet.Spec
+		size += *spec.Replicas
+		resources := getStatefulSetResources(&spec)
+		addResourceRequirements(reqs, resources)
 	}
 
 	if state.TmStatefulSet != nil {
-		size += *state.TmStatefulSet.Spec.Replicas
-		for i := int32(0); i < *state.TmStatefulSet.Spec.Replicas; i++ {
-			tmResource := getPodResource(&state.TmStatefulSet.Spec.Template.Spec)
-			addResourceRequirements(reqs, tmResource)
-		}
+		spec := state.TmStatefulSet.Spec
+		size += *spec.Replicas
+		resources := getStatefulSetResources(&spec)
+		addResourceRequirements(reqs, resources)
 	}
 
 	if state.Job != nil {
@@ -205,6 +204,24 @@ func getClusterResource(state *model.DesiredClusterState) (*corev1.ResourceRequi
 	}
 
 	return reqs, size
+}
+
+func getStatefulSetResources(spec *appsv1.StatefulSetSpec) *corev1.ResourceRequirements {
+	reqs := &corev1.ResourceRequirements{
+		Limits:   map[corev1.ResourceName]resource.Quantity{},
+		Requests: map[corev1.ResourceName]resource.Quantity{},
+	}
+
+	for i := int32(0); i < *spec.Replicas; i++ {
+		tmResource := getPodResource(&spec.Template.Spec)
+		addResourceRequirements(reqs, tmResource)
+
+		for _, pvc := range spec.VolumeClaimTemplates {
+			addResourceRequirements(reqs, &pvc.Spec.Resources)
+		}
+	}
+
+	return reqs
 }
 
 func getPodResource(spec *corev1.PodSpec) *corev1.ResourceRequirements {

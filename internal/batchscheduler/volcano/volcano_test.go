@@ -163,6 +163,16 @@ func TestGetClusterResource(t *testing.T) {
 						"component": "taskmanager",
 					},
 				},
+				VolumeClaimTemplates: []v1.PersistentVolumeClaim{{
+					Spec: v1.PersistentVolumeClaimSpec{
+						VolumeName: "tm-claim",
+						Resources: v1.ResourceRequirements{
+							Requests: map[v1.ResourceName]resource.Quantity{
+								v1.ResourceStorage: resource.MustParse("100Gi"),
+							},
+						},
+					},
+				}},
 				Template: v1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
@@ -289,4 +299,5 @@ func TestGetClusterResource(t *testing.T) {
 	assert.Assert(t, size == 5)
 	assert.Assert(t, res.Requests.Memory().String() == "2304Mi")
 	assert.Assert(t, res.Requests.Cpu().MilliValue() == 900)
+	assert.Assert(t, res.Requests.Storage().String() == "400Gi")
 }
