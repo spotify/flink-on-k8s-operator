@@ -1020,7 +1020,6 @@ taskmanager.rpc.port: 6122
 		t,
 		*desiredState.ConfigMap,
 		expectedConfigMap)
-
 }
 
 func TestSecurityContext(t *testing.T) {
