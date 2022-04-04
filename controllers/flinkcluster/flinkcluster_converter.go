@@ -544,7 +544,7 @@ func newPodDisruptionBudget(flinkCluster *v1beta1.FlinkCluster) *policyv1.PodDis
 	// TODO Q: @regadas, should we expose the unavailability to the Flink Cluster
 	// or determining it automatically from the JobMode is fine?
 	var maxUnavailablePods intstr.IntOrString
-	if jobSpec.Mode != nil && *jobSpec.Mode == v1beta1.JobModeApplication {
+	if IsApplicationModeCluster(flinkCluster) {
 		maxUnavailablePods = intstr.FromString(maxUnavailableApplicationMode)
 	} else {
 		maxUnavailablePods = intstr.FromString(maxUnavailableDefault)
