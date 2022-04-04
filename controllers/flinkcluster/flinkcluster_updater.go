@@ -834,7 +834,7 @@ func (updater *ClusterStatusUpdater) clearControlAnnotation(newControlStatus *v1
 		// make annotation patch cleared
 		annotationPatch := objectForPatch{
 			Metadata: objectMetaForPatch{
-				Annotations: map[string]any{
+				Annotations: map[string]interface{}{
 					v1beta1.ControlAnnotation: nil,
 				},
 			},

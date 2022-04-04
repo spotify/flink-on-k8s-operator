@@ -344,7 +344,7 @@ func (rh *realHistory) ReleaseControllerRevision(parent metav1.Object, revision 
 	return revision, err
 }
 
-func DeepHashObject(hasher hash.Hash, objectToWrite any) {
+func DeepHashObject(hasher hash.Hash, objectToWrite interface{}) {
 	hasher.Reset()
 	printer := spew.ConfigState{
 		Indent:         " ",

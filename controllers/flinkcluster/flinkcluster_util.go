@@ -74,7 +74,7 @@ type objectForPatch struct {
 
 // objectMetaForPatch define object meta struct for patch operation
 type objectMetaForPatch struct {
-	Annotations map[string]any `json:"annotations"`
+	Annotations map[string]interface{} `json:"annotations"`
 }
 
 func getFlinkAPIBaseURL(cluster *v1beta1.FlinkCluster) string {
@@ -197,10 +197,10 @@ func getPatch(cluster *v1beta1.FlinkCluster) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	var raw map[string]any
+	var raw map[string]interface{}
 	json.Unmarshal([]byte(str.Bytes()), &raw)
-	objCopy := make(map[string]any)
-	spec := raw["spec"].(map[string]any)
+	objCopy := make(map[string]interface{})
+	spec := raw["spec"].(map[string]interface{})
 	objCopy["spec"] = spec
 	spec["$patch"] = "replace"
 	patch, err := json.Marshal(objCopy)
