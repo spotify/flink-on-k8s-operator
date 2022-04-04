@@ -131,7 +131,7 @@ CRD_REF_DOCS = $(shell pwd)/bin/crd-ref-docs
 crd-ref-docs:
 	$(call go-get-tool,$(CRD_REF_DOCS),github.com/elastic/crd-ref-docs@master)
 
-# go-get-tool will 'go get' any package $2 and install it to $1.
+# go-get-tool will 'go install' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 define go-get-tool
 @[ -f $(1) ] || { \
