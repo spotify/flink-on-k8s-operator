@@ -287,6 +287,6 @@ func TestGetClusterResource(t *testing.T) {
 
 	res, size := getClusterResource(desiredState)
 	assert.Assert(t, size == 5)
-	assert.Assert(t, res.Memory().String() == "2304Mi")
-	assert.Assert(t, res.Cpu().MilliValue() == 900)
+	assert.Assert(t, res.Requests.Memory().String() == "2304Mi")
+	assert.Assert(t, res.Requests.Cpu().MilliValue() == 900)
 }
