@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
 
 	"github.com/spotify/flink-on-k8s-operator/internal/controllers/history"
@@ -270,11 +271,12 @@ func (observer *ClusterStateObserver) observe(
 
 func (observer *ClusterStateObserver) checkInitContainersForErrors(pod *corev1.Pod, observed *ObservedClusterState) (string, error) {
 	var log = observer.log
-	if pod != nil && strings.Contains(pod.Status.Message, "Init:") { // one of Init:N/M || Init:Error || Init:CrashLoopBackOff
+
+	if pod != nil && (strings.Contains(pod.Status.Message, "Init:") || pod.Status.Phase == corev1.PodFailed) { // one of Init:N/M || Init:Error || Init:CrashLoopBackOff
 		for _, cs := range pod.Status.InitContainerStatuses {
-			if cs.State.Terminated != nil && cs.State.Terminated.ExitCode != 0 && cs.RestartCount > initContainerMaxRetries {
-				log.Error(errors.New("init container failure in pod "+pod.Name), "name", cs.Name, "exitCode", cs.State.Terminated.ExitCode)
-				l, err := util.GetPodLogs(observer.k8sClientset, pod)
+			if cs.State.Terminated != nil && cs.State.Terminated.ExitCode != 0 {
+				log.Error(errors.New("init container failure in pod "+pod.Name), "initc failure", "name", cs.Name, "exitCode", cs.State.Terminated.ExitCode)
+				l, err := util.GetPodLogs(observer.k8sClientset, pod, cs.Name)
 				if err != nil {
 					log.Error(err, "Failed to get log stream from pod", "pod", pod.Name)
 				}
@@ -495,24 +497,25 @@ func (observer *ClusterStateObserver) observeJobManagerStatefulSet(
 	var clusterNamespace = observer.request.Namespace
 	var clusterName = observer.request.Name
 	var jmStatefulSetName = getJobManagerStatefulSetName(clusterName)
-	var i int32 = 0
-	for ; i < *observedStatefulSet.Spec.Replicas; i++ {
-		podName := fmt.Sprintf("%s-%d", jmStatefulSetName, i)
-		// get pod for podName
-		pod := &corev1.Pod{}
-		err := observer.k8sClient.Get(
-			observer.context,
-			types.NamespacedName{
-				Namespace: clusterNamespace,
-				Name:      podName,
-			},
-			pod)
-		if err != nil {
-			// if init containers have errors, the FlinkJob will be updated with a failed status
-			observer.checkInitContainersForErrors(pod, observed)
+	if observedStatefulSet != nil && observedStatefulSet.Spec.Replicas != nil {
+		var i int32 = 0
+		for i = 0; i < *(observedStatefulSet.Spec.Replicas); i++ {
+			podName := fmt.Sprintf("%s-%d", jmStatefulSetName, i)
+			// get pod for podName
+			pod := &corev1.Pod{}
+			err := observer.k8sClient.Get(
+				observer.context,
+				types.NamespacedName{
+					Namespace: clusterNamespace,
+					Name:      podName,
+				},
+				pod)
+			if err != nil {
+				// if init containers have errors, the FlinkJob will be updated with a failed status
+				observer.checkInitContainersForErrors(pod, observed)
+			}
 		}
 	}
-
 	return observer.observeStatefulSet(
 		clusterNamespace, jmStatefulSetName, "JobManager", observedStatefulSet)
 }
