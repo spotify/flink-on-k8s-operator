@@ -114,6 +114,15 @@ rules:
       - update
       - watch
   - apiGroups:
+      - "policy"
+    resources:
+      - poddisruptionbuget
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+  - apiGroups:
       - ""
     resources:
       - pods

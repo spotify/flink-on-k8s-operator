@@ -24,6 +24,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -54,6 +55,7 @@ func init() {
 	corev1.AddToScheme(scheme)
 	v1beta1.AddToScheme(scheme)
 	networkingv1.AddToScheme(scheme)
+	policyv1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 
