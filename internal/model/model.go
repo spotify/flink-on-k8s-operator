@@ -18,14 +18,16 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	policyv1 "k8s.io/api/policy/v1"
 )
 
 // DesiredClusterState holds desired state of a cluster.
 type DesiredClusterState struct {
-	JmStatefulSet *appsv1.StatefulSet
-	JmService     *corev1.Service
-	JmIngress     *networkingv1.Ingress
-	TmStatefulSet *appsv1.StatefulSet
-	ConfigMap     *corev1.ConfigMap
-	Job           *batchv1.Job
+	JmStatefulSet       *appsv1.StatefulSet
+	JmService           *corev1.Service
+	JmIngress           *networkingv1.Ingress
+	TmStatefulSet       *appsv1.StatefulSet
+	ConfigMap           *corev1.ConfigMap
+	Job                 *batchv1.Job
+	PodDisruptionBudget *policyv1.PodDisruptionBudget
 }

@@ -35,6 +35,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -94,6 +95,11 @@ func getFlinkAPIBaseURL(cluster *v1beta1.FlinkCluster) string {
 // Gets ConfigMap name
 func getConfigMapName(clusterName string) string {
 	return clusterName + "-configmap"
+}
+
+// Gets PodDisruptionBudgetName name
+func getPodDisruptionBudgetName(clusterName string) string {
+	return "flink-" + clusterName
 }
 
 // Gets JobManager StatefulSet name
@@ -338,6 +344,10 @@ func isComponentUpdated(component runtime.Object, cluster *v1beta1.FlinkCluster)
 		if o == nil {
 			return false
 		}
+	case *policyv1.PodDisruptionBudget:
+		if o == nil {
+			return false
+		}
 	case *corev1.Service:
 		if o == nil {
 			return false
@@ -373,6 +383,7 @@ func areComponentsUpdated(components []runtime.Object, cluster *v1beta1.FlinkClu
 func isUpdatedAll(observed ObservedClusterState) bool {
 	components := []runtime.Object{
 		observed.configMap,
+		observed.podDisruptionBudget,
 		observed.jmStatefulSet,
 		observed.tmStatefulSet,
 		observed.jmService,
@@ -389,6 +400,7 @@ func isClusterUpdateToDate(observed *ObservedClusterState) bool {
 	}
 	components := []runtime.Object{
 		observed.configMap,
+		observed.podDisruptionBudget,
 		observed.jmStatefulSet,
 		observed.tmStatefulSet,
 		observed.jmService,
