@@ -46,20 +46,19 @@ import (
 // underlying Kubernetes resource specs.
 
 const (
-	preStopSleepSeconds           = 30
-	flinkConfigMapPath            = "/opt/flink/conf"
-	flinkConfigMapVolume          = "flink-config-volume"
-	submitJobScriptPath           = "/opt/flink-operator/submit-job.sh"
-	gcpServiceAccountVolume       = "gcp-service-account-volume"
-	hadoopConfigVolume            = "hadoop-config-volume"
-	jobManagerAddrEnvVar          = "FLINK_JM_ADDR"
-	jobJarUriEnvVar               = "FLINK_JOB_JAR_URI"
-	jobPyFileUriEnvVar            = "FLINK_JOB_PY_FILE_URI"
-	jobPyFilesUriEnvVar           = "FLINK_JOB_PY_FILES_URI"
-	hadoopConfDirEnvVar           = "HADOOP_CONF_DIR"
-	gacEnvVar                     = "GOOGLE_APPLICATION_CREDENTIALS"
-	maxUnavailableDefault         = "0%"
-	maxUnavailableApplicationMode = "50%"
+	preStopSleepSeconds     = 30
+	flinkConfigMapPath      = "/opt/flink/conf"
+	flinkConfigMapVolume    = "flink-config-volume"
+	submitJobScriptPath     = "/opt/flink-operator/submit-job.sh"
+	gcpServiceAccountVolume = "gcp-service-account-volume"
+	hadoopConfigVolume      = "hadoop-config-volume"
+	jobManagerAddrEnvVar    = "FLINK_JM_ADDR"
+	jobJarUriEnvVar         = "FLINK_JOB_JAR_URI"
+	jobPyFileUriEnvVar      = "FLINK_JOB_PY_FILE_URI"
+	jobPyFilesUriEnvVar     = "FLINK_JOB_PY_FILES_URI"
+	hadoopConfDirEnvVar     = "HADOOP_CONF_DIR"
+	gacEnvVar               = "GOOGLE_APPLICATION_CREDENTIALS"
+	maxUnavailableDefault   = "0%"
 )
 
 var (
@@ -537,16 +536,9 @@ func newPodDisruptionBudget(flinkCluster *v1beta1.FlinkCluster) *policyv1.PodDis
 	var clusterNamespace = flinkCluster.Namespace
 	var clusterName = flinkCluster.Name
 	var pdbName = getPodDisruptionBudgetName(clusterName)
-	var labels = mergeLabels(
-		getClusterLabels(flinkCluster),
-		getRevisionHashLabels(&flinkCluster.Status.Revision))
+	var labels = getClusterLabels(flinkCluster)
 
-	var maxUnavailablePods intstr.IntOrString
-	if IsApplicationModeCluster(flinkCluster) {
-		maxUnavailablePods = intstr.FromString(maxUnavailableApplicationMode)
-	} else {
-		maxUnavailablePods = intstr.FromString(maxUnavailableDefault)
-	}
+	var maxUnavailablePods = intstr.FromString(maxUnavailableDefault)
 
 	return &policyv1.PodDisruptionBudget{
 		ObjectMeta: metav1.ObjectMeta{

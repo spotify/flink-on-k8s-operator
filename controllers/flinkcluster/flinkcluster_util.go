@@ -99,7 +99,7 @@ func getConfigMapName(clusterName string) string {
 
 // Gets PodDisruptionBudgetName name
 func getPodDisruptionBudgetName(clusterName string) string {
-	return clusterName + "-poddisruptionbudget"
+	return "flink-" + clusterName
 }
 
 // Gets JobManager StatefulSet name

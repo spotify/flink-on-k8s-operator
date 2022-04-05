@@ -477,24 +477,6 @@ func (reconciler *ClusterReconciler) reconcilePodDisruptionBudget() error {
 		return reconciler.createPodDisruptionBudget(desiredPodDisruptionBudget, "PodDisruptionBudget")
 	}
 
-	if desiredPodDisruptionBudget != nil && observedPodDisruptionBudget != nil {
-		var cluster = reconciler.observed.cluster
-		if shouldUpdateCluster(&reconciler.observed) && !isComponentUpdated(observedPodDisruptionBudget, cluster) {
-			var err error
-			if *reconciler.observed.cluster.Spec.RecreateOnUpdate {
-				err = reconciler.deleteOldComponent(desiredPodDisruptionBudget, observedPodDisruptionBudget, "PodDisruptionBudget")
-			} else {
-				err = reconciler.updateComponent(desiredPodDisruptionBudget, "PodDisruptionBudget")
-			}
-			if err != nil {
-				return err
-			}
-			return nil
-		}
-		reconciler.log.Info("PodDisruptionBudget already exists, no action")
-		return nil
-	}
-
 	if desiredPodDisruptionBudget == nil && observedPodDisruptionBudget != nil {
 		return reconciler.deletePodDisruptionBudget(observedPodDisruptionBudget, "PodDisruptionBudget")
 	}
