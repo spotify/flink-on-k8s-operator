@@ -116,12 +116,13 @@ rules:
   - apiGroups:
       - "policy"
     resources:
-      - poddisruptionbuget
+      - poddisruptionbudgets
     verbs:
       - create
       - delete
       - get
       - list
+      - watch
   - apiGroups:
       - ""
     resources:
