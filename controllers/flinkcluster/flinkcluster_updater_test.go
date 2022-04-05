@@ -181,10 +181,6 @@ func TestClusterStatus(t *testing.T) {
 							Name:  "my-configmap",
 							State: v1beta1.ComponentStateReady,
 						},
-						PodDisruptionBudget: v1beta1.FlinkClusterComponentState{
-							Name:  "my-poddisruptionbudget",
-							State: v1beta1.ComponentStateReady,
-						},
 						JobManagerStatefulSet: v1beta1.FlinkClusterComponentState{
 							Name:  "my-jobmanager",
 							State: v1beta1.ComponentStateReady,

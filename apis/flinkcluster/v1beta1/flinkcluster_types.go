@@ -648,9 +648,6 @@ type FlinkClusterComponentsStatus struct {
 	// The state of configMap.
 	ConfigMap FlinkClusterComponentState `json:"configMap"`
 
-	// The state of PodDisruptionBudget.
-	PodDisruptionBudget FlinkClusterComponentState `json:"podDisruptionBudget"`
-
 	// The state of JobManager StatefulSet.
 	JobManagerStatefulSet FlinkClusterComponentState `json:"jobManagerStatefulSet"`
 
