@@ -58,7 +58,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 	var jobMode v1beta1.JobMode = v1beta1.JobModeDetached
 	var jobBackoffLimit int32 = 0
 	var jmReadinessProbe = corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{
+		Handler: corev1.Handler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(int(jmRPCPort)),
 			},
@@ -69,7 +69,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 		FailureThreshold:    60,
 	}
 	var jmLivenessProbe = corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{
+		Handler: corev1.Handler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(int(jmRPCPort)),
 			},
@@ -80,7 +80,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 		FailureThreshold:    5,
 	}
 	var tmReadinessProbe = corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{
+		Handler: corev1.Handler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(int(tmRPCPort)),
 			},
@@ -91,7 +91,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 		FailureThreshold:    60,
 	}
 	var tmLivenessProbe = corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{
+		Handler: corev1.Handler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(int(tmRPCPort)),
 			},
@@ -422,7 +422,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 								},
 							},
 							Lifecycle: &corev1.Lifecycle{
-								PreStop: &corev1.LifecycleHandler{
+								PreStop: &corev1.Handler{
 									Exec: &corev1.ExecAction{
 										Command: []string{"sleep", strconv.Itoa(preStopSleepSeconds)},
 									},
@@ -730,7 +730,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 								},
 							},
 							Lifecycle: &corev1.Lifecycle{
-								PreStop: &corev1.LifecycleHandler{
+								PreStop: &corev1.Handler{
 									Exec: &corev1.ExecAction{
 										Command: []string{"sleep", strconv.Itoa(preStopSleepSeconds)},
 									},

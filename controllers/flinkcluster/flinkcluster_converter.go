@@ -148,7 +148,7 @@ func newJobManagerContainer(flinkCluster *v1beta1.FlinkCluster) *corev1.Containe
 		EnvFrom:         flinkCluster.Spec.EnvFrom,
 		VolumeMounts:    jobManagerSpec.VolumeMounts,
 		Lifecycle: &corev1.Lifecycle{
-			PreStop: &corev1.LifecycleHandler{
+			PreStop: &corev1.Handler{
 				Exec: &corev1.ExecAction{
 					Command: []string{"sleep", strconv.Itoa(preStopSleepSeconds)},
 				},
@@ -448,7 +448,7 @@ func newTaskMangerContainer(flinkCluster *v1beta1.FlinkCluster) *corev1.Containe
 		EnvFrom:         flinkCluster.Spec.EnvFrom,
 		VolumeMounts:    taskManagerSpec.VolumeMounts,
 		Lifecycle: &corev1.Lifecycle{
-			PreStop: &corev1.LifecycleHandler{
+			PreStop: &corev1.Handler{
 				Exec: &corev1.ExecAction{
 					Command: []string{"sleep", strconv.Itoa(preStopSleepSeconds)},
 				},
