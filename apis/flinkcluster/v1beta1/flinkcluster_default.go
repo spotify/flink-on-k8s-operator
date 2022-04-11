@@ -131,7 +131,7 @@ func _SetJobManagerDefault(jmSpec *JobManagerSpec, flinkVersion *version.Version
 	}
 
 	var livenessProbe = corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{
+		Handler: corev1.Handler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(int(*jmSpec.Ports.RPC)),
 			},
@@ -147,7 +147,7 @@ func _SetJobManagerDefault(jmSpec *JobManagerSpec, flinkVersion *version.Version
 	jmSpec.LivenessProbe = &livenessProbe
 
 	var readinessProbe = corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{
+		Handler: corev1.Handler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(int(*jmSpec.Ports.RPC)),
 			},
@@ -202,7 +202,7 @@ func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Versi
 	}
 
 	var livenessProbe = corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{
+		Handler: corev1.Handler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(int(*tmSpec.Ports.RPC)),
 			},
@@ -218,7 +218,7 @@ func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Versi
 	tmSpec.LivenessProbe = &livenessProbe
 
 	var readinessProbe = corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{
+		Handler: corev1.Handler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(int(*tmSpec.Ports.RPC)),
 			},
