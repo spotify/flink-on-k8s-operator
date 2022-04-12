@@ -124,6 +124,12 @@ rules:
       - list
       - watch
   - apiGroups:
+      - "policy"
+    resources:
+      - poddisruptionbudgets/status
+    verbs:
+      - get
+  - apiGroups:
       - ""
     resources:
       - pods
