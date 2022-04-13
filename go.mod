@@ -21,7 +21,7 @@ require (
 
 require (
 	github.com/onsi/ginkgo/v2 v2.1.3
-	gotest.tools/v3 v3.0.3
+	gotest.tools/v3 v3.1.0
 )
 
 require (
