@@ -933,10 +933,8 @@ func getJobManagerIngressHost(ingressHostFormat string, clusterName string) stri
 
 // Checks whether the component should be deleted according to the cleanup
 // policy. Always return false for session cluster.
-func shouldCleanup(
-	cluster *v1beta1.FlinkCluster, component string) bool {
+func shouldCleanup(cluster *v1beta1.FlinkCluster, component string) bool {
 	var jobStatus = cluster.Status.Components.Job
-
 	// Session cluster.
 	if jobStatus == nil {
 		return false
