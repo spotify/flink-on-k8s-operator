@@ -112,7 +112,8 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 		jobStatus := cluster.Status.Components.Job
 
 		keepJobState := (shouldStopJob(cluster) || jobStatus.IsStopped()) &&
-			(!shouldUpdateJob(observed) && !jobStatus.ShouldRestart(jobSpec))
+			(!shouldUpdateJob(observed) && !jobStatus.ShouldRestart(jobSpec)) &&
+			shouldCleanup(cluster, "Job")
 
 		if !keepJobState {
 			state.Job = newJob(cluster)

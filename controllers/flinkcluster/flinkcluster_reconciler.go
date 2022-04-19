@@ -581,6 +581,10 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 
 	observedSubmitter := observed.flinkJobSubmitter.job
 
+	if desiredJob != nil && job.IsTerminated(jobSpec) {
+		return ctrl.Result{}, nil
+	}
+
 	// Create new Flink job submitter when starting new job, updating job or restarting job in failure.
 	if desiredJob != nil && !job.IsActive() {
 		log.Info("Deploying Flink job")
@@ -656,27 +660,30 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 	}
 
 	// Job cancel requested. Stop Flink job.
-	if desiredJob == nil && job.IsActive() {
-		userControl := getNewControlRequest(observed.cluster)
-		if userControl == v1beta1.ControlNameJobCancel {
-			newControlStatus = getControlStatus(userControl, v1beta1.ControlStateInProgress)
-		}
+	if desiredJob == nil {
+		if job.IsActive() {
+			userControl := getNewControlRequest(observed.cluster)
+			if userControl == v1beta1.ControlNameJobCancel {
+				newControlStatus = getControlStatus(userControl, v1beta1.ControlStateInProgress)
+			}
 
-		log.Info("Stopping job", "jobID", jobID)
-		if err := reconciler.cancelRunningJobs(true /* takeSavepoint */); err != nil {
+			log.Info("Stopping job", "jobID", jobID)
+			if err := reconciler.cancelRunningJobs(true /* takeSavepoint */); err != nil {
+				return requeueResult, err
+			}
+
 			return requeueResult, err
 		}
 
-		return requeueResult, err
-	}
-
-	if job.IsStopped() {
-		log.Info("Job has finished, no action")
-		if observedSubmitter != nil {
+		if job.IsStopped() && observedSubmitter != nil {
 			if err := reconciler.deleteJob(observedSubmitter); err != nil {
 				return requeueResult, err
 			}
 		}
+	}
+
+	if job.IsStopped() {
+		log.Info("Job has finished, no action")
 	}
 
 	return ctrl.Result{}, nil
