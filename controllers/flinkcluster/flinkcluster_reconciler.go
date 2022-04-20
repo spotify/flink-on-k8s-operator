@@ -579,6 +579,12 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 	var newControlStatus *v1beta1.FlinkClusterControlStatus
 	defer reconciler.updateStatus(&newSavepointStatus, &newControlStatus)
 
+	observedSubmitter := observed.flinkJobSubmitter.job
+
+	if desiredJob != nil && job.IsTerminated(jobSpec) {
+		return ctrl.Result{}, nil
+	}
+
 	// Create new Flink job submitter when starting new job, updating job or restarting job in failure.
 	if desiredJob != nil && !job.IsActive() {
 		log.Info("Deploying Flink job")
@@ -604,7 +610,6 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 			log.Info("Failed to update the job status for job submission")
 			return requeueResult, err
 		}
-		var observedSubmitter = observed.flinkJobSubmitter.job
 		if observedSubmitter != nil {
 			log.Info("Found old job submitter")
 			err = reconciler.deleteJob(observedSubmitter)
@@ -655,17 +660,26 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 	}
 
 	// Job cancel requested. Stop Flink job.
-	if desiredJob == nil && job.IsActive() {
-		log.Info("Stopping job", "jobID", jobID)
-		if err := reconciler.cancelRunningJobs(true /* takeSavepoint */); err != nil {
+	if desiredJob == nil {
+		if job.IsActive() {
+			userControl := getNewControlRequest(observed.cluster)
+			if userControl == v1beta1.ControlNameJobCancel {
+				newControlStatus = getControlStatus(userControl, v1beta1.ControlStateInProgress)
+			}
+
+			log.Info("Stopping job", "jobID", jobID)
+			if err := reconciler.cancelRunningJobs(true /* takeSavepoint */); err != nil {
+				return requeueResult, err
+			}
+
 			return requeueResult, err
 		}
 
-		var userControl = getNewControlRequest(observed.cluster)
-		if userControl == v1beta1.ControlNameJobCancel {
-			newControlStatus = getControlStatus(userControl, v1beta1.ControlStateInProgress)
+		if job.IsStopped() && observedSubmitter != nil {
+			if err := reconciler.deleteJob(observedSubmitter); err != nil {
+				return requeueResult, err
+			}
 		}
-		return requeueResult, err
 	}
 
 	if job.IsStopped() {

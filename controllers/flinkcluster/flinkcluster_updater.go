@@ -569,10 +569,10 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 		newJobState = v1beta1.JobStateUpdating
 	case oldJob.ShouldRestart(jobSpec):
 		newJobState = v1beta1.JobStateRestarting
-	case oldJob.IsPending() && oldJob.DeployTime != "":
-		newJobState = v1beta1.JobStateDeploying
 	case oldJob.IsStopped():
 		newJobState = oldJob.State
+	case oldJob.IsPending() && oldJob.DeployTime != "":
+		newJobState = v1beta1.JobStateDeploying
 	// Derive the job state from the observed Flink job, if it exists.
 	case observedFlinkJob != nil:
 		newJobState = getFlinkJobDeploymentState(observedFlinkJob.State)
@@ -590,6 +590,8 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 		} else {
 			newJobState = oldJob.State
 		}
+	case shouldStopJob(observedCluster):
+		newJobState = v1beta1.JobStateCancelled
 	// When Flink job not found in JobManager or JobManager is unavailable
 	case isFlinkAPIReady(observed.flinkJob.list):
 		if oldJob.State == v1beta1.JobStateRunning {
@@ -615,6 +617,7 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 			newJobState = v1beta1.JobStateDeployFailed
 			break
 		}
+
 		newJobState = oldJob.State
 	}
 	// Update State
