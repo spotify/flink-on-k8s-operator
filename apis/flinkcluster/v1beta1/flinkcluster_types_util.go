@@ -60,8 +60,14 @@ func (j *JobStatus) ShouldRestart(spec *JobSpec) bool {
 	if j == nil || !j.IsFailed() || spec == nil {
 		return false
 	}
-	var restartEnabled = spec.RestartPolicy != nil && *spec.RestartPolicy == JobRestartPolicyFromSavepointOnFailure
-	var jobCompletionTime = j.CompletionTime.Time
+
+	restartEnabled := spec.RestartPolicy != nil && *spec.RestartPolicy == JobRestartPolicyFromSavepointOnFailure
+
+	var jobCompletionTime time.Time
+	if j.CompletionTime != nil {
+		jobCompletionTime = j.CompletionTime.Time
+	}
+
 	return restartEnabled && j.IsSavepointUpToDate(spec, jobCompletionTime)
 }
 
