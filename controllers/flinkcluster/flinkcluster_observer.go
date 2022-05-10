@@ -599,7 +599,7 @@ func (observer *ClusterStateObserver) observePersistentVolumeClaims(
 		}
 		log.Info("Observed persistent volume claim list", "state", "nil")
 	} else {
-		log.Info("Observed persistent volume claim list", "state", *observedClaims)
+		log.Info("Observed persistent volume claim list", "state", len(observedClaims.Items))
 	}
 
 	return nil
