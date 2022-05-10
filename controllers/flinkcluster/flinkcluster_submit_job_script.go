@@ -139,6 +139,10 @@ function submit_job() {
     # Write result as YAML format to pod termination-log.
     # On failure, write log only.
     if [[ -z ${job_id} ]]; then
+		if [ $job_exit_code -eq 0 ]; then
+			write_term_log_msg "The submitter finished successfully but there is no job id. Did you forget to execute the pipeline?" "submit_log"
+			return 1
+		fi        
         write_term_log_msg "Failed to submit." "submit_log"
         return 1
     fi
