@@ -401,6 +401,12 @@ type CleanupPolicy struct {
 
 // JobSpec defines properties of a Flink job.
 type JobSpec struct {
+	// _(Optional)_ Adds URLs to each user code classloader on all nodes in the cluster.
+	// The paths must specify a protocol (e.g. file://) and be accessible on all nodes (e.g. by means of a NFS share).
+	// The protocol must be supported by the {@link java.net.URLClassLoader}.
+	// You may add support to more protocol by setting the `java.protocol.handler.pkgs` java option
+	ClassPath []string `json:"classPath,omitempty"`
+
 	// _(Optional)_ JAR file of the job. It could be a local file or remote URI,
 	// depending on which protocols (e.g., `https://, gs://`) are supported by the Flink image.
 	JarFile *string `json:"jarFile,omitempty"`

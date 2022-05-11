@@ -188,6 +188,10 @@ spec:
                       type: boolean
                     className:
                       type: string
+                    classPath:
+                      items:
+                        type: string
+                      type: array
                     cleanupPolicy:
                       properties:
                         afterJobCancelled:
