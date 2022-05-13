@@ -388,8 +388,7 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(observed *ObservedCl
 	flinkJobExceptions, err := observer.flinkClient.GetJobExceptions(flinkAPIBaseURL, flinkJobID)
 	if err != nil {
 		// It is normal in many cases, not an error.
-		log.Info("Failed to get Flink job exceptions.", "error", err)
-		return
+		log.Error("Failed to get Flink job exceptions.", "error", err)
 	}
 	log.Info("Observed Flink job exceptions", "jobs", flinkJobExceptions)
 	flinkJob.exceptions = flinkJobExceptions
