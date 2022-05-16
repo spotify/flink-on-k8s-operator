@@ -384,24 +384,28 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(observed *ObservedCl
 			flinkJobsUnexpected = append(flinkJobsUnexpected, job.Id)
 		}
 	}
-
-	flinkJobExceptions, err := observer.flinkClient.GetJobExceptions(flinkAPIBaseURL, flinkJobID)
-	if err != nil {
-		// It is normal in many cases, not an error.
-		log.Info("Failed to get Flink job exceptions.", "error", err)
-		return
-	}
-	log.Info("Observed Flink job exceptions", "jobs", flinkJobExceptions)
-	flinkJob.exceptions = flinkJobExceptions
-
 	flinkJob.status = flinkJobStatus
 	flinkJob.unexpected = flinkJobsUnexpected
+
 	log.Info("Observed Flink job",
 		"submitted job status", flinkJob.status,
 		"all job list", flinkJob.list,
 		"unexpected job list", flinkJob.unexpected)
 	if len(flinkJobsUnexpected) > 0 {
 		log.Info("More than one unexpected Flink job were found!")
+	}
+
+	if flinkJobID == "" {
+		log.Info("No flinkJobID given. Skipping get exceptions")
+	} else {
+		flinkJobExceptions, err := observer.flinkClient.GetJobExceptions(flinkAPIBaseURL, flinkJobID)
+		if err != nil {
+			// It is normal in many cases, not an error.
+			log.Info("Failed to get Flink job exceptions.", "error", err)
+		} else {
+			log.Info("Observed Flink job exceptions", "jobs", flinkJobExceptions)
+			flinkJob.exceptions = flinkJobExceptions
+		}
 	}
 }
 
