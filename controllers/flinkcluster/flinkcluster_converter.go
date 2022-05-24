@@ -89,15 +89,21 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 	if !shouldCleanup(cluster, "ConfigMap") {
 		state.ConfigMap = newConfigMap(cluster)
 	}
+
 	if !shouldCleanup(cluster, "PodDisruptionBudget") {
 		state.PodDisruptionBudget = newPodDisruptionBudget(cluster)
 	}
+
 	if !shouldCleanup(cluster, "JobManagerStatefulSet") && !applicationMode {
 		state.JmStatefulSet = newJobManagerStatefulSet(cluster)
 	}
 
 	if !shouldCleanup(cluster, "TaskManagerStatefulSet") {
 		state.TmStatefulSet = newTaskManagerStatefulSet(cluster)
+	}
+
+	if !shouldCleanup(cluster, "TaskManagerService") {
+		state.TmService = newTaskManagerService(cluster)
 	}
 
 	if !shouldCleanup(cluster, "JobManagerService") {
@@ -553,6 +559,50 @@ func newPodDisruptionBudget(flinkCluster *v1beta1.FlinkCluster) *policyv1.PodDis
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
 			},
+		},
+	}
+}
+
+// Gets the desired TaskManager Headless Service.
+func newTaskManagerService(flinkCluster *v1beta1.FlinkCluster) *corev1.Service {
+	var tmSpec = flinkCluster.Spec.TaskManager
+	if tmSpec == nil {
+		return nil
+	}
+	var clusterNamespace = flinkCluster.Namespace
+	var clusterName = flinkCluster.Name
+	// Service name matches the service name defined in the TM StatefulSet spec
+	var tmSvcName = getTaskManagerStatefulSetName(clusterName)
+	var labels = getClusterLabels(flinkCluster)
+	var tmSelector = getComponentLabels(flinkCluster, "taskmanager")
+
+	var tmSvcPorts = []corev1.ServicePort{
+		{
+			Name: "data",
+			Port: *tmSpec.Ports.Data,
+		},
+		{
+			Name: "rpc",
+			Port: *tmSpec.Ports.RPC,
+		},
+		{
+			Name: "query",
+			Port: *tmSpec.Ports.Query,
+		},
+	}
+
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:       clusterNamespace,
+			Name:            tmSvcName,
+			OwnerReferences: []metav1.OwnerReference{ToOwnerReference(flinkCluster)},
+			Labels:          labels,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector:  tmSelector,
+			ClusterIP: corev1.ClusterIPNone,
+			Type:      corev1.ServiceTypeClusterIP,
+			Ports:     tmSvcPorts,
 		},
 	}
 }
