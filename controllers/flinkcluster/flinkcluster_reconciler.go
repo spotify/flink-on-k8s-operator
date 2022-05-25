@@ -110,6 +110,10 @@ func (reconciler *ClusterReconciler) reconcile() (ctrl.Result, error) {
 	if err != nil {
 		return ctrl.Result{}, err
 	}
+	err = reconciler.reconcileTaskManagerService()
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
 	err = reconciler.reconcilePersistentVolumeClaims()
 	if err != nil {
@@ -199,6 +203,54 @@ func (reconciler *ClusterReconciler) reconcileStatefulSet(
 	}
 
 	return nil
+}
+
+func (reconciler *ClusterReconciler) reconcileTaskManagerService() error {
+	var desiredSvc = reconciler.desired.TmService
+	var observedSvc = reconciler.observed.tmService
+
+	if desiredSvc != nil && observedSvc == nil {
+		return reconciler.createTaskManagerService(desiredSvc, "TaskManager Service")
+	}
+
+	if desiredSvc == nil && observedSvc != nil {
+		return reconciler.deleteTaskManagerService(observedSvc, "TaskManager Service")
+	}
+	return nil
+
+}
+
+func (reconciler *ClusterReconciler) createTaskManagerService(
+	svc *corev1.Service, component string) error {
+	var context = reconciler.context
+	var log = reconciler.log.WithValues("component", component)
+	var k8sClient = reconciler.k8sClient
+
+	log.Info("Creating TaskManager Service", "TaskManager Service", *svc)
+	var err = k8sClient.Create(context, svc)
+	if err != nil {
+		log.Info("Failed to create TaskManager Service", "error", err)
+	} else {
+		log.Info("TaskManager Service created")
+	}
+	return err
+}
+
+func (reconciler *ClusterReconciler) deleteTaskManagerService(
+	svc *corev1.Service, component string) error {
+	var context = reconciler.context
+	var log = reconciler.log.WithValues("component", component)
+	var k8sClient = reconciler.k8sClient
+
+	log.Info("Deleting TaskManager Service", "TaskManager Service", svc)
+	var err = k8sClient.Delete(context, svc)
+	err = client.IgnoreNotFound(err)
+	if err != nil {
+		log.Error(err, "Failed to delete TaskManager Service")
+	} else {
+		log.Info("TaskManager Service deleted")
+	}
+	return err
 }
 
 func (reconciler *ClusterReconciler) createStatefulSet(

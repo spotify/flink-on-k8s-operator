@@ -384,8 +384,9 @@ func isUpdatedAll(observed ObservedClusterState) bool {
 	components := []runtime.Object{
 		observed.configMap,
 		observed.podDisruptionBudget,
-		observed.jmStatefulSet,
 		observed.tmStatefulSet,
+		observed.tmService,
+		observed.jmStatefulSet,
 		observed.jmService,
 		observed.jmIngress,
 		observed.flinkJobSubmitter.job,
@@ -401,8 +402,9 @@ func isClusterUpdateToDate(observed *ObservedClusterState) bool {
 	components := []runtime.Object{
 		observed.configMap,
 		observed.podDisruptionBudget,
-		observed.jmStatefulSet,
 		observed.tmStatefulSet,
+		observed.tmService,
+		observed.jmStatefulSet,
 		observed.jmService,
 	}
 	return areComponentsUpdated(components, observed.cluster)

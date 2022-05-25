@@ -59,6 +59,7 @@ type ObservedClusterState struct {
 	jmService              *corev1.Service
 	jmIngress              *networkingv1.Ingress
 	tmStatefulSet          *appsv1.StatefulSet
+	tmService              *corev1.Service
 	podDisruptionBudget    *policyv1.PodDisruptionBudget
 	persistentVolumeClaims *corev1.PersistentVolumeClaimList
 	flinkJob               FlinkJob
@@ -250,6 +251,21 @@ func (observer *ClusterStateObserver) observe(
 	} else {
 		log.Info("Observed TaskManager StatefulSet", "state", *observedTmStatefulSet)
 		observed.tmStatefulSet = observedTmStatefulSet
+	}
+
+	// TaskManager Service.
+	var observedTmSvc = new(corev1.Service)
+	err = observer.observeTaskManagerService(observedTmSvc)
+	if err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			log.Error(err, "Failed to get TaskManager Service")
+			return err
+		}
+		log.Info("Observed TaskManager Service", "state", "nil")
+		observedTmSvc = nil
+	} else {
+		log.Info("Observed TaskManager Service", "state", *observedTmSvc)
+		observed.tmService = observedTmSvc
 	}
 
 	// (Optional) Savepoint.
@@ -492,6 +508,20 @@ func (observer *ClusterStateObserver) observeTaskManagerStatefulSet(
 	var tmStatefulSetName = getTaskManagerStatefulSetName(clusterName)
 	return observer.observeStatefulSet(
 		clusterNamespace, tmStatefulSetName, "TaskManager", observedStatefulSet)
+}
+
+func (observer *ClusterStateObserver) observeTaskManagerService(
+	observedSvc *corev1.Service) error {
+	var clusterNamespace = observer.request.Namespace
+	var clusterName = observer.request.Name
+
+	return observer.k8sClient.Get(
+		observer.context,
+		types.NamespacedName{
+			Namespace: clusterNamespace,
+			Name:      getTaskManagerStatefulSetName(clusterName),
+		},
+		observedSvc)
 }
 
 func (observer *ClusterStateObserver) observeStatefulSet(
