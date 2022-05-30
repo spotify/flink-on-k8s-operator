@@ -5324,6 +5324,8 @@ spec:
                           - name
                         type: object
                       type: array
+                    storageType:
+                      type: string
                     tolerations:
                       items:
                         properties:

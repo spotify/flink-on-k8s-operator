@@ -99,7 +99,7 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 	}
 
 	if !shouldCleanup(cluster, "TaskManagerStatefulSet") {
-		if observed.tmState.storageType == v1beta1.StorageTypePersistent {
+		if observed.cluster.Spec.TaskManager.StorageType == v1beta1.StorageTypePersistent {
 			state.TmDesiredState = &model.TaskManagerDesiredState{
 				StorageType: string(observed.tmState.storageType),
 				StatefulSet: newTaskManagerStatefulSet(cluster),
