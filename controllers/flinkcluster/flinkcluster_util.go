@@ -122,6 +122,11 @@ func getTaskManagerStatefulSetName(clusterName string) string {
 	return clusterName + "-taskmanager"
 }
 
+// Gets TaskManager StatefulSet name
+func getTaskManagerDeploymentName(clusterName string) string {
+	return clusterName + "-taskmanager"
+}
+
 func getJobManagerJobName(clusterName string) string {
 	return clusterName + "-jobmanager"
 }
@@ -384,7 +389,7 @@ func isUpdatedAll(observed ObservedClusterState) bool {
 	components := []runtime.Object{
 		observed.configMap,
 		observed.podDisruptionBudget,
-		observed.tmStatefulSet,
+		observed.tmState.tmStatefulSet,
 		observed.tmService,
 		observed.jmStatefulSet,
 		observed.jmService,
@@ -402,7 +407,7 @@ func isClusterUpdateToDate(observed *ObservedClusterState) bool {
 	components := []runtime.Object{
 		observed.configMap,
 		observed.podDisruptionBudget,
-		observed.tmStatefulSet,
+		observed.tmState.tmStatefulSet,
 		observed.tmService,
 		observed.jmStatefulSet,
 		observed.jmService,

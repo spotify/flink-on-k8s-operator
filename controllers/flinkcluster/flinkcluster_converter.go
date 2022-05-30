@@ -99,7 +99,19 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 	}
 
 	if !shouldCleanup(cluster, "TaskManagerStatefulSet") {
-		state.TmStatefulSet = newTaskManagerStatefulSet(cluster)
+		if observed.tmState.storageType == v1beta1.StorageTypePersistent {
+			state.TmDesiredState = &model.TaskManagerDesiredState{
+				StorageType: string(observed.tmState.storageType),
+				StatefulSet: newTaskManagerStatefulSet(cluster),
+				Deployment:  nil,
+			}
+		} else {
+			state.TmDesiredState = &model.TaskManagerDesiredState{
+				StorageType: string(observed.tmState.storageType),
+				StatefulSet: nil,
+				Deployment:  newTaskManagerDeployment(cluster),
+			}
+		}
 	}
 
 	if !shouldCleanup(cluster, "TaskManagerService") {
@@ -523,6 +535,60 @@ func newTaskManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1.State
 			ServiceName:          taskManagerStatefulSetName,
 			VolumeClaimTemplates: pvcs,
 			PodManagementPolicy:  "Parallel",
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels:      podLabels,
+					Annotations: taskManagerSpec.PodAnnotations,
+				},
+				Spec: *podSpec,
+			},
+		},
+	}
+}
+
+func getEphemeralVolumes(flinkCluster *v1beta1.FlinkCluster) []corev1.Volume {
+	var ephemeralVolumes []corev1.Volume
+	var volumeClaimsInSpec = flinkCluster.Spec.TaskManager.VolumeClaimTemplates
+	if volumeClaimsInSpec != nil {
+		for _, volume := range volumeClaimsInSpec {
+			ephemeralVolumes = append(ephemeralVolumes, corev1.Volume{
+				Name: volume.ObjectMeta.Name,
+				// Ephemeral volume
+				VolumeSource: corev1.VolumeSource{
+					Ephemeral: &corev1.EphemeralVolumeSource{
+						VolumeClaimTemplate: &corev1.PersistentVolumeClaimTemplate{
+							Spec: volume.Spec,
+						},
+					},
+				},
+			})
+		}
+	}
+	return ephemeralVolumes
+}
+
+// Gets the desired TaskManager Deployment spec from a cluster spec.
+func newTaskManagerDeployment(flinkCluster *v1beta1.FlinkCluster) *appsv1.Deployment {
+	var taskManagerSpec = flinkCluster.Spec.TaskManager
+	var taskManagerDeploymentName = getTaskManagerDeploymentName(flinkCluster.Name)
+	var podLabels = getComponentLabels(flinkCluster, "taskmanager")
+	podLabels = mergeLabels(podLabels, taskManagerSpec.PodLabels)
+	var deploymentLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
+
+	mainContainer := newTaskMangerContainer(flinkCluster)
+	podSpec := newTaskManagerPodSpec(mainContainer, flinkCluster)
+	podSpec.Volumes = getEphemeralVolumes(flinkCluster)
+
+	return &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:       flinkCluster.Namespace,
+			Name:            taskManagerDeploymentName,
+			OwnerReferences: []metav1.OwnerReference{ToOwnerReference(flinkCluster)},
+			Labels:          deploymentLabels,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: taskManagerSpec.Replicas,
+			Selector: &metav1.LabelSelector{MatchLabels: podLabels},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      podLabels,

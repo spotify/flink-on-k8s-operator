@@ -27,6 +27,7 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/go-logr/logr"
@@ -371,15 +372,26 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 	}
 
 	// TaskManager StatefulSet.
-	var observedTmStatefulSet = observed.tmStatefulSet
-	if !isComponentUpdated(observedTmStatefulSet, observed.cluster) && shouldUpdateCluster(observed) {
+	var observedTmState runtime.Object
+	var tmStatusName string
+	var tmStatusState string
+	if observed.tmState.storageType == v1beta1.StorageTypePersistent {
+		observedTmStatefulSet := observed.tmState.tmStatefulSet
+		observedTmState = observedTmStatefulSet
+		tmStatusName = observedTmStatefulSet.Name
+		tmStatusState = getStatefulSetState(observedTmStatefulSet)
+	} else {
+		observedTmDeployment := observed.tmState.tmDeployment
+		observedTmState = observedTmDeployment
+		tmStatusName = observedTmDeployment.Name
+		tmStatusState = getDeploymentState(observedTmDeployment)
+	}
+	if !isComponentUpdated(observedTmState, observed.cluster) && shouldUpdateCluster(observed) {
 		recorded.Components.TaskManagerStatefulSet.DeepCopyInto(&status.Components.TaskManagerStatefulSet)
 		status.Components.TaskManagerStatefulSet.State = v1beta1.ComponentStateUpdating
-	} else if observedTmStatefulSet != nil {
-		status.Components.TaskManagerStatefulSet.Name =
-			observedTmStatefulSet.Name
-		status.Components.TaskManagerStatefulSet.State =
-			getStatefulSetState(observedTmStatefulSet)
+	} else if observedTmState != nil {
+		status.Components.TaskManagerStatefulSet.Name = tmStatusName
+		status.Components.TaskManagerStatefulSet.State = tmStatusState
 		if status.Components.TaskManagerStatefulSet.State ==
 			v1beta1.ComponentStateReady {
 			runningComponents++
@@ -1003,6 +1015,13 @@ func deriveRevisionStatus(
 
 func getStatefulSetState(statefulSet *appsv1.StatefulSet) string {
 	if statefulSet.Status.ReadyReplicas >= *statefulSet.Spec.Replicas {
+		return v1beta1.ComponentStateReady
+	}
+	return v1beta1.ComponentStateNotReady
+}
+
+func getDeploymentState(deployment *appsv1.Deployment) string {
+	if deployment.Status.ReadyReplicas >= *deployment.Spec.Replicas {
 		return v1beta1.ComponentStateReady
 	}
 	return v1beta1.ComponentStateNotReady

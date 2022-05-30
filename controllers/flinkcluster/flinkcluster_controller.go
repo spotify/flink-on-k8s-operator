@@ -211,11 +211,18 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 	} else {
 		log.Info("Desired state", "JobManager ingress", "nil")
 	}
-	if desired.TmStatefulSet != nil {
-		log.Info("Desired state", "TaskManager StatefulSet", *desired.TmStatefulSet)
+	if desired.TmDesiredState != nil {
+		if desired.TmDesiredState.StorageType == v1beta1.StorageTypePersistent && desired.TmDesiredState.StatefulSet != nil {
+			log.Info("Desired state", "TaskManager StatefulSet", *desired.TmDesiredState.StatefulSet)
+		} else if desired.TmDesiredState.StorageType == v1beta1.StorageTypeEphemeral && desired.TmDesiredState.Deployment != nil {
+			log.Info("Desired state", "TaskManager Deployment", *desired.TmDesiredState.Deployment)
+		} else {
+			log.Info("Desired state", "TaskManager", "nil")
+		}
 	} else {
-		log.Info("Desired state", "TaskManager StatefulSet", "nil")
+		log.Info("Desired state", "TaskManager", "nil")
 	}
+
 	if desired.Job != nil {
 		log.Info("Desired state", "Job", *desired.Job)
 	} else {

@@ -150,15 +150,18 @@ func TestClusterStatus(t *testing.T) {
 					ClusterIP: "127.0.0.1",
 				},
 			},
-			tmStatefulSet: &appsv1.StatefulSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "tm-service",
-				},
-				Spec: appsv1.StatefulSetSpec{
-					Replicas: &replicas,
-				},
-				Status: appsv1.StatefulSetStatus{
-					ReadyReplicas: 1,
+			tmState: TaskManagerState{
+				storageType: v1beta1.StorageTypePersistent,
+				tmStatefulSet: &appsv1.StatefulSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "tm-service",
+					},
+					Spec: appsv1.StatefulSetSpec{
+						Replicas: &replicas,
+					},
+					Status: appsv1.StatefulSetStatus{
+						ReadyReplicas: 1,
+					},
 				},
 			},
 			revision: Revision{

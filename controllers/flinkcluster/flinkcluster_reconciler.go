@@ -106,7 +106,7 @@ func (reconciler *ClusterReconciler) reconcile() (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	err = reconciler.reconcileTaskManagerStatefulSet()
+	err = reconciler.reconcileTaskManager()
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -162,11 +162,17 @@ func (reconciler *ClusterReconciler) reconcileJobManagerStatefulSet() error {
 		reconciler.observed.jmStatefulSet)
 }
 
-func (reconciler *ClusterReconciler) reconcileTaskManagerStatefulSet() error {
-	return reconciler.reconcileStatefulSet(
+func (reconciler *ClusterReconciler) reconcileTaskManager() error {
+	if reconciler.observed.tmState.storageType == v1beta1.StorageTypePersistent {
+		return reconciler.reconcileStatefulSet(
+			"TaskManager",
+			reconciler.desired.TmDesiredState.StatefulSet,
+			reconciler.observed.tmState.tmStatefulSet)
+	}
+	return reconciler.reconcileDeployment(
 		"TaskManager",
-		reconciler.desired.TmStatefulSet,
-		reconciler.observed.tmStatefulSet)
+		reconciler.desired.TmDesiredState.Deployment,
+		reconciler.observed.tmState.tmDeployment)
 }
 
 func (reconciler *ClusterReconciler) reconcileStatefulSet(
@@ -200,6 +206,42 @@ func (reconciler *ClusterReconciler) reconcileStatefulSet(
 
 	if desiredStatefulSet == nil && observedStatefulSet != nil {
 		return reconciler.deleteStatefulSet(observedStatefulSet, component)
+	}
+
+	return nil
+}
+
+func (reconciler *ClusterReconciler) reconcileDeployment(
+	component string,
+	desiredDeployment *appsv1.Deployment,
+	observedDeployment *appsv1.Deployment) error {
+	var log = reconciler.log.WithValues("component", component)
+
+	if desiredDeployment != nil && observedDeployment == nil {
+		return reconciler.createDeployment(desiredDeployment, component)
+	}
+
+	if desiredDeployment != nil && observedDeployment != nil {
+		var cluster = reconciler.observed.cluster
+		if shouldUpdateCluster(&reconciler.observed) && !isComponentUpdated(observedDeployment, cluster) {
+			updateComponent := fmt.Sprintf("%v Deployment", component)
+			var err error
+			if *reconciler.observed.cluster.Spec.RecreateOnUpdate {
+				err = reconciler.deleteOldComponent(desiredDeployment, observedDeployment, updateComponent)
+			} else {
+				err = reconciler.updateComponent(desiredDeployment, updateComponent)
+			}
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+		log.Info("Deployment already exists, no action")
+		return nil
+	}
+
+	if desiredDeployment == nil && observedDeployment != nil {
+		return reconciler.deleteDeployment(observedDeployment, component)
 	}
 
 	return nil
@@ -269,6 +311,22 @@ func (reconciler *ClusterReconciler) createStatefulSet(
 	return err
 }
 
+func (reconciler *ClusterReconciler) createDeployment(
+	deployment *appsv1.Deployment, component string) error {
+	var context = reconciler.context
+	var log = reconciler.log.WithValues("component", component)
+	var k8sClient = reconciler.k8sClient
+
+	log.Info("Creating Deployment", "Deployment", *deployment)
+	var err = k8sClient.Create(context, deployment)
+	if err != nil {
+		log.Error(err, "Failed to create Deployment")
+	} else {
+		log.Info("Deployment created")
+	}
+	return err
+}
+
 func (reconciler *ClusterReconciler) deleteOldComponent(desired client.Object, observed runtime.Object, component string) error {
 	var log = reconciler.log.WithValues("component", component)
 	if isComponentUpdated(observed, reconciler.observed.cluster) {
@@ -316,6 +374,23 @@ func (reconciler *ClusterReconciler) deleteStatefulSet(
 		log.Error(err, "Failed to delete StatefulSet")
 	} else {
 		log.Info("StatefulSet deleted")
+	}
+	return err
+}
+
+func (reconciler *ClusterReconciler) deleteDeployment(
+	deployment *appsv1.Deployment, component string) error {
+	var context = reconciler.context
+	var log = reconciler.log.WithValues("component", component)
+	var k8sClient = reconciler.k8sClient
+
+	log.Info("Deleting Deployment", "Deployment", deployment)
+	var err = k8sClient.Delete(context, deployment)
+	err = client.IgnoreNotFound(err)
+	if err != nil {
+		log.Error(err, "Failed to delete Deployment")
+	} else {
+		log.Info("Deployment deleted")
 	}
 	return err
 }
@@ -573,7 +648,7 @@ func (reconciler *ClusterReconciler) reconcilePersistentVolumeClaims() error {
 	observed := reconciler.observed
 	pvcs := observed.persistentVolumeClaims
 	jm := observed.jmStatefulSet
-	tm := observed.tmStatefulSet
+	tm := observed.tmState.tmStatefulSet
 
 	for _, pvc := range pvcs.Items {
 		if c, ok := pvc.Labels["component"]; ok && c == "jobmanager" && jm != nil {
