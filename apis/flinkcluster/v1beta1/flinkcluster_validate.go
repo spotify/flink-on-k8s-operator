@@ -118,6 +118,11 @@ func (v *Validator) ValidateUpdate(old *FlinkCluster, new *FlinkCluster) error {
 		return nil
 	}
 
+	err = v.validateTaskManagerUpdate(old, new)
+	if err != nil {
+		return err
+	}
+
 	err = v.validateJobUpdate(old, new)
 	if err != nil {
 		return err
@@ -223,6 +228,14 @@ func (v *Validator) checkSavepointGeneration(
 
 	return false, fmt.Errorf(
 		"you cannot update savepointGeneration with others at the same time")
+}
+
+func (v *Validator) validateTaskManagerUpdate(old *FlinkCluster, new *FlinkCluster) error {
+	if old.Spec.TaskManager.StorageType != new.Spec.TaskManager.StorageType {
+		return fmt.Errorf(
+			"updating storageType is not allowed")
+	}
+	return nil
 }
 
 // Validate job update.

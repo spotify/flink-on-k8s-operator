@@ -232,6 +232,10 @@ func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Versi
 		mergo.Merge(&readinessProbe, tmSpec.ReadinessProbe, mergo.WithOverride)
 	}
 	tmSpec.ReadinessProbe = &readinessProbe
+
+	if tmSpec.StorageType == "" {
+		tmSpec.StorageType = StorageTypePersistent
+	}
 }
 
 func _SetJobDefault(jobSpec *JobSpec) {
