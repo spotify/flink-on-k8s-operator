@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
 	"github.com/spotify/flink-on-k8s-operator/internal/model"
 )
 
@@ -142,149 +143,152 @@ func TestGetClusterResource(t *testing.T) {
 				},
 			},
 		},
-		TmStatefulSet: &appsv1.StatefulSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "flinkjobcluster-sample-taskmanager",
-				Namespace: "default",
-				Labels: map[string]string{
-					"app":       "flink",
-					"cluster":   "flinkjobcluster-sample",
-					"component": "taskmanager",
-				},
-			},
-			Spec: appsv1.StatefulSetSpec{
-				Replicas:            &replicas,
-				ServiceName:         "flinkjobcluster-sample-taskmanager",
-				PodManagementPolicy: "Parallel",
-				Selector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{
+		TmDesiredState: &model.TaskManagerDesiredState{
+			StorageType: v1beta1.StorageTypePersistent,
+			StatefulSet: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "flinkjobcluster-sample-taskmanager",
+					Namespace: "default",
+					Labels: map[string]string{
 						"app":       "flink",
 						"cluster":   "flinkjobcluster-sample",
 						"component": "taskmanager",
 					},
 				},
-				VolumeClaimTemplates: []v1.PersistentVolumeClaim{{
-					Spec: v1.PersistentVolumeClaimSpec{
-						VolumeName: "tm-claim",
-						Resources: v1.ResourceRequirements{
-							Requests: map[v1.ResourceName]resource.Quantity{
-								v1.ResourceStorage: resource.MustParse("100Gi"),
-							},
-						},
-					},
-				}},
-				Template: v1.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{
+				Spec: appsv1.StatefulSetSpec{
+					Replicas:            &replicas,
+					ServiceName:         "flinkjobcluster-sample-taskmanager",
+					PodManagementPolicy: "Parallel",
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
 							"app":       "flink",
 							"cluster":   "flinkjobcluster-sample",
 							"component": "taskmanager",
 						},
-						Annotations: map[string]string{
-							"example.com": "example",
-						},
 					},
-					Spec: v1.PodSpec{
-						Containers: []v1.Container{
-							v1.Container{
-								Name:  "taskmanager",
-								Image: "flink:1.8.1",
-								Args:  []string{"taskmanager"},
-								Ports: []v1.ContainerPort{
-									{Name: "data", ContainerPort: 6121},
-									{Name: "rpc", ContainerPort: 6122},
-									{Name: "query", ContainerPort: 6125},
-								},
-								Env: []v1.EnvVar{
-									{
-										Name: "TASK_MANAGER_CPU_LIMIT",
-										ValueFrom: &v1.EnvVarSource{
-											ResourceFieldRef: &v1.ResourceFieldSelector{
-												ContainerName: "taskmanager",
-												Resource:      "limits.cpu",
-												Divisor:       resource.MustParse("1m"),
-											},
-										},
-									},
-									{
-										Name: "TASK_MANAGER_MEMORY_LIMIT",
-										ValueFrom: &v1.EnvVarSource{
-											ResourceFieldRef: &v1.ResourceFieldSelector{
-												ContainerName: "taskmanager",
-												Resource:      "limits.memory",
-												Divisor:       resource.MustParse("1Mi"),
-											},
-										},
-									},
-									{Name: "HADOOP_CONF_DIR", Value: "/etc/hadoop/conf"},
-									{
-										Name:  "GOOGLE_APPLICATION_CREDENTIALS",
-										Value: "/etc/gcp_service_account/gcp_service_account_key.json",
-									},
-									{
-										Name:  "FOO",
-										Value: "abc",
-									},
-								},
-								Resources: v1.ResourceRequirements{
-									Requests: map[v1.ResourceName]resource.Quantity{
-										v1.ResourceCPU:    resource.MustParse("200m"),
-										v1.ResourceMemory: resource.MustParse("512Mi"),
-									},
-									Limits: map[v1.ResourceName]resource.Quantity{
-										v1.ResourceCPU:    resource.MustParse("500m"),
-										v1.ResourceMemory: resource.MustParse("1Gi"),
-									},
-								},
-								VolumeMounts: []v1.VolumeMount{
-									{Name: "cache-volume", MountPath: "/cache"},
-									{Name: "flink-config-volume", MountPath: "/opt/flink/conf"},
-									{
-										Name:      "hadoop-config-volume",
-										MountPath: "/etc/hadoop/conf",
-										ReadOnly:  true,
-									},
-									{
-										Name:      "gcp-service-account-volume",
-										MountPath: "/etc/gcp_service_account/",
-										ReadOnly:  true,
-									},
+					VolumeClaimTemplates: []v1.PersistentVolumeClaim{{
+						Spec: v1.PersistentVolumeClaimSpec{
+							VolumeName: "tm-claim",
+							Resources: v1.ResourceRequirements{
+								Requests: map[v1.ResourceName]resource.Quantity{
+									v1.ResourceStorage: resource.MustParse("100Gi"),
 								},
 							},
-							v1.Container{Name: "sidecar", Image: "alpine"},
 						},
-						Volumes: []v1.Volume{
-							{
-								Name: "cache-volume",
-								VolumeSource: v1.VolumeSource{
-									EmptyDir: &v1.EmptyDirVolumeSource{},
-								},
+					}},
+					Template: v1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"app":       "flink",
+								"cluster":   "flinkjobcluster-sample",
+								"component": "taskmanager",
 							},
-							{
-								Name: "flink-config-volume",
-								VolumeSource: v1.VolumeSource{
-									ConfigMap: &v1.ConfigMapVolumeSource{
-										LocalObjectReference: v1.LocalObjectReference{
-											Name: "flinkjobcluster-sample-configmap",
+							Annotations: map[string]string{
+								"example.com": "example",
+							},
+						},
+						Spec: v1.PodSpec{
+							Containers: []v1.Container{
+								v1.Container{
+									Name:  "taskmanager",
+									Image: "flink:1.8.1",
+									Args:  []string{"taskmanager"},
+									Ports: []v1.ContainerPort{
+										{Name: "data", ContainerPort: 6121},
+										{Name: "rpc", ContainerPort: 6122},
+										{Name: "query", ContainerPort: 6125},
+									},
+									Env: []v1.EnvVar{
+										{
+											Name: "TASK_MANAGER_CPU_LIMIT",
+											ValueFrom: &v1.EnvVarSource{
+												ResourceFieldRef: &v1.ResourceFieldSelector{
+													ContainerName: "taskmanager",
+													Resource:      "limits.cpu",
+													Divisor:       resource.MustParse("1m"),
+												},
+											},
+										},
+										{
+											Name: "TASK_MANAGER_MEMORY_LIMIT",
+											ValueFrom: &v1.EnvVarSource{
+												ResourceFieldRef: &v1.ResourceFieldSelector{
+													ContainerName: "taskmanager",
+													Resource:      "limits.memory",
+													Divisor:       resource.MustParse("1Mi"),
+												},
+											},
+										},
+										{Name: "HADOOP_CONF_DIR", Value: "/etc/hadoop/conf"},
+										{
+											Name:  "GOOGLE_APPLICATION_CREDENTIALS",
+											Value: "/etc/gcp_service_account/gcp_service_account_key.json",
+										},
+										{
+											Name:  "FOO",
+											Value: "abc",
+										},
+									},
+									Resources: v1.ResourceRequirements{
+										Requests: map[v1.ResourceName]resource.Quantity{
+											v1.ResourceCPU:    resource.MustParse("200m"),
+											v1.ResourceMemory: resource.MustParse("512Mi"),
+										},
+										Limits: map[v1.ResourceName]resource.Quantity{
+											v1.ResourceCPU:    resource.MustParse("500m"),
+											v1.ResourceMemory: resource.MustParse("1Gi"),
+										},
+									},
+									VolumeMounts: []v1.VolumeMount{
+										{Name: "cache-volume", MountPath: "/cache"},
+										{Name: "flink-config-volume", MountPath: "/opt/flink/conf"},
+										{
+											Name:      "hadoop-config-volume",
+											MountPath: "/etc/hadoop/conf",
+											ReadOnly:  true,
+										},
+										{
+											Name:      "gcp-service-account-volume",
+											MountPath: "/etc/gcp_service_account/",
+											ReadOnly:  true,
 										},
 									},
 								},
+								v1.Container{Name: "sidecar", Image: "alpine"},
 							},
-							{
-								Name: "hadoop-config-volume",
-								VolumeSource: v1.VolumeSource{
-									ConfigMap: &v1.ConfigMapVolumeSource{
-										LocalObjectReference: v1.LocalObjectReference{
-											Name: "hadoop-configmap",
+							Volumes: []v1.Volume{
+								{
+									Name: "cache-volume",
+									VolumeSource: v1.VolumeSource{
+										EmptyDir: &v1.EmptyDirVolumeSource{},
+									},
+								},
+								{
+									Name: "flink-config-volume",
+									VolumeSource: v1.VolumeSource{
+										ConfigMap: &v1.ConfigMapVolumeSource{
+											LocalObjectReference: v1.LocalObjectReference{
+												Name: "flinkjobcluster-sample-configmap",
+											},
 										},
 									},
 								},
-							},
-							{
-								Name: "gcp-service-account-volume",
-								VolumeSource: v1.VolumeSource{
-									Secret: &v1.SecretVolumeSource{
-										SecretName: "gcp-service-account-secret",
+								{
+									Name: "hadoop-config-volume",
+									VolumeSource: v1.VolumeSource{
+										ConfigMap: &v1.ConfigMapVolumeSource{
+											LocalObjectReference: v1.LocalObjectReference{
+												Name: "hadoop-configmap",
+											},
+										},
+									},
+								},
+								{
+									Name: "gcp-service-account-volume",
+									VolumeSource: v1.VolumeSource{
+										Secret: &v1.SecretVolumeSource{
+											SecretName: "gcp-service-account-secret",
+										},
 									},
 								},
 							},
