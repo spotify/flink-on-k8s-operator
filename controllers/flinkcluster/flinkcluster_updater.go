@@ -375,7 +375,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 	var observedTmState runtime.Object
 	var tmStatusName string
 	var tmStatusState string
-	if observed.tmState.storageType == v1beta1.StorageTypePersistent {
+	if observed.tmState.kind == v1beta1.KindStatefulset {
 		observedTmStatefulSet := observed.tmState.tmStatefulSet
 		observedTmState = observedTmStatefulSet
 		tmStatusName = observedTmStatefulSet.Name

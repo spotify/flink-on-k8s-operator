@@ -231,9 +231,9 @@ func (v *Validator) checkSavepointGeneration(
 }
 
 func (v *Validator) validateTaskManagerUpdate(old *FlinkCluster, new *FlinkCluster) error {
-	if old.Spec.TaskManager.StorageType != new.Spec.TaskManager.StorageType {
+	if old.Spec.TaskManager.Kind != new.Spec.TaskManager.Kind {
 		return fmt.Errorf(
-			"updating storageType is not allowed")
+			"updating kind is not allowed")
 	}
 	return nil
 }

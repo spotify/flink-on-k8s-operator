@@ -293,17 +293,23 @@ type TaskManagerPorts struct {
 	Query *int32 `json:"query,omitempty"`
 }
 
-type StorageType string
+// K8s workload API kind for TaskManager workers
+type Kind string
 
 const (
 	// Use persistent volumes for recovery.
-	StorageTypePersistent = "Persistent"
-	// CleanupActionDeleteCluster - delete the entire cluster.
-	StorageTypeEphemeral = "Ephemeral"
+	KindStatefulset = "StatefulSet"
+	// Faster startup, but the volumes are ephemeral
+	KindDeployment = "Deployment"
 )
 
 // TaskManagerSpec defines properties of TaskManager.
 type TaskManagerSpec struct {
+	// _(Optional)_ Defines the replica's type. If not specified, the default is `KindStatefulset`.
+	// Statefulsets use Persistent storage for stateful recovery.
+	// Deployments use Ephemeral storage and should be used for faster startup.
+	Kind Kind `json:"kind,omitempty"`
+
 	// The number of replicas. default: `3`
 	Replicas *int32 `json:"replicas,omitempty"`
 
@@ -344,11 +350,6 @@ type TaskManagerSpec struct {
 	// This can be used to mount an external volume with a specific storageClass or larger captivity (for larger/faster state backend).
 	// [More info](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims)
 	VolumeClaimTemplates []corev1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
-
-	// _(Optional)_ Defines the mounted volume's storage type. If not specified, the default is `Persistent`.
-	// Persistent storage type is used with Statefulsets for stateful recovery.
-	// Ephemeral storage type is used with Deployments for faster startup.
-	StorageType StorageType `json:"storageType,omitempty"`
 
 	// _(Optional)_ Init containers of the Task Manager pod.
 	// [More info](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/)

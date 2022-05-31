@@ -221,8 +221,8 @@ func TestGetDesiredClusterState(t *testing.T) {
 					SecurityContext: &securityContext,
 				},
 				TaskManager: &v1beta1.TaskManagerSpec{
-					StorageType: v1beta1.StorageTypePersistent,
-					Replicas:    &replicas,
+					Kind:     v1beta1.KindStatefulset,
+					Replicas: &replicas,
 					Ports: v1beta1.TaskManagerPorts{
 						Data:  &tmDataPort,
 						RPC:   &tmRPCPort,
@@ -1064,8 +1064,8 @@ func TestSecurityContext(t *testing.T) {
 					SecurityContext: &securityContext,
 				},
 				TaskManager: &v1beta1.TaskManagerSpec{
-					Replicas:    &tmReplicas,
-					StorageType: v1beta1.StorageTypePersistent,
+					Replicas: &tmReplicas,
+					Kind:     v1beta1.KindStatefulset,
 					Ports: v1beta1.TaskManagerPorts{
 						Data:  &tmDataPort,
 						RPC:   &tmRPCPort,
@@ -1105,8 +1105,8 @@ func TestSecurityContext(t *testing.T) {
 					},
 				},
 				TaskManager: &v1beta1.TaskManagerSpec{
-					Replicas:    &tmReplicas,
-					StorageType: v1beta1.StorageTypePersistent,
+					Replicas: &tmReplicas,
+					Kind:     v1beta1.KindStatefulset,
 					Ports: v1beta1.TaskManagerPorts{
 						Data:  &tmDataPort,
 						RPC:   &tmRPCPort,

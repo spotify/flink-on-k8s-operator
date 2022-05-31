@@ -144,7 +144,7 @@ func TestGetClusterResource(t *testing.T) {
 			},
 		},
 		TmDesiredState: &model.TaskManagerDesiredState{
-			StorageType: v1beta1.StorageTypePersistent,
+			Kind: v1beta1.KindStatefulset,
 			StatefulSet: &appsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "flinkjobcluster-sample-taskmanager",

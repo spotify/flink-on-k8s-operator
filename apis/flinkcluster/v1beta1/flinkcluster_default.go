@@ -233,8 +233,8 @@ func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Versi
 	}
 	tmSpec.ReadinessProbe = &readinessProbe
 
-	if tmSpec.StorageType == "" {
-		tmSpec.StorageType = StorageTypePersistent
+	if tmSpec.Kind == "" {
+		tmSpec.Kind = KindStatefulset
 	}
 }
 

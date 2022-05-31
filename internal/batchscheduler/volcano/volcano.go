@@ -93,7 +93,7 @@ func (v *VolcanoBatchScheduler) setSchedulerMeta(pg *scheduling.PodGroup, state 
 	}
 
 	if state.TmDesiredState != nil {
-		if state.TmDesiredState.StorageType == v1beta1.StorageTypePersistent {
+		if state.TmDesiredState.Kind == v1beta1.KindStatefulset {
 			setMeta(&state.TmDesiredState.StatefulSet.Spec.Template)
 		} else {
 			setMeta(&state.TmDesiredState.Deployment.Spec.Template)
@@ -196,7 +196,7 @@ func getClusterResource(state *model.DesiredClusterState) (*corev1.ResourceRequi
 	}
 
 	if state.TmDesiredState != nil {
-		if state.TmDesiredState.StorageType == v1beta1.StorageTypePersistent {
+		if state.TmDesiredState.Kind == v1beta1.KindStatefulset {
 			spec := state.TmDesiredState.StatefulSet.Spec
 			size += *spec.Replicas
 			resources := getStatefulSetResources(&spec)

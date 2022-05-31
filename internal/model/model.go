@@ -22,7 +22,7 @@ import (
 )
 
 type TaskManagerDesiredState struct {
-	StorageType string
+	Kind        string
 	Deployment  *appsv1.Deployment
 	StatefulSet *appsv1.StatefulSet
 }

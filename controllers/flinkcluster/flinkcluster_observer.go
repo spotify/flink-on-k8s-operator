@@ -52,7 +52,7 @@ type ClusterStateObserver struct {
 }
 
 type TaskManagerState struct {
-	storageType   v1beta1.StorageType
+	kind          v1beta1.Kind
 	tmStatefulSet *appsv1.StatefulSet
 	tmDeployment  *appsv1.Deployment
 }
@@ -246,7 +246,7 @@ func (observer *ClusterStateObserver) observe(
 	}
 
 	// TaskManager StatefulSet/Deployment.
-	err = observer.observeTaskManager(observedCluster.Spec.TaskManager.StorageType, observed)
+	err = observer.observeTaskManager(observedCluster.Spec.TaskManager.Kind, observed)
 	if err != nil {
 		return err
 	}
@@ -499,28 +499,40 @@ func (observer *ClusterStateObserver) observeJobManagerStatefulSet(
 		clusterNamespace, jmStatefulSetName, "JobManager", observedStatefulSet)
 }
 
-func (observer *ClusterStateObserver) observeTaskManager(storageType v1beta1.StorageType, observedClusterState *ObservedClusterState) error {
+func (observer *ClusterStateObserver) observeTaskManager(kind v1beta1.Kind, observedClusterState *ObservedClusterState) error {
+	if kind == v1beta1.KindStatefulset {
+		return observer.updateObservedTaskManagerStatefulSet(observedClusterState)
+	}
+	return observer.updateObservedTaskManagerDeployment(observedClusterState)
+}
+
+func (observer *ClusterStateObserver) updateObservedTaskManagerStatefulSet(
+	observedClusterState *ObservedClusterState) error {
 	var log = observer.log
-	if storageType == v1beta1.StorageTypePersistent {
-		var observedTmStatefulSet = new(appsv1.StatefulSet)
-		err := observer.observeTaskManagerStatefulSet(observedTmStatefulSet)
-		if err != nil {
-			if client.IgnoreNotFound(err) != nil {
-				log.Error(err, "Failed to get TaskManager StatefulSet")
-				return err
-			}
-			log.Info("Observed TaskManager StatefulSet", "state", "nil")
-			observedTmStatefulSet = nil
-		} else {
-			log.Info("Observed TaskManager StatefulSet", "state", *observedTmStatefulSet)
-			observedClusterState.tmState = TaskManagerState{
-				storageType:   storageType,
-				tmStatefulSet: observedTmStatefulSet,
-				tmDeployment:  nil,
-			}
+	var observedTmStatefulSet = new(appsv1.StatefulSet)
+	err := observer.observeTaskManagerStatefulSet(observedTmStatefulSet)
+	if err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			log.Error(err, "Failed to get TaskManager StatefulSet")
+			return err
 		}
+		log.Info("Observed TaskManager StatefulSet", "state", "nil")
+		observedTmStatefulSet = nil
+	} else {
+		log.Info("Observed TaskManager StatefulSet", "state", *observedTmStatefulSet)
 	}
 
+	observedClusterState.tmState = TaskManagerState{
+		kind:          v1beta1.KindStatefulset,
+		tmStatefulSet: observedTmStatefulSet,
+		tmDeployment:  nil,
+	}
+	return nil
+}
+
+func (observer *ClusterStateObserver) updateObservedTaskManagerDeployment(
+	observedClusterState *ObservedClusterState) error {
+	var log = observer.log
 	var observedTmDeployment = new(appsv1.Deployment)
 	err := observer.observeTaskManagerDeployment(observedTmDeployment)
 	if err != nil {
@@ -532,11 +544,12 @@ func (observer *ClusterStateObserver) observeTaskManager(storageType v1beta1.Sto
 		observedTmDeployment = nil
 	} else {
 		log.Info("Observed TaskManager Deployment", "state", *observedTmDeployment)
-		observedClusterState.tmState = TaskManagerState{
-			storageType:   storageType,
-			tmStatefulSet: nil,
-			tmDeployment:  observedTmDeployment,
-		}
+	}
+
+	observedClusterState.tmState = TaskManagerState{
+		kind:          v1beta1.KindDeployment,
+		tmStatefulSet: nil,
+		tmDeployment:  observedTmDeployment,
 	}
 	return nil
 }

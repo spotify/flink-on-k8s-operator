@@ -99,15 +99,15 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 	}
 
 	if !shouldCleanup(cluster, "TaskManagerStatefulSet") {
-		if observed.cluster.Spec.TaskManager.StorageType == v1beta1.StorageTypePersistent {
+		if observed.cluster.Spec.TaskManager.Kind == v1beta1.KindStatefulset {
 			state.TmDesiredState = &model.TaskManagerDesiredState{
-				StorageType: string(observed.tmState.storageType),
+				Kind:        string(observed.tmState.kind),
 				StatefulSet: newTaskManagerStatefulSet(cluster),
 				Deployment:  nil,
 			}
 		} else {
 			state.TmDesiredState = &model.TaskManagerDesiredState{
-				StorageType: string(observed.tmState.storageType),
+				Kind:        string(observed.tmState.kind),
 				StatefulSet: nil,
 				Deployment:  newTaskManagerDeployment(cluster),
 			}
@@ -418,7 +418,7 @@ func newJobManagerIngress(
 	return jobManagerIngress
 }
 
-func newTaskMangerContainer(flinkCluster *v1beta1.FlinkCluster) *corev1.Container {
+func newTaskManagerContainer(flinkCluster *v1beta1.FlinkCluster) *corev1.Container {
 	var imageSpec = flinkCluster.Spec.Image
 	var taskManagerSpec = flinkCluster.Spec.TaskManager
 	var dataPort = corev1.ContainerPort{Name: "data", ContainerPort: *taskManagerSpec.Ports.Data}
@@ -510,7 +510,7 @@ func newTaskManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1.State
 	podLabels = mergeLabels(podLabels, taskManagerSpec.PodLabels)
 	var statefulSetLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
 
-	mainContainer := newTaskMangerContainer(flinkCluster)
+	mainContainer := newTaskManagerContainer(flinkCluster)
 	podSpec := newTaskManagerPodSpec(mainContainer, flinkCluster)
 
 	var pvcs []corev1.PersistentVolumeClaim
@@ -546,23 +546,21 @@ func newTaskManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1.State
 	}
 }
 
-func getEphemeralVolumes(flinkCluster *v1beta1.FlinkCluster) []corev1.Volume {
+func getEphemeralVolumesFromTaskManagerSpec(flinkCluster *v1beta1.FlinkCluster) []corev1.Volume {
 	var ephemeralVolumes []corev1.Volume
 	var volumeClaimsInSpec = flinkCluster.Spec.TaskManager.VolumeClaimTemplates
-	if volumeClaimsInSpec != nil {
-		for _, volume := range volumeClaimsInSpec {
-			ephemeralVolumes = append(ephemeralVolumes, corev1.Volume{
-				Name: volume.ObjectMeta.Name,
-				// Ephemeral volume
-				VolumeSource: corev1.VolumeSource{
-					Ephemeral: &corev1.EphemeralVolumeSource{
-						VolumeClaimTemplate: &corev1.PersistentVolumeClaimTemplate{
-							Spec: volume.Spec,
-						},
+	for _, volume := range volumeClaimsInSpec {
+		ephemeralVolumes = append(ephemeralVolumes, corev1.Volume{
+			Name: volume.ObjectMeta.Name,
+			// Ephemeral volume
+			VolumeSource: corev1.VolumeSource{
+				Ephemeral: &corev1.EphemeralVolumeSource{
+					VolumeClaimTemplate: &corev1.PersistentVolumeClaimTemplate{
+						Spec: volume.Spec,
 					},
 				},
-			})
-		}
+			},
+		})
 	}
 	return ephemeralVolumes
 }
@@ -575,9 +573,9 @@ func newTaskManagerDeployment(flinkCluster *v1beta1.FlinkCluster) *appsv1.Deploy
 	podLabels = mergeLabels(podLabels, taskManagerSpec.PodLabels)
 	var deploymentLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
 
-	mainContainer := newTaskMangerContainer(flinkCluster)
+	mainContainer := newTaskManagerContainer(flinkCluster)
 	podSpec := newTaskManagerPodSpec(mainContainer, flinkCluster)
-	podSpec.Volumes = getEphemeralVolumes(flinkCluster)
+	podSpec.Volumes = append(podSpec.Volumes, getEphemeralVolumesFromTaskManagerSpec(flinkCluster)...)
 
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
