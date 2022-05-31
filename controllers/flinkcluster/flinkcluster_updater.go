@@ -375,7 +375,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 	var observedTmState runtime.Object
 	var tmStatusName string
 	var tmStatusState string
-	if observed.tmState.kind == v1beta1.KindStatefulset {
+	if observed.tmState.deploymentType == v1beta1.DeploymentTypeStatefulset {
 		observedTmStatefulSet := observed.tmState.tmStatefulSet
 		observedTmState = observedTmStatefulSet
 		tmStatusName = observedTmStatefulSet.Name

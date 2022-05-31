@@ -52,9 +52,9 @@ type ClusterStateObserver struct {
 }
 
 type TaskManagerState struct {
-	kind          v1beta1.Kind
-	tmStatefulSet *appsv1.StatefulSet
-	tmDeployment  *appsv1.Deployment
+	deploymentType v1beta1.DeploymentType
+	tmStatefulSet  *appsv1.StatefulSet
+	tmDeployment   *appsv1.Deployment
 }
 
 // ObservedClusterState holds observed state of a cluster.
@@ -246,7 +246,7 @@ func (observer *ClusterStateObserver) observe(
 	}
 
 	// TaskManager StatefulSet/Deployment.
-	err = observer.observeTaskManager(observedCluster.Spec.TaskManager.Kind, observed)
+	err = observer.observeTaskManager(observedCluster.Spec.TaskManager.DeploymentType, observed)
 	if err != nil {
 		return err
 	}
@@ -499,8 +499,8 @@ func (observer *ClusterStateObserver) observeJobManagerStatefulSet(
 		clusterNamespace, jmStatefulSetName, "JobManager", observedStatefulSet)
 }
 
-func (observer *ClusterStateObserver) observeTaskManager(kind v1beta1.Kind, observedClusterState *ObservedClusterState) error {
-	if kind == v1beta1.KindStatefulset {
+func (observer *ClusterStateObserver) observeTaskManager(deploymentType v1beta1.DeploymentType, observedClusterState *ObservedClusterState) error {
+	if deploymentType == v1beta1.DeploymentTypeStatefulset {
 		return observer.updateObservedTaskManagerStatefulSet(observedClusterState)
 	}
 	return observer.updateObservedTaskManagerDeployment(observedClusterState)
@@ -523,9 +523,9 @@ func (observer *ClusterStateObserver) updateObservedTaskManagerStatefulSet(
 	}
 
 	observedClusterState.tmState = TaskManagerState{
-		kind:          v1beta1.KindStatefulset,
-		tmStatefulSet: observedTmStatefulSet,
-		tmDeployment:  nil,
+		deploymentType: v1beta1.DeploymentTypeStatefulset,
+		tmStatefulSet:  observedTmStatefulSet,
+		tmDeployment:   nil,
 	}
 	return nil
 }
@@ -547,9 +547,9 @@ func (observer *ClusterStateObserver) updateObservedTaskManagerDeployment(
 	}
 
 	observedClusterState.tmState = TaskManagerState{
-		kind:          v1beta1.KindDeployment,
-		tmStatefulSet: nil,
-		tmDeployment:  observedTmDeployment,
+		deploymentType: v1beta1.DeploymentTypeDeployment,
+		tmStatefulSet:  nil,
+		tmDeployment:   observedTmDeployment,
 	}
 	return nil
 }

@@ -163,7 +163,7 @@ func (reconciler *ClusterReconciler) reconcileJobManagerStatefulSet() error {
 }
 
 func (reconciler *ClusterReconciler) reconcileTaskManager() error {
-	if reconciler.observed.tmState.kind == v1beta1.KindStatefulset {
+	if reconciler.observed.tmState.deploymentType == v1beta1.DeploymentTypeStatefulset {
 		return reconciler.reconcileStatefulSet(
 			"TaskManager",
 			reconciler.desired.TmDesiredState.StatefulSet,

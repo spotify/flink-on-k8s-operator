@@ -294,21 +294,21 @@ type TaskManagerPorts struct {
 }
 
 // K8s workload API kind for TaskManager workers
-type Kind string
+type DeploymentType string
 
 const (
 	// Use persistent volumes for recovery.
-	KindStatefulset = "StatefulSet"
+	DeploymentTypeStatefulset = "StatefulSet"
 	// Faster startup, but the volumes are ephemeral
-	KindDeployment = "Deployment"
+	DeploymentTypeDeployment = "Deployment"
 )
 
 // TaskManagerSpec defines properties of TaskManager.
 type TaskManagerSpec struct {
-	// _(Optional)_ Defines the replica's type. If not specified, the default is `KindStatefulset`.
+	// _(Optional)_ Defines the replica workload's type. If not specified, the default is `DeploymentTypeStatefulset`.
 	// Statefulsets use Persistent storage for stateful recovery.
 	// Deployments use Ephemeral storage and should be used for faster startup.
-	Kind Kind `json:"kind,omitempty"`
+	DeploymentType DeploymentType `json:"deploymentType,omitempty"`
 
 	// The number of replicas. default: `3`
 	Replicas *int32 `json:"replicas,omitempty"`

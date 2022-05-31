@@ -22,9 +22,9 @@ import (
 )
 
 type TaskManagerDesiredState struct {
-	Kind        string
-	Deployment  *appsv1.Deployment
-	StatefulSet *appsv1.StatefulSet
+	DeploymentType string
+	Deployment     *appsv1.Deployment
+	StatefulSet    *appsv1.StatefulSet
 }
 
 // DesiredClusterState holds desired state of a cluster.

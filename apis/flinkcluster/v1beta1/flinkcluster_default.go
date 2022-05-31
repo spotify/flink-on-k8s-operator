@@ -233,8 +233,8 @@ func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Versi
 	}
 	tmSpec.ReadinessProbe = &readinessProbe
 
-	if tmSpec.Kind == "" {
-		tmSpec.Kind = KindStatefulset
+	if tmSpec.DeploymentType == "" {
+		tmSpec.DeploymentType = DeploymentTypeStatefulset
 	}
 }
 

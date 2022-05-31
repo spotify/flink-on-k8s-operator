@@ -151,7 +151,7 @@ func TestClusterStatus(t *testing.T) {
 				},
 			},
 			tmState: TaskManagerState{
-				kind: v1beta1.KindStatefulset,
+				deploymentType: v1beta1.DeploymentTypeStatefulset,
 				tmStatefulSet: &appsv1.StatefulSet{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "tm-service",
