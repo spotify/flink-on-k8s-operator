@@ -217,7 +217,7 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 		} else if desired.TmDesiredState.Kind == v1beta1.KindDeployment && desired.TmDesiredState.Deployment != nil {
 			log.Info("Desired state", "TaskManager Deployment", *desired.TmDesiredState.Deployment)
 		} else {
-			log.Info("Desired state", "TaskManager", "nil")
+			log.Info("Desired state", "TaskManager WARNING. Forbidden state", *desired.TmDesiredState)
 		}
 	} else {
 		log.Info("Desired state", "TaskManager", "nil")
