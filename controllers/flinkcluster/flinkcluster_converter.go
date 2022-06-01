@@ -98,10 +98,12 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 		state.JmStatefulSet = newJobManagerStatefulSet(cluster)
 	}
 
-	if !shouldCleanup(cluster, "TaskManagerStatefulSet") {
-		if observed.cluster.Spec.TaskManager.DeploymentType == v1beta1.DeploymentTypeStatefulset {
+	if cluster.Spec.TaskManager.DeploymentType == v1beta1.DeploymentTypeStatefulset {
+		if !shouldCleanup(cluster, "TaskManagerStatefulSet") {
 			state.TmStatefulSet = newTaskManagerStatefulSet(cluster)
-		} else {
+		}
+	} else {
+		if !shouldCleanup(cluster, "TaskManagerDeployment") {
 			state.TmDeployment = newTaskManagerDeployment(cluster)
 		}
 	}
@@ -1071,7 +1073,7 @@ func shouldCleanup(cluster *v1beta1.FlinkCluster, component string) bool {
 	case v1beta1.CleanupActionDeleteCluster:
 		return true
 	case v1beta1.CleanupActionDeleteTaskManager:
-		return component == "TaskManagerStatefulSet"
+		return component == "TaskManagerStatefulSet" || component == "TaskManagerDeployment"
 	}
 
 	return false

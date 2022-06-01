@@ -106,10 +106,16 @@ func (reconciler *ClusterReconciler) reconcile() (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	err = reconciler.reconcileTaskManager()
+	err = reconciler.reconcileTaskManagerStatefulSet()
 	if err != nil {
 		return ctrl.Result{}, err
 	}
+
+	err = reconciler.reconcileTaskManagerDeployment()
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	err = reconciler.reconcileTaskManagerService()
 	if err != nil {
 		return ctrl.Result{}, err
@@ -162,13 +168,14 @@ func (reconciler *ClusterReconciler) reconcileJobManagerStatefulSet() error {
 		reconciler.observed.jmStatefulSet)
 }
 
-func (reconciler *ClusterReconciler) reconcileTaskManager() error {
-	if reconciler.observed.cluster.Spec.TaskManager.DeploymentType == v1beta1.DeploymentTypeStatefulset {
-		return reconciler.reconcileStatefulSet(
-			"TaskManager",
-			reconciler.desired.TmStatefulSet,
-			reconciler.observed.tmStatefulSet)
-	}
+func (reconciler *ClusterReconciler) reconcileTaskManagerStatefulSet() error {
+	return reconciler.reconcileStatefulSet(
+		"TaskManager",
+		reconciler.desired.TmStatefulSet,
+		reconciler.observed.tmStatefulSet)
+}
+
+func (reconciler *ClusterReconciler) reconcileTaskManagerDeployment() error {
 	return reconciler.reconcileDeployment(
 		"TaskManager",
 		reconciler.desired.TmDeployment,

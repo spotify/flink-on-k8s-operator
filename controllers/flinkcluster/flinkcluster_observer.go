@@ -240,11 +240,35 @@ func (observer *ClusterStateObserver) observe(
 		observed.jmIngress = observedJmIngress
 	}
 
-	// TaskManager StatefulSet/Deployment.
-	err = observer.observeTaskManager(observedCluster.Spec.TaskManager.DeploymentType, observed)
+	// TaskManager StatefulSet
+	var observedTmStatefulSet = new(appsv1.StatefulSet)
+	err = observer.observeTaskManagerStatefulSet(observedTmStatefulSet)
 	if err != nil {
-		return err
+		if client.IgnoreNotFound(err) != nil {
+			log.Error(err, "Failed to get TaskManager StatefulSet")
+			return err
+		}
+		log.Info("Observed TaskManager StatefulSet", "state", "nil")
+		observedTmStatefulSet = nil
+	} else {
+		log.Info("Observed TaskManager StatefulSet", "state", *observedTmStatefulSet)
 	}
+	observed.tmStatefulSet = observedTmStatefulSet
+
+	// TaskManager Deployment
+	var observedTmDeployment = new(appsv1.Deployment)
+	err = observer.observeTaskManagerDeployment(observedTmDeployment)
+	if err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			log.Error(err, "Failed to get TaskManager Deployment")
+			return err
+		}
+		log.Info("Observed TaskManager Deployment", "state", "nil")
+		observedTmDeployment = nil
+	} else {
+		log.Info("Observed TaskManager Deployment", "state", *observedTmDeployment)
+	}
+	observed.tmDeployment = observedTmDeployment
 
 	// TaskManager Service.
 	var observedTmSvc = new(corev1.Service)
@@ -492,51 +516,6 @@ func (observer *ClusterStateObserver) observeJobManagerStatefulSet(
 	var jmStatefulSetName = getJobManagerStatefulSetName(clusterName)
 	return observer.observeStatefulSet(
 		clusterNamespace, jmStatefulSetName, "JobManager", observedStatefulSet)
-}
-
-func (observer *ClusterStateObserver) observeTaskManager(deploymentType v1beta1.DeploymentType, observedClusterState *ObservedClusterState) error {
-	if deploymentType == v1beta1.DeploymentTypeStatefulset {
-		return observer.updateObservedTaskManagerStatefulSet(observedClusterState)
-	}
-	return observer.updateObservedTaskManagerDeployment(observedClusterState)
-}
-
-func (observer *ClusterStateObserver) updateObservedTaskManagerStatefulSet(
-	observedClusterState *ObservedClusterState) error {
-	var log = observer.log
-	var observedTmStatefulSet = new(appsv1.StatefulSet)
-	err := observer.observeTaskManagerStatefulSet(observedTmStatefulSet)
-	if err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			log.Error(err, "Failed to get TaskManager StatefulSet")
-			return err
-		}
-		log.Info("Observed TaskManager StatefulSet", "state", "nil")
-		observedTmStatefulSet = nil
-	} else {
-		log.Info("Observed TaskManager StatefulSet", "state", *observedTmStatefulSet)
-	}
-	observedClusterState.tmStatefulSet = observedTmStatefulSet
-	return nil
-}
-
-func (observer *ClusterStateObserver) updateObservedTaskManagerDeployment(
-	observedClusterState *ObservedClusterState) error {
-	var log = observer.log
-	var observedTmDeployment = new(appsv1.Deployment)
-	err := observer.observeTaskManagerDeployment(observedTmDeployment)
-	if err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			log.Error(err, "Failed to get TaskManager Deployment")
-			return err
-		}
-		log.Info("Observed TaskManager Deployment", "state", "nil")
-		observedTmDeployment = nil
-	} else {
-		log.Info("Observed TaskManager Deployment", "state", *observedTmDeployment)
-	}
-	observedClusterState.tmDeployment = observedTmDeployment
-	return nil
 }
 
 func (observer *ClusterStateObserver) observeTaskManagerStatefulSet(
