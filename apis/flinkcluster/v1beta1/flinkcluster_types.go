@@ -349,6 +349,12 @@ type TaskManagerSpec struct {
 	// _(Optional)_ A template for persistent volume claim each requested and mounted to JobManager pod,
 	// This can be used to mount an external volume with a specific storageClass or larger captivity (for larger/faster state backend).
 	// [More info](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims)
+
+	// If deploymentType: Statefulset is used, these templates will be added to the taskManager statefulset template,
+	// hence mounting persistent-pvcs to the indexed statefulset pods.
+	//
+	// If deploymentType: Deployment is used, these templates are appended to the Ephemeral Volumes in the PodSpec,
+	// hence mounting ephemeral-pvcs to the replicaset pods.
 	VolumeClaimTemplates []corev1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 
 	// _(Optional)_ Init containers of the Task Manager pod.
