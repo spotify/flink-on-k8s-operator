@@ -51,12 +51,6 @@ type ClusterStateObserver struct {
 	history      history.Interface
 }
 
-type TaskManagerState struct {
-	deploymentType v1beta1.DeploymentType
-	tmStatefulSet  *appsv1.StatefulSet
-	tmDeployment   *appsv1.Deployment
-}
-
 // ObservedClusterState holds observed state of a cluster.
 type ObservedClusterState struct {
 	cluster                *v1beta1.FlinkCluster
@@ -65,7 +59,8 @@ type ObservedClusterState struct {
 	jmStatefulSet          *appsv1.StatefulSet
 	jmService              *corev1.Service
 	jmIngress              *networkingv1.Ingress
-	tmState                TaskManagerState
+	tmStatefulSet          *appsv1.StatefulSet
+	tmDeployment           *appsv1.Deployment
 	tmService              *corev1.Service
 	podDisruptionBudget    *policyv1.PodDisruptionBudget
 	persistentVolumeClaims *corev1.PersistentVolumeClaimList
@@ -521,12 +516,7 @@ func (observer *ClusterStateObserver) updateObservedTaskManagerStatefulSet(
 	} else {
 		log.Info("Observed TaskManager StatefulSet", "state", *observedTmStatefulSet)
 	}
-
-	observedClusterState.tmState = TaskManagerState{
-		deploymentType: v1beta1.DeploymentTypeStatefulset,
-		tmStatefulSet:  observedTmStatefulSet,
-		tmDeployment:   nil,
-	}
+	observedClusterState.tmStatefulSet = observedTmStatefulSet
 	return nil
 }
 
@@ -545,12 +535,7 @@ func (observer *ClusterStateObserver) updateObservedTaskManagerDeployment(
 	} else {
 		log.Info("Observed TaskManager Deployment", "state", *observedTmDeployment)
 	}
-
-	observedClusterState.tmState = TaskManagerState{
-		deploymentType: v1beta1.DeploymentTypeDeployment,
-		tmStatefulSet:  nil,
-		tmDeployment:   observedTmDeployment,
-	}
+	observedClusterState.tmDeployment = observedTmDeployment
 	return nil
 }
 

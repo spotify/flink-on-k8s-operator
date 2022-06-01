@@ -375,13 +375,13 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 	var observedTmState runtime.Object
 	var tmStatusName string
 	var tmStatusState string
-	if observed.tmState.deploymentType == v1beta1.DeploymentTypeStatefulset {
-		observedTmStatefulSet := observed.tmState.tmStatefulSet
+	if observed.cluster.Spec.TaskManager.DeploymentType == v1beta1.DeploymentTypeStatefulset {
+		observedTmStatefulSet := observed.tmStatefulSet
 		observedTmState = observedTmStatefulSet
 		tmStatusName = observedTmStatefulSet.Name
 		tmStatusState = getStatefulSetState(observedTmStatefulSet)
 	} else {
-		observedTmDeployment := observed.tmState.tmDeployment
+		observedTmDeployment := observed.tmDeployment
 		observedTmState = observedTmDeployment
 		tmStatusName = observedTmDeployment.Name
 		tmStatusState = getDeploymentState(observedTmDeployment)

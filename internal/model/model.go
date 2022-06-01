@@ -21,18 +21,13 @@ import (
 	policyv1 "k8s.io/api/policy/v1"
 )
 
-type TaskManagerDesiredState struct {
-	DeploymentType string
-	Deployment     *appsv1.Deployment
-	StatefulSet    *appsv1.StatefulSet
-}
-
 // DesiredClusterState holds desired state of a cluster.
 type DesiredClusterState struct {
 	JmStatefulSet       *appsv1.StatefulSet
 	JmService           *corev1.Service
 	JmIngress           *networkingv1.Ingress
-	TmDesiredState      *TaskManagerDesiredState
+	TmStatefulSet       *appsv1.StatefulSet
+	TmDeployment        *appsv1.Deployment
 	TmService           *corev1.Service
 	ConfigMap           *corev1.ConfigMap
 	Job                 *batchv1.Job

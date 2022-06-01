@@ -163,16 +163,16 @@ func (reconciler *ClusterReconciler) reconcileJobManagerStatefulSet() error {
 }
 
 func (reconciler *ClusterReconciler) reconcileTaskManager() error {
-	if reconciler.observed.tmState.deploymentType == v1beta1.DeploymentTypeStatefulset {
+	if reconciler.observed.cluster.Spec.TaskManager.DeploymentType == v1beta1.DeploymentTypeStatefulset {
 		return reconciler.reconcileStatefulSet(
 			"TaskManager",
-			reconciler.desired.TmDesiredState.StatefulSet,
-			reconciler.observed.tmState.tmStatefulSet)
+			reconciler.desired.TmStatefulSet,
+			reconciler.observed.tmStatefulSet)
 	}
 	return reconciler.reconcileDeployment(
 		"TaskManager",
-		reconciler.desired.TmDesiredState.Deployment,
-		reconciler.observed.tmState.tmDeployment)
+		reconciler.desired.TmDeployment,
+		reconciler.observed.tmDeployment)
 }
 
 func (reconciler *ClusterReconciler) reconcileStatefulSet(
@@ -648,7 +648,7 @@ func (reconciler *ClusterReconciler) reconcilePersistentVolumeClaims() error {
 	observed := reconciler.observed
 	pvcs := observed.persistentVolumeClaims
 	jm := observed.jmStatefulSet
-	tm := observed.tmState.tmStatefulSet
+	tm := observed.tmStatefulSet
 
 	for _, pvc := range pvcs.Items {
 		if c, ok := pvc.Labels["component"]; ok && c == "jobmanager" && jm != nil {

@@ -788,11 +788,10 @@ func TestGetDesiredClusterState(t *testing.T) {
 		},
 	}
 
-	assert.Assert(t, desiredState.TmDesiredState != nil)
-	assert.Assert(t, desiredState.TmDesiredState.StatefulSet != nil)
+	assert.Assert(t, desiredState.TmStatefulSet != nil)
 	assert.DeepEqual(
 		t,
-		*desiredState.TmDesiredState.StatefulSet,
+		*desiredState.TmStatefulSet,
 		expectedDesiredTmStatefulSet,
 		cmpopts.IgnoreUnexported(resource.Quantity{}))
 
@@ -1084,7 +1083,7 @@ func TestSecurityContext(t *testing.T) {
 
 	assert.DeepEqual(t, desired.Job.Spec.Template.Spec.SecurityContext, &securityContext)
 	assert.DeepEqual(t, desired.JmStatefulSet.Spec.Template.Spec.SecurityContext, &securityContext)
-	assert.DeepEqual(t, desired.TmDesiredState.StatefulSet.Spec.Template.Spec.SecurityContext, &securityContext)
+	assert.DeepEqual(t, desired.TmStatefulSet.Spec.Template.Spec.SecurityContext, &securityContext)
 
 	// No security context
 	var observed2 = &ObservedClusterState{
@@ -1124,7 +1123,7 @@ func TestSecurityContext(t *testing.T) {
 
 	assert.Assert(t, desired2.Job.Spec.Template.Spec.SecurityContext == nil)
 	assert.Assert(t, desired2.JmStatefulSet.Spec.Template.Spec.SecurityContext == nil)
-	assert.Assert(t, desired2.TmDesiredState.StatefulSet.Spec.Template.Spec.SecurityContext == nil)
+	assert.Assert(t, desired2.TmStatefulSet.Spec.Template.Spec.SecurityContext == nil)
 }
 
 func TestCalFlinkHeapSize(t *testing.T) {

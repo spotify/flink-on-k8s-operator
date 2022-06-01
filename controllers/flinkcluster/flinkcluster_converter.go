@@ -100,17 +100,9 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 
 	if !shouldCleanup(cluster, "TaskManagerStatefulSet") {
 		if observed.cluster.Spec.TaskManager.DeploymentType == v1beta1.DeploymentTypeStatefulset {
-			state.TmDesiredState = &model.TaskManagerDesiredState{
-				DeploymentType: string(observed.tmState.deploymentType),
-				StatefulSet:    newTaskManagerStatefulSet(cluster),
-				Deployment:     nil,
-			}
+			state.TmStatefulSet = newTaskManagerStatefulSet(cluster)
 		} else {
-			state.TmDesiredState = &model.TaskManagerDesiredState{
-				DeploymentType: string(observed.tmState.deploymentType),
-				StatefulSet:    nil,
-				Deployment:     newTaskManagerDeployment(cluster),
-			}
+			state.TmDeployment = newTaskManagerDeployment(cluster)
 		}
 	}
 

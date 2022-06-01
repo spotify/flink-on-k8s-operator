@@ -389,7 +389,7 @@ func isUpdatedAll(observed ObservedClusterState) bool {
 	components := []runtime.Object{
 		observed.configMap,
 		observed.podDisruptionBudget,
-		observed.tmState.tmStatefulSet,
+		observed.tmStatefulSet,
 		observed.tmService,
 		observed.jmStatefulSet,
 		observed.jmService,
@@ -407,7 +407,7 @@ func isClusterUpdateToDate(observed *ObservedClusterState) bool {
 	components := []runtime.Object{
 		observed.configMap,
 		observed.podDisruptionBudget,
-		observed.tmState.tmStatefulSet,
+		observed.tmStatefulSet,
 		observed.tmService,
 		observed.jmStatefulSet,
 		observed.jmService,
