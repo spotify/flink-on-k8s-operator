@@ -293,7 +293,7 @@ func TestSetNonDefault(t *testing.T) {
 			},
 			TaskManager: &TaskManagerSpec{
 				Replicas:       &tmReplicas,
-				DeploymentType: DeploymentTypeStatefulset,
+				DeploymentType: DeploymentTypeDeployment,
 				Ports: TaskManagerPorts{
 					Data:  &tmDataPort,
 					RPC:   &tmRPCPort,
@@ -383,7 +383,7 @@ func TestSetNonDefault(t *testing.T) {
 			},
 			TaskManager: &TaskManagerSpec{
 				Replicas:       &tmReplicas,
-				DeploymentType: DeploymentTypeStatefulset,
+				DeploymentType: DeploymentTypeDeployment,
 				Ports: TaskManagerPorts{
 					Data:  &tmDataPort,
 					RPC:   &tmRPCPort,
