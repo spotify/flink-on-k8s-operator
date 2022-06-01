@@ -27,7 +27,6 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/go-logr/logr"
@@ -130,13 +129,22 @@ func (updater *ClusterStatusUpdater) createStatusChangeEvents(
 			newStatus.Components.JobManagerIngress.State)
 	}
 
-	// TaskManager.
+	// TaskManager Statefulset.
 	if oldStatus.Components.TaskManagerStatefulSet.State !=
 		newStatus.Components.TaskManagerStatefulSet.State {
 		updater.createStatusChangeEvent(
 			"TaskManager StatefulSet",
 			oldStatus.Components.TaskManagerStatefulSet.State,
 			newStatus.Components.TaskManagerStatefulSet.State)
+	}
+
+	// TaskManager Deployment.
+	if oldStatus.Components.TaskManagerDeployment.State !=
+		newStatus.Components.TaskManagerDeployment.State {
+		updater.createStatusChangeEvent(
+			"TaskManager Deployment",
+			oldStatus.Components.TaskManagerDeployment.State,
+			newStatus.Components.TaskManagerDeployment.State)
 	}
 
 	// Job.
@@ -372,26 +380,15 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 	}
 
 	// TaskManager StatefulSet.
-	var observedTmState runtime.Object
-	var tmStatusName string
-	var tmStatusState string
-	if cluster.Spec.TaskManager.DeploymentType == v1beta1.DeploymentTypeStatefulset {
-		observedTmStatefulSet := observed.tmStatefulSet
-		observedTmState = observedTmStatefulSet
-		tmStatusName = observedTmStatefulSet.Name
-		tmStatusState = getStatefulSetState(observedTmStatefulSet)
-	} else {
-		observedTmDeployment := observed.tmDeployment
-		observedTmState = observedTmDeployment
-		tmStatusName = observedTmDeployment.Name
-		tmStatusState = getDeploymentState(observedTmDeployment)
-	}
-	if !isComponentUpdated(observedTmState, observed.cluster) && shouldUpdateCluster(observed) {
+	var observedTmStatefulSet = observed.tmStatefulSet
+	if !isComponentUpdated(observedTmStatefulSet, observed.cluster) && shouldUpdateCluster(observed) {
 		recorded.Components.TaskManagerStatefulSet.DeepCopyInto(&status.Components.TaskManagerStatefulSet)
 		status.Components.TaskManagerStatefulSet.State = v1beta1.ComponentStateUpdating
-	} else if observedTmState != nil {
-		status.Components.TaskManagerStatefulSet.Name = tmStatusName
-		status.Components.TaskManagerStatefulSet.State = tmStatusState
+	} else if observedTmStatefulSet != nil {
+		status.Components.TaskManagerStatefulSet.Name =
+			observedTmStatefulSet.Name
+		status.Components.TaskManagerStatefulSet.State =
+			getStatefulSetState(observedTmStatefulSet)
 		if status.Components.TaskManagerStatefulSet.State ==
 			v1beta1.ComponentStateReady {
 			runningComponents++
@@ -400,6 +397,28 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 		status.Components.TaskManagerStatefulSet =
 			v1beta1.FlinkClusterComponentState{
 				Name:  recorded.Components.TaskManagerStatefulSet.Name,
+				State: v1beta1.ComponentStateDeleted,
+			}
+	}
+
+	// TaskManager Deployment.
+	var observedTmDeployment = observed.tmDeployment
+	if !isComponentUpdated(observedTmDeployment, observed.cluster) && shouldUpdateCluster(observed) {
+		recorded.Components.TaskManagerDeployment.DeepCopyInto(&status.Components.TaskManagerDeployment)
+		status.Components.TaskManagerDeployment.State = v1beta1.ComponentStateUpdating
+	} else if observedTmDeployment != nil {
+		status.Components.TaskManagerDeployment.Name =
+			observedTmDeployment.Name
+		status.Components.TaskManagerDeployment.State =
+			getDeploymentState(observedTmDeployment)
+		if status.Components.TaskManagerDeployment.State ==
+			v1beta1.ComponentStateReady {
+			runningComponents++
+		}
+	} else if recorded.Components.TaskManagerDeployment.Name != "" {
+		status.Components.TaskManagerDeployment =
+			v1beta1.FlinkClusterComponentState{
+				Name:  recorded.Components.TaskManagerDeployment.Name,
 				State: v1beta1.ComponentStateDeleted,
 			}
 	}
@@ -773,6 +792,16 @@ func (updater *ClusterStatusUpdater) isStatusChanged(
 			currentStatus.Components.TaskManagerStatefulSet,
 			"new",
 			newStatus.Components.TaskManagerStatefulSet)
+		changed = true
+	}
+	if newStatus.Components.TaskManagerDeployment !=
+		currentStatus.Components.TaskManagerDeployment {
+		updater.log.Info(
+			"TaskManager Deployment status changed",
+			"current",
+			currentStatus.Components.TaskManagerDeployment,
+			"new",
+			newStatus.Components.TaskManagerDeployment)
 		changed = true
 	}
 	if currentStatus.Components.Job == nil {

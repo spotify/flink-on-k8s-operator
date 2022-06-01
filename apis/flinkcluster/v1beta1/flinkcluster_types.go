@@ -685,7 +685,10 @@ type FlinkClusterComponentsStatus struct {
 	JobManagerIngress *JobManagerIngressStatus `json:"jobManagerIngress,omitempty"`
 
 	// The state of TaskManager StatefulSet.
-	TaskManagerStatefulSet FlinkClusterComponentState `json:"taskManagerStatefulSet"`
+	TaskManagerStatefulSet FlinkClusterComponentState `json:"taskManagerStatefulSet,omitempty"`
+
+	// The state of TaskManager Deployment.
+	TaskManagerDeployment FlinkClusterComponentState `json:"taskManagerDeployment,omitempty"`
 
 	// The status of the job, available only when JobSpec is provided.
 	Job *JobStatus `json:"job,omitempty"`

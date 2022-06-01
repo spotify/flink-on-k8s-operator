@@ -110,6 +110,7 @@ func (in *FlinkClusterComponentsStatus) DeepCopyInto(out *FlinkClusterComponents
 		(*in).DeepCopyInto(*out)
 	}
 	out.TaskManagerStatefulSet = in.TaskManagerStatefulSet
+	out.TaskManagerDeployment = in.TaskManagerDeployment
 	if in.Job != nil {
 		in, out := &in.Job, &out.Job
 		*out = new(JobStatus)
