@@ -3932,6 +3932,8 @@ spec:
                   type: string
                 taskManager:
                   properties:
+                    deploymentType:
+                      type: string
                     extraPorts:
                       items:
                         properties:
@@ -5324,8 +5326,6 @@ spec:
                           - name
                         type: object
                       type: array
-                    storageType:
-                      type: string
                     tolerations:
                       items:
                         properties:
