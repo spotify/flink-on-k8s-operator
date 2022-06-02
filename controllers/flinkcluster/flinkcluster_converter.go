@@ -98,7 +98,8 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 		state.JmStatefulSet = newJobManagerStatefulSet(cluster)
 	}
 
-	if cluster.Spec.TaskManager.DeploymentType == v1beta1.DeploymentTypeStatefulSet {
+	deploymentType := cluster.Spec.TaskManager.DeploymentType
+	if deploymentType == v1beta1.DeploymentTypeStatefulSet || deploymentType == "" {
 		if !shouldCleanup(cluster, "TaskManagerStatefulSet") {
 			state.TmStatefulSet = newTaskManagerStatefulSet(cluster)
 		}
