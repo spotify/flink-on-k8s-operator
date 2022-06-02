@@ -308,7 +308,7 @@ const (
 
 // TaskManagerSpec defines properties of TaskManager.
 type TaskManagerSpec struct {
-	// _(Optional)_ Defines the replica workload's type. If not specified, the default value is `StatefulSet`.
+	// _(Optional)_ Defines the replica workload's type: `StatefulSet` or `Deployment`. If not specified, the default value is `StatefulSet`.
 	DeploymentType DeploymentType `json:"deploymentType,omitempty"`
 
 	// The number of replicas. default: `3`
@@ -347,13 +347,11 @@ type TaskManagerSpec struct {
 	// [More info](https://kubernetes.io/docs/concepts/storage/volumes/)
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 
-	// _(Optional)_ A template for persistent volume claim each requested and mounted to JobManager pod,
+	// _(Optional)_ A template for persistent volume claim each requested and mounted to TaskManager pod,
 	// This can be used to mount an external volume with a specific storageClass or larger captivity (for larger/faster state backend).
 	// [More info](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims)
-
 	// If deploymentType: StatefulSet is used, these templates will be added to the taskManager statefulset template,
 	// hence mounting persistent-pvcs to the indexed statefulset pods.
-	//
 	// If deploymentType: Deployment is used, these templates are appended to the Ephemeral Volumes in the PodSpec,
 	// hence mounting ephemeral-pvcs to the replicaset pods.
 	VolumeClaimTemplates []corev1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`

@@ -458,7 +458,7 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `deploymentType` _DeploymentType_ | _(Optional)_ Defines the replica workload's type. If not specified, the default value is `StatefulSet`. |
+| `deploymentType` _DeploymentType_ | _(Optional)_ Defines the replica workload's type: `StatefulSet` or `Deployment`. If not specified, the default value is `StatefulSet`. |
 | `replicas` _integer_ | The number of replicas. default: `3` |
 | `ports` _[TaskManagerPorts](#taskmanagerports)_ | Ports that TaskManager listening on. |
 | `extraPorts` _[NamedPort](#namedport) array_ | _(Optional)_ Extra ports to be exposed. For example, Flink metrics reporter ports: Prometheus, JMX and so on. |
@@ -468,8 +468,7 @@ _Appears in:_
 | `memoryProcessRatio` _integer_ | For Flink 1.10+. Percentage of process memory, as a safety margin to avoid OOM kill, default: `20` |
 | `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volume-v1-core) array_ | _(Optional)_ Volumes in the TaskManager pods. [More info](https://kubernetes.io/docs/concepts/storage/volumes/) |
 | `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volumemount-v1-core) array_ | _(Optional)_ Volume mounts in the TaskManager containers. [More info](https://kubernetes.io/docs/concepts/storage/volumes/) |
-| `volumeClaimTemplates` _[PersistentVolumeClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#persistentvolumeclaim-v1-core) array_ | If deploymentType: StatefulSet is used, these templates will be added to the taskManager statefulset template, hence mounting persistent-pvcs to the indexed statefulset pods. 
- If deploymentType: Deployment is used, these templates are appended to the Ephemeral Volumes in the PodSpec, hence mounting ephemeral-pvcs to the replicaset pods. |
+| `volumeClaimTemplates` _[PersistentVolumeClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#persistentvolumeclaim-v1-core) array_ | _(Optional)_ A template for persistent volume claim each requested and mounted to TaskManager pod, This can be used to mount an external volume with a specific storageClass or larger captivity (for larger/faster state backend). [More info](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims) If deploymentType: StatefulSet is used, these templates will be added to the taskManager statefulset template, hence mounting persistent-pvcs to the indexed statefulset pods. If deploymentType: Deployment is used, these templates are appended to the Ephemeral Volumes in the PodSpec, hence mounting ephemeral-pvcs to the replicaset pods. |
 | `initContainers` _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#container-v1-core) array_ | _(Optional)_ Init containers of the Task Manager pod. [More info](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/) |
 | `nodeSelector` _object (keys:string, values:string)_ | _(Optional)_ Selector which must match a node's labels for the TaskManager pod to be scheduled on that node. [More info](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/) |
 | `tolerations` _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#toleration-v1-core) array_ | _(Optional)_ Defines the node affinity of the pod [More info](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) |
