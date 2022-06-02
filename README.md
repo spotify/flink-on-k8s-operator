@@ -15,7 +15,7 @@ The operator is under active development, backward compatibility of the APIs is 
 
 ## Prerequisites
 
-- Version >= 1.16 of [Kubernetes](https://kubernetes.io)
+- Version >= 1.21 of [Kubernetes](https://kubernetes.io)
 - Version >= 1.7 of [Apache Flink](https://flink.apache.org)
 - Version >= 1.5.3 of [cert-manager](https://cert-manager.io)
 
