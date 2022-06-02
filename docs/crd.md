@@ -92,6 +92,7 @@ _Appears in:_
 | `jobManagerService` _[JobManagerServiceStatus](#jobmanagerservicestatus)_ | The state of JobManager service. |
 | `jobManagerIngress` _[JobManagerIngressStatus](#jobmanageringressstatus)_ | The state of JobManager ingress. |
 | `taskManagerStatefulSet` _[FlinkClusterComponentState](#flinkclustercomponentstate)_ | The state of TaskManager StatefulSet. |
+| `taskManagerDeployment` _[FlinkClusterComponentState](#flinkclustercomponentstate)_ | The state of TaskManager Deployment. |
 | `job` _[JobStatus](#jobstatus)_ | The status of the job, available only when JobSpec is provided. |
 
 
@@ -285,6 +286,8 @@ _Appears in:_
 | --- | --- |
 | `replicas` _integer_ | The number of JobManager replicas, default: `1` |
 | `accessScope` _string_ | Access scope, default: `Cluster`. `Cluster`: accessible from within the same cluster. `VPC`: accessible from within the same VPC. `External`: accessible from the internet. `NodePort`: accessible through node port. `Headless`: pod IPs assumed to be routable and advertised directly with `clusterIP: None``. Currently `VPC, External` are only available for GKE. |
+| `ServiceAnnotations` _object (keys:string, values:string)_ | _(Optional)_ Define JobManager Service annotations for configuration. |
+| `ServiceLabels` _object (keys:string, values:string)_ | _(Optional)_ Define JobManager Service labels for configuration. |
 | `ingress` _[JobManagerIngressSpec](#jobmanageringressspec)_ | _(Optional)_ Provide external access to JobManager UI/API. |
 | `ports` _[JobManagerPorts](#jobmanagerports)_ | Ports that JobManager listening on. |
 | `extraPorts` _[NamedPort](#namedport) array_ | _(Optional)_ Extra ports to be exposed. For example, Flink metrics reporter ports: Prometheus, JMX and so on. Each port number and name must be unique among ports and extraPorts. |
@@ -304,8 +307,6 @@ _Appears in:_
 | `podLabels` _object (keys:string, values:string)_ | _(Optional)_ JobManager StatefulSet pod template labels. [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/) |
 | `livenessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core)_ | Container liveness probe If omitted, a [default value](https://github.com/spotify/flink-on-k8s-operator/blob/a88ed2b/api/v1beta1/flinkcluster_default.go#L113-L123) will be used. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) |
 | `readinessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core)_ | Container readiness probe If omitted, a [default value](https://github.com/spotify/flink-on-k8s-operator/blob/a88ed2b/api/v1beta1/flinkcluster_default.go#L129-L139) will be used. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) |
-| `ServiceAnnotations` _object (keys:string, values:string)_ | _(Optional)_ JobManager Service annotations. [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/) |
-| `ServiceLabels` _object (keys:string, values:string)_ | _(Optional)_ JobManager Service labels. [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/) |
 
 
 #### JobSpec
@@ -319,6 +320,7 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
+| `classPath` _string array_ | _(Optional)_ Adds URLs to each user code classloader on all nodes in the cluster. The paths must specify a protocol (e.g. file://) and be accessible on all nodes (e.g. by means of a NFS share). The protocol must be supported by the {@link java.net.URLClassLoader}. You may add support to more protocol by setting the `java.protocol.handler.pkgs` java option |
 | `jarFile` _string_ | _(Optional)_ JAR file of the job. It could be a local file or remote URI, depending on which protocols (e.g., `https://, gs://`) are supported by the Flink image. |
 | `className` _string_ | _(Optional)_ Fully qualified Java class name of the job. |
 | `pyFile` _string_ | _(Optional)_ Python file of the job. It could be a local file or remote URI (e.g.,`https://`, `gs://`). |
@@ -456,6 +458,7 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
+| `deploymentType` _DeploymentType_ | _(Optional)_ Defines the replica workload's type: `StatefulSet` or `Deployment`. If not specified, the default value is `StatefulSet`. |
 | `replicas` _integer_ | The number of replicas. default: `3` |
 | `ports` _[TaskManagerPorts](#taskmanagerports)_ | Ports that TaskManager listening on. |
 | `extraPorts` _[NamedPort](#namedport) array_ | _(Optional)_ Extra ports to be exposed. For example, Flink metrics reporter ports: Prometheus, JMX and so on. |
@@ -465,7 +468,7 @@ _Appears in:_
 | `memoryProcessRatio` _integer_ | For Flink 1.10+. Percentage of process memory, as a safety margin to avoid OOM kill, default: `20` |
 | `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volume-v1-core) array_ | _(Optional)_ Volumes in the TaskManager pods. [More info](https://kubernetes.io/docs/concepts/storage/volumes/) |
 | `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volumemount-v1-core) array_ | _(Optional)_ Volume mounts in the TaskManager containers. [More info](https://kubernetes.io/docs/concepts/storage/volumes/) |
-| `volumeClaimTemplates` _[PersistentVolumeClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#persistentvolumeclaim-v1-core) array_ | _(Optional)_ A template for persistent volume claim each requested and mounted to JobManager pod, This can be used to mount an external volume with a specific storageClass or larger captivity (for larger/faster state backend). [More info](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims) |
+| `volumeClaimTemplates` _[PersistentVolumeClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#persistentvolumeclaim-v1-core) array_ | _(Optional)_ A template for persistent volume claim each requested and mounted to TaskManager pod, This can be used to mount an external volume with a specific storageClass or larger captivity (for larger/faster state backend). [More info](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims) If deploymentType: StatefulSet is used, these templates will be added to the taskManager statefulset template, hence mounting persistent-pvcs to the indexed statefulset pods. If deploymentType: Deployment is used, these templates are appended to the Ephemeral Volumes in the PodSpec, hence mounting ephemeral-pvcs to the replicaset pods. |
 | `initContainers` _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#container-v1-core) array_ | _(Optional)_ Init containers of the Task Manager pod. [More info](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/) |
 | `nodeSelector` _object (keys:string, values:string)_ | _(Optional)_ Selector which must match a node's labels for the TaskManager pod to be scheduled on that node. [More info](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/) |
 | `tolerations` _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#toleration-v1-core) array_ | _(Optional)_ Defines the node affinity of the pod [More info](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) |
@@ -475,3 +478,9 @@ _Appears in:_
 | `podLabels` _object (keys:string, values:string)_ | _(Optional)_ TaskManager StatefulSet pod template labels. [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/) |
 | `livenessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core)_ | Container liveness probe If omitted, a [default value](https://github.com/spotify/flink-on-k8s-operator/blob/a88ed2b/api/v1beta1/flinkcluster_default.go#L177-L187) will be used. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) |
 | `readinessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core)_ | Container readiness probe If omitted, a [default value](https://github.com/spotify/flink-on-k8s-operator/blob/a88ed2b/api/v1beta1/flinkcluster_default.go#L193-L203) will be used. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) |
+
+
+
+
+
+
