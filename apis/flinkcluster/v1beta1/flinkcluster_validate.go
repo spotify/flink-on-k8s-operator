@@ -355,8 +355,8 @@ func (v *Validator) validateJobManager(flinkVersion *version.Version, jmSpec *Jo
 	}
 
 	// Replicas.
-	if jmSpec.Replicas == nil || *jmSpec.Replicas != 1 {
-		return fmt.Errorf("invalid JobManager replicas, it must be 1")
+	if jmSpec.Replicas == nil || *jmSpec.Replicas < 1 {
+		return fmt.Errorf("invalid JobManager replicas, it must be 1 or more")
 	}
 
 	// AccessScope.

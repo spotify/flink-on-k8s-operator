@@ -142,7 +142,7 @@ func TestInvalidImageSpec(t *testing.T) {
 
 func TestInvalidJobManagerSpec(t *testing.T) {
 	var jmReplicas1 int32 = 1
-	var jmReplicas2 int32 = 2
+	var jmReplicas2 int32 = 0
 	var rpcPort int32 = 8001
 	var blobPort int32 = 8002
 	var queryPort int32 = 8003
@@ -172,7 +172,7 @@ func TestInvalidJobManagerSpec(t *testing.T) {
 		},
 	}
 	var err = validator.ValidateCreate(&cluster)
-	var expectedErr = "invalid JobManager replicas, it must be 1"
+	var expectedErr = "invalid JobManager replicas, it must be 1 or more"
 	assert.Equal(t, err.Error(), expectedErr)
 
 	cluster = FlinkCluster{
