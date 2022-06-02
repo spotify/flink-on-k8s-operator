@@ -3932,6 +3932,8 @@ spec:
                   type: string
                 taskManager:
                   properties:
+                    deploymentType:
+                      type: string
                     extraPorts:
                       items:
                         properties:
@@ -6325,6 +6327,16 @@ spec:
                         - name
                         - state
                       type: object
+                    taskManagerDeployment:
+                      properties:
+                        name:
+                          type: string
+                        state:
+                          type: string
+                      required:
+                        - name
+                        - state
+                      type: object
                     taskManagerStatefulSet:
                       properties:
                         name:
@@ -6339,7 +6351,6 @@ spec:
                     - configMap
                     - jobManagerService
                     - jobManagerStatefulSet
-                    - taskManagerStatefulSet
                   type: object
                 control:
                   properties:

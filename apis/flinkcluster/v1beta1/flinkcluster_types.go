@@ -293,8 +293,24 @@ type TaskManagerPorts struct {
 	Query *int32 `json:"query,omitempty"`
 }
 
+// K8s workload API kind for TaskManager workers
+type DeploymentType string
+
+const (
+	// This refers to the Kubernetes Type [StatefulSet](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset)
+	// Use persistent volumes for recovery.
+	DeploymentTypeStatefulSet = "StatefulSet"
+
+	// This refers to the Kubernetes Type [Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment)
+	// Faster startup, but the volumes are ephemeral
+	DeploymentTypeDeployment = "Deployment"
+)
+
 // TaskManagerSpec defines properties of TaskManager.
 type TaskManagerSpec struct {
+	// _(Optional)_ Defines the replica workload's type. If not specified, the default value is `StatefulSet`.
+	DeploymentType DeploymentType `json:"deploymentType,omitempty"`
+
 	// The number of replicas. default: `3`
 	Replicas *int32 `json:"replicas,omitempty"`
 
@@ -334,6 +350,12 @@ type TaskManagerSpec struct {
 	// _(Optional)_ A template for persistent volume claim each requested and mounted to JobManager pod,
 	// This can be used to mount an external volume with a specific storageClass or larger captivity (for larger/faster state backend).
 	// [More info](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims)
+
+	// If deploymentType: StatefulSet is used, these templates will be added to the taskManager statefulset template,
+	// hence mounting persistent-pvcs to the indexed statefulset pods.
+	//
+	// If deploymentType: Deployment is used, these templates are appended to the Ephemeral Volumes in the PodSpec,
+	// hence mounting ephemeral-pvcs to the replicaset pods.
 	VolumeClaimTemplates []corev1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 
 	// _(Optional)_ Init containers of the Task Manager pod.
@@ -664,7 +686,10 @@ type FlinkClusterComponentsStatus struct {
 	JobManagerIngress *JobManagerIngressStatus `json:"jobManagerIngress,omitempty"`
 
 	// The state of TaskManager StatefulSet.
-	TaskManagerStatefulSet FlinkClusterComponentState `json:"taskManagerStatefulSet"`
+	TaskManagerStatefulSet FlinkClusterComponentState `json:"taskManagerStatefulSet,omitempty"`
+
+	// The state of TaskManager Deployment.
+	TaskManagerDeployment FlinkClusterComponentState `json:"taskManagerDeployment,omitempty"`
 
 	// The status of the job, available only when JobSpec is provided.
 	Job *JobStatus `json:"job,omitempty"`

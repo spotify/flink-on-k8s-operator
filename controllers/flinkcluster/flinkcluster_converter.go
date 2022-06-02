@@ -98,8 +98,14 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 		state.JmStatefulSet = newJobManagerStatefulSet(cluster)
 	}
 
-	if !shouldCleanup(cluster, "TaskManagerStatefulSet") {
-		state.TmStatefulSet = newTaskManagerStatefulSet(cluster)
+	if cluster.Spec.TaskManager.DeploymentType == v1beta1.DeploymentTypeStatefulSet {
+		if !shouldCleanup(cluster, "TaskManagerStatefulSet") {
+			state.TmStatefulSet = newTaskManagerStatefulSet(cluster)
+		}
+	} else {
+		if !shouldCleanup(cluster, "TaskManagerDeployment") {
+			state.TmDeployment = newTaskManagerDeployment(cluster)
+		}
 	}
 
 	if !shouldCleanup(cluster, "TaskManagerService") {
@@ -406,7 +412,7 @@ func newJobManagerIngress(
 	return jobManagerIngress
 }
 
-func newTaskMangerContainer(flinkCluster *v1beta1.FlinkCluster) *corev1.Container {
+func newTaskManagerContainer(flinkCluster *v1beta1.FlinkCluster) *corev1.Container {
 	var imageSpec = flinkCluster.Spec.Image
 	var taskManagerSpec = flinkCluster.Spec.TaskManager
 	var dataPort = corev1.ContainerPort{Name: "data", ContainerPort: *taskManagerSpec.Ports.Data}
@@ -498,7 +504,7 @@ func newTaskManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1.State
 	podLabels = mergeLabels(podLabels, taskManagerSpec.PodLabels)
 	var statefulSetLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
 
-	mainContainer := newTaskMangerContainer(flinkCluster)
+	mainContainer := newTaskManagerContainer(flinkCluster)
 	podSpec := newTaskManagerPodSpec(mainContainer, flinkCluster)
 
 	var pvcs []corev1.PersistentVolumeClaim
@@ -523,6 +529,58 @@ func newTaskManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1.State
 			ServiceName:          taskManagerStatefulSetName,
 			VolumeClaimTemplates: pvcs,
 			PodManagementPolicy:  "Parallel",
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels:      podLabels,
+					Annotations: taskManagerSpec.PodAnnotations,
+				},
+				Spec: *podSpec,
+			},
+		},
+	}
+}
+
+func getEphemeralVolumesFromTaskManagerSpec(flinkCluster *v1beta1.FlinkCluster) []corev1.Volume {
+	var ephemeralVolumes []corev1.Volume
+	var volumeClaimsInSpec = flinkCluster.Spec.TaskManager.VolumeClaimTemplates
+	for _, volume := range volumeClaimsInSpec {
+		ephemeralVolumes = append(ephemeralVolumes, corev1.Volume{
+			Name: volume.ObjectMeta.Name,
+			// Ephemeral volume
+			VolumeSource: corev1.VolumeSource{
+				Ephemeral: &corev1.EphemeralVolumeSource{
+					VolumeClaimTemplate: &corev1.PersistentVolumeClaimTemplate{
+						Spec: volume.Spec,
+					},
+				},
+			},
+		})
+	}
+	return ephemeralVolumes
+}
+
+// Gets the desired TaskManager Deployment spec from a cluster spec.
+func newTaskManagerDeployment(flinkCluster *v1beta1.FlinkCluster) *appsv1.Deployment {
+	var taskManagerSpec = flinkCluster.Spec.TaskManager
+	var taskManagerDeploymentName = getTaskManagerDeploymentName(flinkCluster.Name)
+	var podLabels = getComponentLabels(flinkCluster, "taskmanager")
+	podLabels = mergeLabels(podLabels, taskManagerSpec.PodLabels)
+	var deploymentLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
+
+	mainContainer := newTaskManagerContainer(flinkCluster)
+	podSpec := newTaskManagerPodSpec(mainContainer, flinkCluster)
+	podSpec.Volumes = append(podSpec.Volumes, getEphemeralVolumesFromTaskManagerSpec(flinkCluster)...)
+
+	return &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:       flinkCluster.Namespace,
+			Name:            taskManagerDeploymentName,
+			OwnerReferences: []metav1.OwnerReference{ToOwnerReference(flinkCluster)},
+			Labels:          deploymentLabels,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: taskManagerSpec.Replicas,
+			Selector: &metav1.LabelSelector{MatchLabels: podLabels},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      podLabels,
@@ -1015,7 +1073,7 @@ func shouldCleanup(cluster *v1beta1.FlinkCluster, component string) bool {
 	case v1beta1.CleanupActionDeleteCluster:
 		return true
 	case v1beta1.CleanupActionDeleteTaskManager:
-		return component == "TaskManagerStatefulSet"
+		return component == "TaskManagerStatefulSet" || component == "TaskManagerDeployment"
 	}
 
 	return false

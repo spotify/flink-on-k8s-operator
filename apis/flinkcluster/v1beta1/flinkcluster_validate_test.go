@@ -615,6 +615,16 @@ func TestUpdateSavepointGeneration(t *testing.T) {
 	assert.Equal(t, err, nil)
 }
 
+func TestTaskManagerDeploymentTypeUpdate(t *testing.T) {
+	// cannot update deploymentType
+	var oldCluster = getSimpleFlinkCluster()
+	var newCluster = getSimpleFlinkCluster()
+	newCluster.Spec.TaskManager.DeploymentType = DeploymentTypeDeployment
+	err := validator.ValidateUpdate(&oldCluster, &newCluster)
+	expectedErr := "updating deploymentType is not allowed"
+	assert.Equal(t, err.Error(), expectedErr)
+}
+
 func TestUpdateJob(t *testing.T) {
 	var validator = &Validator{}
 	var tc = &TimeConverter{}

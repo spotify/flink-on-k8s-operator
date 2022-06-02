@@ -232,6 +232,10 @@ func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Versi
 		mergo.Merge(&readinessProbe, tmSpec.ReadinessProbe, mergo.WithOverride)
 	}
 	tmSpec.ReadinessProbe = &readinessProbe
+
+	if tmSpec.DeploymentType == "" {
+		tmSpec.DeploymentType = DeploymentTypeStatefulSet
+	}
 }
 
 func _SetJobDefault(jobSpec *JobSpec) {

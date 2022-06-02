@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
 	"github.com/spotify/flink-on-k8s-operator/internal/controllers/history"
 	flink "github.com/spotify/flink-on-k8s-operator/internal/flink"
@@ -59,6 +60,7 @@ type ObservedClusterState struct {
 	jmService              *corev1.Service
 	jmIngress              *networkingv1.Ingress
 	tmStatefulSet          *appsv1.StatefulSet
+	tmDeployment           *appsv1.Deployment
 	tmService              *corev1.Service
 	podDisruptionBudget    *policyv1.PodDisruptionBudget
 	persistentVolumeClaims *corev1.PersistentVolumeClaimList
@@ -238,7 +240,7 @@ func (observer *ClusterStateObserver) observe(
 		observed.jmIngress = observedJmIngress
 	}
 
-	// TaskManager StatefulSet.
+	// TaskManager StatefulSet
 	var observedTmStatefulSet = new(appsv1.StatefulSet)
 	err = observer.observeTaskManagerStatefulSet(observedTmStatefulSet)
 	if err != nil {
@@ -250,8 +252,23 @@ func (observer *ClusterStateObserver) observe(
 		observedTmStatefulSet = nil
 	} else {
 		log.Info("Observed TaskManager StatefulSet", "state", *observedTmStatefulSet)
-		observed.tmStatefulSet = observedTmStatefulSet
 	}
+	observed.tmStatefulSet = observedTmStatefulSet
+
+	// TaskManager Deployment
+	var observedTmDeployment = new(appsv1.Deployment)
+	err = observer.observeTaskManagerDeployment(observedTmDeployment)
+	if err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			log.Error(err, "Failed to get TaskManager Deployment")
+			return err
+		}
+		log.Info("Observed TaskManager Deployment", "state", "nil")
+		observedTmDeployment = nil
+	} else {
+		log.Info("Observed TaskManager Deployment", "state", *observedTmDeployment)
+	}
+	observed.tmDeployment = observedTmDeployment
 
 	// TaskManager Service.
 	var observedTmSvc = new(corev1.Service)
@@ -510,6 +527,15 @@ func (observer *ClusterStateObserver) observeTaskManagerStatefulSet(
 		clusterNamespace, tmStatefulSetName, "TaskManager", observedStatefulSet)
 }
 
+func (observer *ClusterStateObserver) observeTaskManagerDeployment(
+	observedDeployment *appsv1.Deployment) error {
+	var clusterNamespace = observer.request.Namespace
+	var clusterName = observer.request.Name
+	var tmDeploymentName = getTaskManagerDeploymentName(clusterName)
+	return observer.observeDeployment(
+		clusterNamespace, tmDeploymentName, "TaskManager", observedDeployment)
+}
+
 func (observer *ClusterStateObserver) observeTaskManagerService(
 	observedSvc *corev1.Service) error {
 	var clusterNamespace = observer.request.Namespace
@@ -540,6 +566,30 @@ func (observer *ClusterStateObserver) observeStatefulSet(
 	if err != nil {
 		if client.IgnoreNotFound(err) != nil {
 			log.Error(err, "Failed to get StatefulSet")
+		} else {
+			log.Info("Deployment not found")
+		}
+	}
+	return err
+}
+
+// observe deployment
+func (observer *ClusterStateObserver) observeDeployment(
+	namespace string,
+	name string,
+	component string,
+	observedDeployment *appsv1.Deployment) error {
+	var log = observer.log.WithValues("component", component)
+	var err = observer.k8sClient.Get(
+		observer.context,
+		types.NamespacedName{
+			Namespace: namespace,
+			Name:      name,
+		},
+		observedDeployment)
+	if err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			log.Error(err, "Failed to get Deployment")
 		} else {
 			log.Info("Deployment not found")
 		}

@@ -27,6 +27,7 @@ type DesiredClusterState struct {
 	JmService           *corev1.Service
 	JmIngress           *networkingv1.Ingress
 	TmStatefulSet       *appsv1.StatefulSet
+	TmDeployment        *appsv1.Deployment
 	TmService           *corev1.Service
 	ConfigMap           *corev1.ConfigMap
 	Job                 *batchv1.Job

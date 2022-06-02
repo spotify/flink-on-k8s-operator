@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
+
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -135,7 +136,8 @@ func TestSetDefault(t *testing.T) {
 				ReadinessProbe:     &defaultJmReadinessProbe,
 			},
 			TaskManager: &TaskManagerSpec{
-				Replicas: &tmReplicas,
+				Replicas:       &tmReplicas,
+				DeploymentType: DeploymentTypeStatefulSet,
 				Ports: TaskManagerPorts{
 					Data:  &defaultTmDataPort,
 					RPC:   &defaultTmRPCPort,
@@ -290,7 +292,8 @@ func TestSetNonDefault(t *testing.T) {
 				ReadinessProbe:  &jmReadinessProbe,
 			},
 			TaskManager: &TaskManagerSpec{
-				Replicas: &tmReplicas,
+				Replicas:       &tmReplicas,
+				DeploymentType: DeploymentTypeDeployment,
 				Ports: TaskManagerPorts{
 					Data:  &tmDataPort,
 					RPC:   &tmRPCPort,
@@ -379,7 +382,8 @@ func TestSetNonDefault(t *testing.T) {
 				ReadinessProbe:     &jmExpectedReadinessProbe,
 			},
 			TaskManager: &TaskManagerSpec{
-				Replicas: &tmReplicas,
+				Replicas:       &tmReplicas,
+				DeploymentType: DeploymentTypeDeployment,
 				Ports: TaskManagerPorts{
 					Data:  &tmDataPort,
 					RPC:   &tmRPCPort,

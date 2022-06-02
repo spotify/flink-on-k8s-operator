@@ -93,7 +93,10 @@ func (v *VolcanoBatchScheduler) setSchedulerMeta(pg *scheduling.PodGroup, state 
 
 	if state.TmStatefulSet != nil {
 		setMeta(&state.TmStatefulSet.Spec.Template)
+	} else if state.TmDeployment != nil {
+		setMeta(&state.TmDeployment.Spec.Template)
 	}
+
 	if state.JmStatefulSet != nil {
 		setMeta(&state.JmStatefulSet.Spec.Template)
 	}
@@ -136,7 +139,7 @@ func (v *VolcanoBatchScheduler) syncPodGroup(
 	podGroupName := fmt.Sprintf(podGroupNameFormat, options.ClusterName)
 	namespace := options.ClusterNamespace
 
-	if state.JmStatefulSet == nil && state.TmStatefulSet == nil {
+	if state.JmStatefulSet == nil && (state.TmStatefulSet == nil && state.TmDeployment == nil) {
 		// remove the podgroup if the JobManager/TaskManager statefulset are not set
 		err := v.deletePodGroup(podGroupName, namespace)
 		if !errors.IsNotFound(err) {
@@ -195,6 +198,11 @@ func getClusterResource(state *model.DesiredClusterState) (*corev1.ResourceRequi
 		size += *spec.Replicas
 		resources := getStatefulSetResources(&spec)
 		addResourceRequirements(reqs, resources)
+	} else if state.TmDeployment != nil {
+		spec := state.TmDeployment.Spec
+		size += *spec.Replicas
+		resources := getDeploymentResources(&spec)
+		addResourceRequirements(reqs, resources)
 	}
 
 	if state.Job != nil {
@@ -221,6 +229,19 @@ func getStatefulSetResources(spec *appsv1.StatefulSetSpec) *corev1.ResourceRequi
 		}
 	}
 
+	return reqs
+}
+
+func getDeploymentResources(spec *appsv1.DeploymentSpec) *corev1.ResourceRequirements {
+	reqs := &corev1.ResourceRequirements{
+		Limits:   map[corev1.ResourceName]resource.Quantity{},
+		Requests: map[corev1.ResourceName]resource.Quantity{},
+	}
+
+	for i := int32(0); i < *spec.Replicas; i++ {
+		tmResource := getPodResource(&spec.Template.Spec)
+		addResourceRequirements(reqs, tmResource)
+	}
 	return reqs
 }
 
