@@ -122,7 +122,7 @@ func getTaskManagerStatefulSetName(clusterName string) string {
 	return clusterName + "-taskmanager"
 }
 
-// Gets TaskManager StatefulSet name
+// Gets TaskManager Deployment name
 func getTaskManagerDeploymentName(clusterName string) string {
 	return clusterName + "-taskmanager"
 }

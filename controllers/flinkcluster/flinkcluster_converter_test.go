@@ -224,7 +224,7 @@ func getObservedClusterState() *ObservedClusterState {
 					SecurityContext: &securityContext,
 				},
 				TaskManager: &v1beta1.TaskManagerSpec{
-					DeploymentType: v1beta1.DeploymentTypeStatefulset,
+					DeploymentType: v1beta1.DeploymentTypeStatefulSet,
 					Replicas:       &replicas,
 					Ports: v1beta1.TaskManagerPorts{
 						Data:  &tmDataPort,
@@ -1283,7 +1283,7 @@ func TestSecurityContext(t *testing.T) {
 				},
 				TaskManager: &v1beta1.TaskManagerSpec{
 					Replicas:       &tmReplicas,
-					DeploymentType: v1beta1.DeploymentTypeStatefulset,
+					DeploymentType: v1beta1.DeploymentTypeStatefulSet,
 					Ports: v1beta1.TaskManagerPorts{
 						Data:  &tmDataPort,
 						RPC:   &tmRPCPort,
@@ -1324,7 +1324,7 @@ func TestSecurityContext(t *testing.T) {
 				},
 				TaskManager: &v1beta1.TaskManagerSpec{
 					Replicas:       &tmReplicas,
-					DeploymentType: v1beta1.DeploymentTypeStatefulset,
+					DeploymentType: v1beta1.DeploymentTypeStatefulSet,
 					Ports: v1beta1.TaskManagerPorts{
 						Data:  &tmDataPort,
 						RPC:   &tmRPCPort,

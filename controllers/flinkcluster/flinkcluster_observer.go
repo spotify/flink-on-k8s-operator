@@ -531,7 +531,7 @@ func (observer *ClusterStateObserver) observeTaskManagerDeployment(
 	observedDeployment *appsv1.Deployment) error {
 	var clusterNamespace = observer.request.Namespace
 	var clusterName = observer.request.Name
-	var tmDeploymentName = getTaskManagerDeploymentName(clusterName) // uses the same name as a tm-statefulset
+	var tmDeploymentName = getTaskManagerDeploymentName(clusterName)
 	return observer.observeDeployment(
 		clusterNamespace, tmDeploymentName, "TaskManager", observedDeployment)
 }

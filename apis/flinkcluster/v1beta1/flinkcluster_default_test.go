@@ -137,7 +137,7 @@ func TestSetDefault(t *testing.T) {
 			},
 			TaskManager: &TaskManagerSpec{
 				Replicas:       &tmReplicas,
-				DeploymentType: DeploymentTypeStatefulset,
+				DeploymentType: DeploymentTypeStatefulSet,
 				Ports: TaskManagerPorts{
 					Data:  &defaultTmDataPort,
 					RPC:   &defaultTmRPCPort,

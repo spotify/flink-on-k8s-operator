@@ -297,17 +297,18 @@ type TaskManagerPorts struct {
 type DeploymentType string
 
 const (
+	// This refers to the Kubernetes Type [StatefulSet](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset)
 	// Use persistent volumes for recovery.
-	DeploymentTypeStatefulset = "StatefulSet"
+	DeploymentTypeStatefulSet = "StatefulSet"
+
+	// This refers to the Kubernetes Type [Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment)
 	// Faster startup, but the volumes are ephemeral
 	DeploymentTypeDeployment = "Deployment"
 )
 
 // TaskManagerSpec defines properties of TaskManager.
 type TaskManagerSpec struct {
-	// _(Optional)_ Defines the replica workload's type. If not specified, the default is `DeploymentTypeStatefulset`.
-	// Statefulsets use Persistent storage for stateful recovery.
-	// Deployments use Ephemeral storage and should be used for faster startup.
+	// _(Optional)_ Defines the replica workload's type. If not specified, the default value is `StatefulSet`.
 	DeploymentType DeploymentType `json:"deploymentType,omitempty"`
 
 	// The number of replicas. default: `3`
@@ -350,7 +351,7 @@ type TaskManagerSpec struct {
 	// This can be used to mount an external volume with a specific storageClass or larger captivity (for larger/faster state backend).
 	// [More info](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims)
 
-	// If deploymentType: Statefulset is used, these templates will be added to the taskManager statefulset template,
+	// If deploymentType: StatefulSet is used, these templates will be added to the taskManager statefulset template,
 	// hence mounting persistent-pvcs to the indexed statefulset pods.
 	//
 	// If deploymentType: Deployment is used, these templates are appended to the Ephemeral Volumes in the PodSpec,
