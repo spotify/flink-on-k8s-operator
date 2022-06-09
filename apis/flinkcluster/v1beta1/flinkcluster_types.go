@@ -279,6 +279,10 @@ type JobManagerSpec struct {
 	// If omitted, a [default value](https://github.com/spotify/flink-on-k8s-operator/blob/a88ed2b/api/v1beta1/flinkcluster_default.go#L129-L139) will be used.
 	// [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)
 	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
+
+	// _(Optional)_ Adding entries to JobManager pod /etc/hosts with HostAliases
+	// [More info](https://kubernetes.io/docs/tasks/network/customize-hosts-file-for-pods/)
+	HostAliases []corev1.HostAlias `json:"hostAliases,omitempty"`
 }
 
 // TaskManagerPorts defines ports of TaskManager.
@@ -394,6 +398,10 @@ type TaskManagerSpec struct {
 	// If omitted, a [default value](https://github.com/spotify/flink-on-k8s-operator/blob/a88ed2b/api/v1beta1/flinkcluster_default.go#L193-L203) will be used.
 	// [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)
 	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
+
+	// _(Optional)_ Adding entries to TaskManager pod /etc/hosts with HostAliases
+	// [More info](https://kubernetes.io/docs/tasks/network/customize-hosts-file-for-pods/)
+	HostAliases []corev1.HostAlias `json:"hostAliases,omitempty"`
 }
 
 // CleanupAction defines the action to take after job finishes.
@@ -540,6 +548,10 @@ type JobSpec struct {
 	// _(Optional)_ SecurityContext of the Job pod.
 	// [More info](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
 	SecurityContext *corev1.PodSecurityContext `json:"securityContext,omitempty"`
+
+	// _(Optional)_ Adding entries to Job pod /etc/hosts with HostAliases
+	// [More info](https://kubernetes.io/docs/tasks/network/customize-hosts-file-for-pods/)
+	HostAliases []corev1.HostAlias `json:"hostAliases,omitempty"`
 
 	// Job running mode, `"Blocking", "Detached"`, default: `"Detached"`
 	Mode *JobMode `json:"mode,omitempty"`

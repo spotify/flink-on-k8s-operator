@@ -120,6 +120,15 @@ var (
 			Value:             "toleration-value2",
 		},
 	}
+	hostAliases = []corev1.HostAlias{
+		{
+			IP: "127.0.0.1",
+			Hostnames: []string{
+				"test-localhost-alias1",
+				"test-localhost-alias2",
+			},
+		},
+	}
 	userAndGroupId  int64 = 9999
 	securityContext       = corev1.PodSecurityContext{
 		RunAsUser:  &userAndGroupId,
@@ -184,6 +193,7 @@ func getObservedClusterState() *ObservedClusterState {
 						"example.com": "example",
 					},
 					SecurityContext: &securityContext,
+					HostAliases:     hostAliases,
 				},
 				JobManager: &v1beta1.JobManagerSpec{
 					AccessScope: v1beta1.AccessScopeVPC,
@@ -215,6 +225,7 @@ func getObservedClusterState() *ObservedClusterState {
 						},
 					},
 					Tolerations:        tolerations,
+					HostAliases:        hostAliases,
 					MemoryOffHeapRatio: &memoryOffHeapRatio,
 					MemoryOffHeapMin:   memoryOffHeapMin,
 					MemoryProcessRatio: &memoryProcessRatio,
@@ -284,6 +295,7 @@ func getObservedClusterState() *ObservedClusterState {
 						},
 					},
 					Tolerations: tolerations,
+					HostAliases: hostAliases,
 					PodAnnotations: map[string]string{
 						"example.com": "example",
 					},
@@ -442,6 +454,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 					},
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 					Tolerations:                   tolerations,
+					HostAliases:                   hostAliases,
 					SecurityContext: &corev1.PodSecurityContext{
 						RunAsUser:  &userAndGroupId,
 						RunAsGroup: &userAndGroupId,
@@ -787,6 +800,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 					},
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 					Tolerations:                   tolerations,
+					HostAliases:                   hostAliases,
 					SecurityContext: &corev1.PodSecurityContext{
 						RunAsUser:  &userAndGroupId,
 						RunAsGroup: &userAndGroupId,
@@ -974,6 +988,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 						RunAsUser:  &userAndGroupId,
 						RunAsGroup: &userAndGroupId,
 					},
+					HostAliases:        hostAliases,
 					ServiceAccountName: serviceAccount,
 				},
 			},
@@ -1224,6 +1239,7 @@ func TestTmDeploymentTypeDeployment(t *testing.T) {
 					},
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 					Tolerations:                   tolerations,
+					HostAliases:                   hostAliases,
 					SecurityContext: &corev1.PodSecurityContext{
 						RunAsUser:  &userAndGroupId,
 						RunAsGroup: &userAndGroupId,

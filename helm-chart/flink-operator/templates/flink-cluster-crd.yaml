@@ -935,6 +935,17 @@ spec:
                             type: string
                         type: object
                       type: array
+                    hostAliases:
+                      items:
+                        properties:
+                          ip:
+                            type: string
+                          hostnames:
+                            items:
+                              type: string
+                            type: array
+                        type: object
+                      type: array
                     volumeMounts:
                       items:
                         properties:
@@ -3169,6 +3180,17 @@ spec:
                             type: integer
                           value:
                             type: string
+                        type: object
+                      type: array
+                    hostAliases:
+                      items:
+                        properties:
+                          ip:
+                            type: string
+                          hostnames:
+                            items:
+                              type: string
+                            type: array
                         type: object
                       type: array
                     volumeClaimTemplates:
@@ -5544,6 +5566,17 @@ spec:
                             type: integer
                           value:
                             type: string
+                        type: object
+                      type: array
+                    hostAliases:
+                      items:
+                        properties:
+                          ip:
+                            type: string
+                          hostnames:
+                            items:
+                              type: string
+                            type: array
                         type: object
                       type: array
                     volumeClaimTemplates:
