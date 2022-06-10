@@ -243,7 +243,7 @@ func getDeploymentResources(spec *appsv1.DeploymentSpec) *corev1.ResourceRequire
 		addResourceRequirements(reqs, tmResource)
 
 		for _, volume := range spec.Template.Spec.Volumes {
-			if volume.Ephemeral != nil {
+			if volume.Ephemeral != nil && volume.Ephemeral.VolumeClaimTemplate != nil {
 				addResourceRequirements(reqs, &volume.Ephemeral.VolumeClaimTemplate.Spec.Resources)
 			}
 		}
