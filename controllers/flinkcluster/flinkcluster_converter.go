@@ -36,10 +36,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/hashicorp/go-version"
+	semver "github.com/hashicorp/go-version"
 )
 
 // Converter which converts the FlinkCluster spec to the desired
@@ -71,7 +72,7 @@ var (
 		"query.server.port":      {},
 		"rest.port":              {},
 	}
-	v10, _ = version.NewVersion("1.10")
+	v10, _ = semver.NewVersion("1.10")
 )
 
 // Gets the desired state of a cluster.
@@ -82,6 +83,7 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 	if cluster == nil {
 		return state
 	}
+	k8sServerVersion := observed.k8sServerVersion
 
 	jobSpec := cluster.Spec.Job
 	applicationMode := IsApplicationModeCluster(cluster)
@@ -91,7 +93,20 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 	}
 
 	if !shouldCleanup(cluster, "PodDisruptionBudget") {
-		state.PodDisruptionBudget = newPodDisruptionBudget(cluster)
+		// PodDisruptionBuget policy/v1 available after v1.21, replace policy/v1beta1
+		podDisruptionBugetV1StartVersion, err := semver.NewVersion("v1.21")
+		if err != nil {
+			state.PodDisruptionBudget.PodDisruptionBudgetV1 = nil
+			state.PodDisruptionBudget.PodDisruptionBudgetV1beta1 = nil
+		} else {
+			if k8sServerVersion.GreaterThanOrEqual(podDisruptionBugetV1StartVersion) {
+				state.PodDisruptionBudget.PodDisruptionBudgetV1 = newPodDisruptionBudgetV1(cluster)
+				state.PodDisruptionBudget.PodDisruptionBudgetV1beta1 = nil
+			} else {
+				state.PodDisruptionBudget.PodDisruptionBudgetV1beta1 = newPodDisruptionBudgetV1beta1(cluster)
+				state.PodDisruptionBudget.PodDisruptionBudgetV1 = nil
+			}
+		}
 	}
 
 	if !shouldCleanup(cluster, "JobManagerStatefulSet") && !applicationMode {
@@ -595,8 +610,8 @@ func newTaskManagerDeployment(flinkCluster *v1beta1.FlinkCluster) *appsv1.Deploy
 	}
 }
 
-// Gets the desired PodDisruptionBudget.
-func newPodDisruptionBudget(flinkCluster *v1beta1.FlinkCluster) *policyv1.PodDisruptionBudget {
+// Gets the desired policy/v1/PodDisruptionBudget.
+func newPodDisruptionBudgetV1(flinkCluster *v1beta1.FlinkCluster) *policyv1.PodDisruptionBudget {
 	var jobSpec = flinkCluster.Spec.Job
 	if jobSpec == nil {
 		return nil
@@ -616,6 +631,35 @@ func newPodDisruptionBudget(flinkCluster *v1beta1.FlinkCluster) *policyv1.PodDis
 			Labels:          labels,
 		},
 		Spec: policyv1.PodDisruptionBudgetSpec{
+			MaxUnavailable: &maxUnavailablePods,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: labels,
+			},
+		},
+	}
+}
+
+// Gets the desired policy/v1beta1/PodDisruptionBudget.
+func newPodDisruptionBudgetV1beta1(flinkCluster *v1beta1.FlinkCluster) *policyv1beta1.PodDisruptionBudget {
+	var jobSpec = flinkCluster.Spec.Job
+	if jobSpec == nil {
+		return nil
+	}
+	var clusterNamespace = flinkCluster.Namespace
+	var clusterName = flinkCluster.Name
+	var pdbName = getPodDisruptionBudgetName(clusterName)
+	var labels = getClusterLabels(flinkCluster)
+
+	var maxUnavailablePods = intstr.FromString(maxUnavailableDefault)
+
+	return &policyv1beta1.PodDisruptionBudget{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:       clusterNamespace,
+			Name:            pdbName,
+			OwnerReferences: []metav1.OwnerReference{ToOwnerReference(flinkCluster)},
+			Labels:          labels,
+		},
+		Spec: policyv1beta1.PodDisruptionBudgetSpec{
 			MaxUnavailable: &maxUnavailablePods,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
@@ -670,7 +714,7 @@ func newTaskManagerService(flinkCluster *v1beta1.FlinkCluster) *corev1.Service {
 
 // Gets the desired configMap.
 func newConfigMap(flinkCluster *v1beta1.FlinkCluster) *corev1.ConfigMap {
-	appVersion, _ := version.NewVersion(flinkCluster.Spec.FlinkVersion)
+	appVersion, _ := semver.NewVersion(flinkCluster.Spec.FlinkVersion)
 
 	var clusterNamespace = flinkCluster.Namespace
 	var clusterName = flinkCluster.Name

@@ -36,11 +36,13 @@ import (
 	"github.com/spotify/flink-on-k8s-operator/internal/model"
 	"github.com/spotify/flink-on-k8s-operator/internal/util"
 
+	semver "github.com/hashicorp/go-version"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -48,13 +50,14 @@ import (
 // ClusterReconciler takes actions to drive the observed state towards the
 // desired state.
 type ClusterReconciler struct {
-	k8sClient   client.Client
-	flinkClient *flink.Client
-	context     context.Context
-	log         logr.Logger
-	observed    ObservedClusterState
-	desired     model.DesiredClusterState
-	recorder    record.EventRecorder
+	k8sClient        client.Client
+	k8sServerVersion *semver.Version
+	flinkClient      *flink.Client
+	context          context.Context
+	log              logr.Logger
+	observed         ObservedClusterState
+	desired          model.DesiredClusterState
+	recorder         record.EventRecorder
 }
 
 const JobCheckInterval = 10 * time.Second
@@ -604,21 +607,42 @@ func (reconciler *ClusterReconciler) deleteConfigMap(
 }
 
 func (reconciler *ClusterReconciler) reconcilePodDisruptionBudget() error {
-	var desiredPodDisruptionBudget = reconciler.desired.PodDisruptionBudget
-	var observedPodDisruptionBudget = reconciler.observed.podDisruptionBudget
-
-	if desiredPodDisruptionBudget != nil && observedPodDisruptionBudget == nil {
-		return reconciler.createPodDisruptionBudget(desiredPodDisruptionBudget, "PodDisruptionBudget")
+	var desiredPodDisruptionBudgetV1 = reconciler.desired.PodDisruptionBudget.PodDisruptionBudgetV1
+	var desiredPodDisruptionBudgetV1beta1 = reconciler.desired.PodDisruptionBudget.PodDisruptionBudgetV1beta1
+	var observedPodDisruptionBudgetV1 = reconciler.observed.podDisruptionBudget.PodDisruptionBudgetV1
+	var observedPodDisruptionBudgetV1beta1 = reconciler.observed.podDisruptionBudget.PodDisruptionBudgetV1beta1
+	var err error
+	podDisruptionBugetV1StartVersion, err := semver.NewVersion("v1.21")
+	if err != nil {
+		return err
 	}
-
-	if desiredPodDisruptionBudget == nil && observedPodDisruptionBudget != nil {
-		return reconciler.deletePodDisruptionBudget(observedPodDisruptionBudget, "PodDisruptionBudget")
+	if desiredPodDisruptionBudgetV1beta1 != nil && observedPodDisruptionBudgetV1beta1 != nil {
+		reconciler.log.Info("PodDisruptionBudget already exists, no action", "apiVersion", "policy/v1beta1")
 	}
-
+	if desiredPodDisruptionBudgetV1beta1 != nil && observedPodDisruptionBudgetV1beta1 == nil {
+		err = reconciler.createPodDisruptionBudgetV1beta1(desiredPodDisruptionBudgetV1beta1, "PodDisruptionBudget")
+	}
+	if desiredPodDisruptionBudgetV1beta1 == nil && observedPodDisruptionBudgetV1beta1 != nil {
+		err = reconciler.deletePodDisruptionBudgetV1beta1(observedPodDisruptionBudgetV1beta1, "PodDisruptionBudget")
+	}
+	if err != nil {
+		return err
+	}
+	if reconciler.k8sServerVersion.GreaterThanOrEqual(podDisruptionBugetV1StartVersion) {
+		if desiredPodDisruptionBudgetV1 != nil && observedPodDisruptionBudgetV1 != nil {
+			reconciler.log.Info("PodDisruptionBudget already exists, no action", "apiVersion", "policy/v1")
+		}
+		if desiredPodDisruptionBudgetV1 != nil && observedPodDisruptionBudgetV1 == nil {
+			return reconciler.createPodDisruptionBudgetV1(desiredPodDisruptionBudgetV1, "PodDisruptionBudget")
+		}
+		if desiredPodDisruptionBudgetV1 == nil && observedPodDisruptionBudgetV1 != nil {
+			return reconciler.deletePodDisruptionBudgetV1(observedPodDisruptionBudgetV1, "PodDisruptionBudget")
+		}
+	}
 	return nil
 }
 
-func (reconciler *ClusterReconciler) createPodDisruptionBudget(
+func (reconciler *ClusterReconciler) createPodDisruptionBudgetV1(
 	pdb *policyv1.PodDisruptionBudget, component string) error {
 	var context = reconciler.context
 	var log = reconciler.log.WithValues("component", component)
@@ -634,13 +658,46 @@ func (reconciler *ClusterReconciler) createPodDisruptionBudget(
 	return err
 }
 
-func (reconciler *ClusterReconciler) deletePodDisruptionBudget(
+func (reconciler *ClusterReconciler) createPodDisruptionBudgetV1beta1(
+	pdb *policyv1beta1.PodDisruptionBudget, component string) error {
+	var context = reconciler.context
+	var log = reconciler.log.WithValues("component", component)
+	var k8sClient = reconciler.k8sClient
+
+	log.Info("Creating PodDisruptionBudget", "PodDisruptionBudget", *pdb)
+	var err = k8sClient.Create(context, pdb)
+	if err != nil {
+		log.Info("Failed to create PodDisruptionBudget", "error", err)
+	} else {
+		log.Info("PodDisruptionBudget created")
+	}
+	return err
+}
+
+func (reconciler *ClusterReconciler) deletePodDisruptionBudgetV1(
 	pdb *policyv1.PodDisruptionBudget, component string) error {
 	var context = reconciler.context
 	var log = reconciler.log.WithValues("component", component)
 	var k8sClient = reconciler.k8sClient
 
-	log.Info("Deleting PodDisruptionBudget", "PodDisruptionBudget", pdb)
+	log.Info("Deleting PodDisruptionBudget", "PodDisruptionBudget", pdb, "apiVersion", "policy/v1")
+	var err = k8sClient.Delete(context, pdb)
+	err = client.IgnoreNotFound(err)
+	if err != nil {
+		log.Error(err, "Failed to delete PodDisruptionBudget")
+	} else {
+		log.Info("PodDisruptionBudget deleted")
+	}
+	return err
+}
+
+func (reconciler *ClusterReconciler) deletePodDisruptionBudgetV1beta1(
+	pdb *policyv1beta1.PodDisruptionBudget, component string) error {
+	var context = reconciler.context
+	var log = reconciler.log.WithValues("component", component)
+	var k8sClient = reconciler.k8sClient
+
+	log.Info("Deleting PodDisruptionBudget", "PodDisruptionBudget", pdb, "apiVersion", "policy/v1beta1")
 	var err = k8sClient.Delete(context, pdb)
 	err = client.IgnoreNotFound(err)
 	if err != nil {

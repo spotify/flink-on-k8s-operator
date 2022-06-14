@@ -19,6 +19,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 )
 
 // DesiredClusterState holds desired state of a cluster.
@@ -31,5 +32,10 @@ type DesiredClusterState struct {
 	TmService           *corev1.Service
 	ConfigMap           *corev1.ConfigMap
 	Job                 *batchv1.Job
-	PodDisruptionBudget *policyv1.PodDisruptionBudget
+	PodDisruptionBudget ClusterPodDisruptionBudget
+}
+
+type ClusterPodDisruptionBudget struct {
+	PodDisruptionBudgetV1      *policyv1.PodDisruptionBudget
+	PodDisruptionBudgetV1beta1 *policyv1beta1.PodDisruptionBudget
 }

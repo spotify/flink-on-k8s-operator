@@ -23,16 +23,19 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	semver "github.com/hashicorp/go-version"
 
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
 	"github.com/spotify/flink-on-k8s-operator/internal/controllers/history"
 	flink "github.com/spotify/flink-on-k8s-operator/internal/flink"
+	"github.com/spotify/flink-on-k8s-operator/internal/model"
 	"github.com/spotify/flink-on-k8s-operator/internal/util"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -42,19 +45,21 @@ import (
 
 // ClusterStateObserver gets the observed state of the cluster.
 type ClusterStateObserver struct {
-	k8sClient    client.Client
-	k8sClientset *kubernetes.Clientset
-	flinkClient  *flink.Client
-	request      ctrl.Request
-	context      context.Context
-	log          logr.Logger
-	history      history.Interface
+	k8sClient        client.Client
+	k8sClientset     *kubernetes.Clientset
+	k8sServerVersion *semver.Version
+	flinkClient      *flink.Client
+	request          ctrl.Request
+	context          context.Context
+	log              logr.Logger
+	history          history.Interface
 }
 
 // ObservedClusterState holds observed state of a cluster.
 type ObservedClusterState struct {
 	cluster                *v1beta1.FlinkCluster
 	revisions              []*appsv1.ControllerRevision
+	k8sServerVersion       *semver.Version
 	configMap              *corev1.ConfigMap
 	jmStatefulSet          *appsv1.StatefulSet
 	jmService              *corev1.Service
@@ -62,7 +67,7 @@ type ObservedClusterState struct {
 	tmStatefulSet          *appsv1.StatefulSet
 	tmDeployment           *appsv1.Deployment
 	tmService              *corev1.Service
-	podDisruptionBudget    *policyv1.PodDisruptionBudget
+	podDisruptionBudget    model.ClusterPodDisruptionBudget
 	persistentVolumeClaims *corev1.PersistentVolumeClaimList
 	flinkJob               FlinkJob
 	flinkJobSubmitter      FlinkJobSubmitter
@@ -131,6 +136,7 @@ func (observer *ClusterStateObserver) observe(
 	observed *ObservedClusterState) error {
 	var err error
 	var log = observer.log
+	observed.k8sServerVersion = observer.k8sServerVersion
 
 	// Cluster state.
 	var observedCluster = new(v1beta1.FlinkCluster)
@@ -181,18 +187,54 @@ func (observer *ClusterStateObserver) observe(
 	}
 
 	// PodDisruptionBudget.
-	var observedPodDisruptionBudget = new(policyv1.PodDisruptionBudget)
-	err = observer.observePodDisruptionBudget(observedPodDisruptionBudget)
+	// PodDisruptionBuget is stable after v1.21
+	var podDisruptionBugetV1StartVersion *semver.Version
+	var podDisruptionBugetV1beta1EndVersion *semver.Version
+	podDisruptionBugetV1Available := false
+	podDisruptionBugetV1StartVersion, err = semver.NewVersion("v1.21")
 	if err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			log.Error(err, "Failed to get PodDisruptionBudget")
-			return err
+		log.Error(err, "Failed to create new version v1.21")
+		return err
+	}
+	if observed.k8sServerVersion.GreaterThanOrEqual(podDisruptionBugetV1StartVersion) {
+		podDisruptionBugetV1Available = true
+		var observedPodDisruptionBudgetV1 = &policyv1.PodDisruptionBudget{}
+		err = observer.observePodDisruptionBudgetV1(observedPodDisruptionBudgetV1)
+		if err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				log.Error(err, "Failed to get PodDisruptionBudget")
+				return err
+			}
+			log.Info("Observed PodDisruptionBudget", "apiVersion", "policy/v1", "state", "nil")
+			observed.podDisruptionBudget.PodDisruptionBudgetV1 = nil
+		} else {
+			log.Info("Observed PodDisruptionBudget", "apiVersion", "policy/v1", "state", *observedPodDisruptionBudgetV1)
+			observed.podDisruptionBudget.PodDisruptionBudgetV1 = observedPodDisruptionBudgetV1
 		}
-		log.Info("Observed PodDisruptionBudget", "state", "nil")
-		observedPodDisruptionBudget = nil
-	} else {
-		log.Info("Observed PodDisruptionBudget", "state", *observedPodDisruptionBudget)
-		observed.podDisruptionBudget = observedPodDisruptionBudget
+	}
+	// PodDisruptionBuget is not available after v1.25
+	podDisruptionBugetV1beta1EndVersion, err = semver.NewVersion("v1.25")
+	if err != nil {
+		log.Error(err, "Failed to create new version v1.25")
+		return err
+	}
+	if observed.k8sServerVersion.LessThan(podDisruptionBugetV1beta1EndVersion) {
+		var observedPodDisruptionBudgetV1beta1 = &policyv1beta1.PodDisruptionBudget{}
+		err = observer.observePodDisruptionBudgetV1beta1(observedPodDisruptionBudgetV1beta1)
+		if err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				log.Error(err, "Failed to get PodDisruptionBudget")
+				return err
+			}
+			// Disable deprecated logs.
+			if !podDisruptionBugetV1Available {
+				log.Info("Observed PodDisruptionBudget", "apiVersion", "policy/v1beta1", "state", "nil")
+			}
+			observed.podDisruptionBudget.PodDisruptionBudgetV1beta1 = nil
+		} else {
+			log.Info("Observed PodDisruptionBudget", "apiVersion", "policy/v1beta1", "state", *observedPodDisruptionBudgetV1beta1)
+			observed.podDisruptionBudget.PodDisruptionBudgetV1beta1 = observedPodDisruptionBudgetV1beta1
+		}
 	}
 
 	// JobManager StatefulSet.
@@ -481,8 +523,22 @@ func (observer *ClusterStateObserver) observeRevisions(
 	return err
 }
 
-func (observer *ClusterStateObserver) observePodDisruptionBudget(
+func (observer *ClusterStateObserver) observePodDisruptionBudgetV1(
 	observedPodDisruptionBudget *policyv1.PodDisruptionBudget) error {
+	var clusterNamespace = observer.request.Namespace
+	var clusterName = observer.request.Name
+
+	return observer.k8sClient.Get(
+		observer.context,
+		types.NamespacedName{
+			Namespace: clusterNamespace,
+			Name:      getPodDisruptionBudgetName(clusterName),
+		},
+		observedPodDisruptionBudget)
+}
+
+func (observer *ClusterStateObserver) observePodDisruptionBudgetV1beta1(
+	observedPodDisruptionBudget *policyv1beta1.PodDisruptionBudget) error {
 	var clusterNamespace = observer.request.Namespace
 	var clusterName = observer.request.Name
 

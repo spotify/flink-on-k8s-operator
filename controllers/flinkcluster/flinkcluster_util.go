@@ -388,7 +388,8 @@ func areComponentsUpdated(components []runtime.Object, cluster *v1beta1.FlinkClu
 func isUpdatedAll(observed ObservedClusterState) bool {
 	components := []runtime.Object{
 		observed.configMap,
-		observed.podDisruptionBudget,
+		observed.podDisruptionBudget.PodDisruptionBudgetV1,
+		observed.podDisruptionBudget.PodDisruptionBudgetV1beta1,
 		observed.tmStatefulSet,
 		observed.tmService,
 		observed.jmStatefulSet,
@@ -406,7 +407,8 @@ func isClusterUpdateToDate(observed *ObservedClusterState) bool {
 	}
 	components := []runtime.Object{
 		observed.configMap,
-		observed.podDisruptionBudget,
+		observed.podDisruptionBudget.PodDisruptionBudgetV1,
+		observed.podDisruptionBudget.PodDisruptionBudgetV1beta1,
 		observed.tmStatefulSet,
 		observed.tmService,
 		observed.jmStatefulSet,
