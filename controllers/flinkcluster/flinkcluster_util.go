@@ -36,6 +36,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -350,6 +351,10 @@ func isComponentUpdated(component runtime.Object, cluster *v1beta1.FlinkCluster)
 			return false
 		}
 	case *policyv1.PodDisruptionBudget:
+		if o == nil {
+			return false
+		}
+	case *policyv1beta1.PodDisruptionBudget:
 		if o == nil {
 			return false
 		}
