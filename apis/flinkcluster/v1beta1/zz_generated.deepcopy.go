@@ -574,13 +574,6 @@ func (in *JobManagerSpec) DeepCopyInto(out *JobManagerSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.HostAliases != nil {
-		in, out := &in.HostAliases, &out.HostAliases
-		*out = make([]v1.HostAlias, len(*in))
-		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
-		}
-	}
 	if in.Sidecars != nil {
 		in, out := &in.Sidecars, &out.Sidecars
 		*out = make([]v1.Container, len(*in))
@@ -616,6 +609,13 @@ func (in *JobManagerSpec) DeepCopyInto(out *JobManagerSpec) {
 		in, out := &in.ReadinessProbe, &out.ReadinessProbe
 		*out = new(v1.Probe)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.HostAliases != nil {
+		in, out := &in.HostAliases, &out.HostAliases
+		*out = make([]v1.HostAlias, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
 	}
 }
 
@@ -742,13 +742,6 @@ func (in *JobSpec) DeepCopyInto(out *JobSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.HostAliases != nil {
-		in, out := &in.HostAliases, &out.HostAliases
-		*out = make([]v1.HostAlias, len(*in))
-		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
-		}
-	}
 	if in.RestartPolicy != nil {
 		in, out := &in.RestartPolicy, &out.RestartPolicy
 		*out = new(JobRestartPolicy)
@@ -783,6 +776,13 @@ func (in *JobSpec) DeepCopyInto(out *JobSpec) {
 		in, out := &in.SecurityContext, &out.SecurityContext
 		*out = new(v1.PodSecurityContext)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.HostAliases != nil {
+		in, out := &in.HostAliases, &out.HostAliases
+		*out = make([]v1.HostAlias, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
 	}
 	if in.Mode != nil {
 		in, out := &in.Mode, &out.Mode
@@ -973,13 +973,6 @@ func (in *TaskManagerSpec) DeepCopyInto(out *TaskManagerSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.HostAliases != nil {
-		in, out := &in.HostAliases, &out.HostAliases
-		*out = make([]v1.HostAlias, len(*in))
-		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
-		}
-	}
 	if in.Sidecars != nil {
 		in, out := &in.Sidecars, &out.Sidecars
 		*out = make([]v1.Container, len(*in))
@@ -1015,6 +1008,13 @@ func (in *TaskManagerSpec) DeepCopyInto(out *TaskManagerSpec) {
 		in, out := &in.ReadinessProbe, &out.ReadinessProbe
 		*out = new(v1.Probe)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.HostAliases != nil {
+		in, out := &in.HostAliases, &out.HostAliases
+		*out = make([]v1.HostAlias, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
 	}
 }
 

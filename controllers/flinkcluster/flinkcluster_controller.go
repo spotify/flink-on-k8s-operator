@@ -27,9 +27,12 @@ import (
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
 	"github.com/spotify/flink-on-k8s-operator/internal/model"
 
+	semver "github.com/hashicorp/go-version"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -42,10 +45,11 @@ var controllerKind = v1beta1.GroupVersion.WithKind("FlinkCluster")
 
 // FlinkClusterReconciler reconciles a FlinkCluster object
 type FlinkClusterReconciler struct {
-	Client    client.Client
-	Clientset *kubernetes.Clientset
-	Log       logr.Logger
-	Mgr       ctrl.Manager
+	Client          client.Client
+	Clientset       *kubernetes.Clientset
+	DiscoveryClient *discovery.DiscoveryClient
+	Log             logr.Logger
+	Mgr             ctrl.Manager
 }
 
 // +kubebuilder:rbac:groups=flinkoperator.k8s.io,resources=flinkclusters,verbs=get;list;watch;create;update;patch;delete
@@ -73,14 +77,15 @@ func (reconciler *FlinkClusterReconciler) Reconcile(ctx context.Context,
 	var log = reconciler.Log.WithValues(
 		"cluster", request.NamespacedName)
 	var handler = FlinkClusterHandler{
-		k8sClient:    reconciler.Client,
-		k8sClientset: reconciler.Clientset,
-		flinkClient:  flink.NewDefaultClient(log),
-		request:      request,
-		context:      context.Background(),
-		log:          log,
-		recorder:     reconciler.Mgr.GetEventRecorderFor("FlinkOperator"),
-		observed:     ObservedClusterState{},
+		k8sClient:          reconciler.Client,
+		k8sClientset:       reconciler.Clientset,
+		k8sDiscoveryClient: reconciler.DiscoveryClient,
+		flinkClient:        flink.NewDefaultClient(log),
+		request:            request,
+		context:            context.Background(),
+		log:                log,
+		recorder:           reconciler.Mgr.GetEventRecorderFor("FlinkOperator"),
+		observed:           ObservedClusterState{},
 	}
 	return handler.reconcile(ctx, request)
 }
@@ -104,20 +109,22 @@ func (reconciler *FlinkClusterReconciler) SetupWithManager(
 // FlinkClusterHandler holds the context and state for a
 // reconcile request.
 type FlinkClusterHandler struct {
-	k8sClient    client.Client
-	k8sClientset *kubernetes.Clientset
-	flinkClient  *flink.Client
-	request      ctrl.Request
-	context      context.Context
-	log          logr.Logger
-	recorder     record.EventRecorder
-	observed     ObservedClusterState
-	desired      model.DesiredClusterState
+	k8sClient          client.Client
+	k8sClientset       *kubernetes.Clientset
+	k8sDiscoveryClient *discovery.DiscoveryClient
+	flinkClient        *flink.Client
+	request            ctrl.Request
+	context            context.Context
+	log                logr.Logger
+	recorder           record.EventRecorder
+	observed           ObservedClusterState
+	desired            model.DesiredClusterState
 }
 
 func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 	request ctrl.Request) (ctrl.Result, error) {
 	var k8sClient = handler.k8sClient
+	var k8sDiscoveryClient = handler.k8sDiscoveryClient
 	var flinkClient = handler.flinkClient
 	var log = handler.log
 	var context = handler.context
@@ -125,21 +132,35 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 	var desired = &handler.desired
 	var statusChanged bool
 	var err error
+	var k8sServerVersionInfo *version.Info
+	var k8sServerVersion *semver.Version
 
 	// History interface
 	var history = history.NewHistory(k8sClient, context)
+	k8sServerVersionInfo, err = k8sDiscoveryClient.ServerVersion()
+	if err != nil {
+		log.Error(err, "Failed to observe k8s server version")
+		return ctrl.Result{}, err
+	}
+	k8sServerVersion, err = semver.NewVersion(k8sServerVersionInfo.String())
+	if err != nil {
+		log.Error(err, "Bad kubernetes server version.")
+		return ctrl.Result{}, err
+	}
 
 	log.Info("============================================================")
+	log.Info("Kubernetes server discovery:", "Server Version", k8sServerVersion.String())
 	log.Info("---------- 1. Observe the current state ----------")
 
 	var observer = ClusterStateObserver{
-		k8sClient:    k8sClient,
-		k8sClientset: handler.k8sClientset,
-		flinkClient:  flinkClient,
-		request:      request,
-		context:      context,
-		log:          log,
-		history:      history,
+		k8sClient:        k8sClient,
+		k8sClientset:     handler.k8sClientset,
+		k8sServerVersion: k8sServerVersion,
+		flinkClient:      flinkClient,
+		request:          request,
+		context:          context,
+		log:              log,
+		history:          history,
 	}
 	err = observer.observe(observed)
 	if err != nil {
@@ -187,7 +208,7 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 		log.Info("Desired state", "ConfigMap", "nil")
 	}
 	if desired.PodDisruptionBudget != nil {
-		log.Info("Desired state", "PodDisruptionBudget", *desired.PodDisruptionBudget)
+		log.Info("Desired state", "PodDisruptionBudget", &desired.PodDisruptionBudget)
 	} else {
 		log.Info("Desired state", "PodDisruptionBudget", "nil")
 	}
@@ -228,13 +249,14 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 	log.Info("---------- 4. Take actions ----------")
 
 	var reconciler = ClusterReconciler{
-		k8sClient:   k8sClient,
-		flinkClient: flinkClient,
-		context:     context,
-		log:         log,
-		observed:    handler.observed,
-		desired:     handler.desired,
-		recorder:    handler.recorder,
+		k8sClient:        k8sClient,
+		k8sServerVersion: k8sServerVersion,
+		flinkClient:      flinkClient,
+		context:          context,
+		log:              log,
+		observed:         handler.observed,
+		desired:          handler.desired,
+		recorder:         handler.recorder,
 	}
 	result, err := reconciler.reconcile()
 	if err != nil {
