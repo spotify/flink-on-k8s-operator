@@ -136,7 +136,7 @@ var (
 		RunAsUser:  &userAndGroupId,
 		RunAsGroup: &userAndGroupId,
 	}
-	k8sServerVersion, versionErr = semver.NewVersion("v1.21.1")
+	k8sServerVersion, _ = semver.NewVersion("v1.21.1")
 )
 
 func getObservedClusterState() *ObservedClusterState {

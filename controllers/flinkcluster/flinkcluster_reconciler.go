@@ -643,11 +643,8 @@ func (reconciler *ClusterReconciler) reconcilePodDisruptionBudget() error {
 	if desiredPodDisruptionBudget == nil && observedPodDisruptionBudget != nil {
 		err = reconciler.deletePodDisruptionBudget(observedPodDisruptionBudget, "PodDisruptionBudget")
 	}
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
 }
 
 func (reconciler *ClusterReconciler) createPodDisruptionBudget(
