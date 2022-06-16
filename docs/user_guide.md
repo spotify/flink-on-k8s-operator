@@ -14,7 +14,7 @@ a Kubernetes cluster and running a sample Flink job.
 - Install cert-manager
 
   ```bash
-  kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.1/cert-manager.yaml
+  kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.8.1/cert-manager.yaml
   ```
 
 - (Optional) Clone the Flink Operator repo to your local machine:
