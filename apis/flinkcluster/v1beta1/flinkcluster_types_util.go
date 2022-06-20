@@ -22,7 +22,8 @@ func (j *JobStatus) IsFailed() bool {
 	return j != nil &&
 		(j.State == JobStateFailed ||
 			j.State == JobStateLost ||
-			j.State == JobStateDeployFailed)
+			j.State == JobStateDeployFailed ||
+			j.State == JobStateSubmitterFailed)
 }
 
 func (j *JobStatus) IsStopped() bool {

@@ -1065,7 +1065,7 @@ func shouldCleanup(cluster *v1beta1.FlinkCluster, component string) bool {
 	switch jobStatus.State {
 	case v1beta1.JobStateSucceeded:
 		action = cluster.Spec.Job.CleanupPolicy.AfterJobSucceeds
-	case v1beta1.JobStateFailed, v1beta1.JobStateLost, v1beta1.JobStateDeployFailed:
+	case v1beta1.JobStateFailed, v1beta1.JobStateLost, v1beta1.JobStateDeployFailed, v1beta1.JobStateSubmitterFailed:
 		action = cluster.Spec.Job.CleanupPolicy.AfterJobFails
 	case v1beta1.JobStateCancelled:
 		action = cluster.Spec.Job.CleanupPolicy.AfterJobCancelled

@@ -568,13 +568,19 @@ func (updater *ClusterStatusUpdater) getFlinkJobID() *string {
 
 	return nil
 }
-func (updaterr *ClusterStatusUpdater) deriveJobSubmitterExitCode(pod *corev1.Pod) int32 {
+func (updater *ClusterStatusUpdater) deriveJobSubmitterExitCodeAndReason(pod *corev1.Pod) (int32, string) {
 	for _, containerStatus := range pod.Status.ContainerStatuses {
 		if containerStatus.Name == jobSubmitterPodMainContainerName && containerStatus.State.Terminated != nil {
-			return containerStatus.State.Terminated.ExitCode
+			exitCode := containerStatus.State.Terminated.ExitCode
+			reason := containerStatus.State.Terminated.Reason
+			return exitCode, fmt.Sprintf("[Exit code: %d] Reason: %s", exitCode, reason)
 		}
 	}
-	return -1
+	return -1, ""
+}
+
+func isNonZeroExitCode(exitCode int32) bool {
+	return exitCode != 0 && exitCode != -1
 }
 
 func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
@@ -602,13 +608,19 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 
 	if observedSubmitter.job != nil {
 		newJob.SubmitterName = observedSubmitter.job.Name
-		newJob.SubmitterExitCode = updater.deriveJobSubmitterExitCode(observed.flinkJobSubmitter.pod)
+		exitCode, reason := updater.deriveJobSubmitterExitCodeAndReason(observed.flinkJobSubmitter.pod)
+		newJob.SubmitterExitCode = exitCode
+		if oldJob.SubmitterExitCode != exitCode && isNonZeroExitCode(exitCode) {
+			newJob.FailureReasons = append(newJob.FailureReasons, reason)
+		}
 	}
 
 	var newJobState string
 	switch {
 	case oldJob == nil:
 		newJobState = v1beta1.JobStatePending
+	case oldJob.SubmitterExitCode != newJob.SubmitterExitCode && isNonZeroExitCode(newJob.SubmitterExitCode):
+		newJobState = v1beta1.JobStateSubmitterFailed
 	case shouldUpdateJob(&observed):
 		newJobState = v1beta1.JobStateUpdating
 	case oldJob.ShouldRestart(jobSpec):
