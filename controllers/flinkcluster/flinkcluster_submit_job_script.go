@@ -153,7 +153,7 @@ function submit_job() {
     # check the job's exit code
     if [ $job_exit_code -ne 0 ]; then
         write_term_log_msg "Job failed with a non-zero exit code: ${job_exit_code}" "submit_log"
-        return 1
+        return $job_exit_code
     fi        
 
     # On success, write log
@@ -168,9 +168,7 @@ function main() {
     fi
 
     echo -e "\n---------- Submitting job ----------"
-    if ! submit_job "$@"; then
-        exit 2
-    fi
+    submit_job "$@"
 }
 
 main "$@"

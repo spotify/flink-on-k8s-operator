@@ -203,6 +203,17 @@ spec:
                       type: object
                     fromSavepoint:
                       type: string
+                    hostAliases:
+                      items:
+                        properties:
+                          hostnames:
+                            items:
+                              type: string
+                            type: array
+                          ip:
+                            type: string
+                        type: object
+                      type: array
                     initContainers:
                       items:
                         properties:
@@ -897,17 +908,6 @@ spec:
                             type: integer
                           value:
                             type: string
-                        type: object
-                      type: array
-                    hostAliases:
-                      items:
-                        properties:
-                          ip:
-                            type: string
-                          hostnames:
-                            items:
-                              type: string
-                            type: array
                         type: object
                       type: array
                     volumeMounts:
@@ -1660,6 +1660,17 @@ spec:
                             type: string
                         required:
                           - containerPort
+                        type: object
+                      type: array
+                    hostAliases:
+                      items:
+                        properties:
+                          hostnames:
+                            items:
+                              type: string
+                            type: array
+                          ip:
+                            type: string
                         type: object
                       type: array
                     ingress:
@@ -3066,17 +3077,6 @@ spec:
                             type: string
                         type: object
                       type: array
-                    hostAliases:
-                      items:
-                        properties:
-                          ip:
-                            type: string
-                          hostnames:
-                            items:
-                              type: string
-                            type: array
-                        type: object
-                      type: array
                     volumeClaimTemplates:
                       items:
                         properties:
@@ -3974,6 +3974,17 @@ spec:
                             type: string
                         required:
                           - containerPort
+                        type: object
+                      type: array
+                    hostAliases:
+                      items:
+                        properties:
+                          hostnames:
+                            items:
+                              type: string
+                            type: array
+                          ip:
+                            type: string
                         type: object
                       type: array
                     initContainers:
@@ -5364,17 +5375,6 @@ spec:
                             type: string
                         type: object
                       type: array
-                    hostAliases:
-                      items:
-                        properties:
-                          ip:
-                            type: string
-                          hostnames:
-                            items:
-                              type: string
-                            type: array
-                        type: object
-                      type: array
                     volumeClaimTemplates:
                       items:
                         properties:
@@ -6290,6 +6290,9 @@ spec:
                           type: string
                         state:
                           type: string
+                        submitterExitCode:
+                          format: int32
+                          type: integer
                         submitterName:
                           type: string
                       required:

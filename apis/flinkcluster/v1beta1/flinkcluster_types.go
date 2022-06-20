@@ -734,6 +734,9 @@ type JobStatus struct {
 	// The name of the Kubernetes job resource.
 	SubmitterName string `json:"submitterName,omitempty"`
 
+	// Exit code of the JubSubmitter job resource.
+	SubmitterExitCode int32 `json:"submitterExitCode,omitempty"`
+
 	// The state of the Flink job deployment.
 	State string `json:"state"`
 

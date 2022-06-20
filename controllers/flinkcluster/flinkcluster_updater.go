@@ -38,6 +38,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	jobSubmitterPodMainContainerName = "main"
+)
+
 // ClusterStatusUpdater updates the status of the FlinkCluster CR.
 type ClusterStatusUpdater struct {
 	k8sClient client.Client
@@ -564,6 +568,14 @@ func (updater *ClusterStatusUpdater) getFlinkJobID() *string {
 
 	return nil
 }
+func (updaterr *ClusterStatusUpdater) deriveJobSubmitterExitCode(pod *corev1.Pod) int32 {
+	for _, containerStatus := range pod.Status.ContainerStatuses {
+		if containerStatus.Name == jobSubmitterPodMainContainerName && containerStatus.State.Terminated != nil {
+			return containerStatus.State.Terminated.ExitCode
+		}
+	}
+	return -1
+}
 
 func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 	var observed = updater.observed
@@ -590,6 +602,7 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 
 	if observedSubmitter.job != nil {
 		newJob.SubmitterName = observedSubmitter.job.Name
+		newJob.SubmitterExitCode = updater.deriveJobSubmitterExitCode(observed.flinkJobSubmitter.pod)
 	}
 
 	var newJobState string
