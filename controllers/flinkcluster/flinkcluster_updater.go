@@ -38,6 +38,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	jobSubmitterPodMainContainerName = "main"
+)
+
 // ClusterStatusUpdater updates the status of the FlinkCluster CR.
 type ClusterStatusUpdater struct {
 	k8sClient client.Client
@@ -564,6 +568,21 @@ func (updater *ClusterStatusUpdater) getFlinkJobID() *string {
 
 	return nil
 }
+func (updater *ClusterStatusUpdater) deriveJobSubmitterExitCodeAndReason(pod *corev1.Pod) (int32, string) {
+	for _, containerStatus := range pod.Status.ContainerStatuses {
+		if containerStatus.Name == jobSubmitterPodMainContainerName && containerStatus.State.Terminated != nil {
+			exitCode := containerStatus.State.Terminated.ExitCode
+			reason := containerStatus.State.Terminated.Reason
+			message := containerStatus.State.Terminated.Message
+			return exitCode, fmt.Sprintf("[Exit code: %d] Reason: %s, Message: %s", exitCode, reason, message)
+		}
+	}
+	return -1, ""
+}
+
+func isNonZeroExitCode(exitCode int32) bool {
+	return exitCode != 0 && exitCode != -1
+}
 
 func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 	var observed = updater.observed
@@ -590,12 +609,19 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 
 	if observedSubmitter.job != nil {
 		newJob.SubmitterName = observedSubmitter.job.Name
+		exitCode, reason := updater.deriveJobSubmitterExitCodeAndReason(observed.flinkJobSubmitter.pod)
+		newJob.SubmitterExitCode = exitCode
+		if oldJob.SubmitterExitCode != exitCode && isNonZeroExitCode(exitCode) {
+			newJob.FailureReasons = append(newJob.FailureReasons, reason)
+		}
 	}
 
 	var newJobState string
 	switch {
 	case oldJob == nil:
 		newJobState = v1beta1.JobStatePending
+	case oldJob.SubmitterExitCode != newJob.SubmitterExitCode && isNonZeroExitCode(newJob.SubmitterExitCode):
+		newJobState = v1beta1.JobStateSubmitterFailed
 	case shouldUpdateJob(&observed):
 		newJobState = v1beta1.JobStateUpdating
 	case oldJob.ShouldRestart(jobSpec):

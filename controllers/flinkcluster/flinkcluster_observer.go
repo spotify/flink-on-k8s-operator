@@ -440,6 +440,7 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(observed *ObservedCl
 			flinkJob.exceptions = flinkJobExceptions
 		}
 	}
+
 }
 
 func (observer *ClusterStateObserver) observeSavepoint(cluster *v1beta1.FlinkCluster, savepoint *Savepoint) error {

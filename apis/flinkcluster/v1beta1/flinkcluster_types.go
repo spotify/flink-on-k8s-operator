@@ -52,17 +52,18 @@ type JobMode string
 
 // JobState defines states for a Flink job deployment.
 const (
-	JobStatePending      = "Pending"
-	JobStateUpdating     = "Updating"
-	JobStateRestarting   = "Restarting"
-	JobStateDeploying    = "Deploying"
-	JobStateDeployFailed = "DeployFailed"
-	JobStateRunning      = "Running"
-	JobStateSucceeded    = "Succeeded"
-	JobStateCancelled    = "Cancelled"
-	JobStateFailed       = "Failed"
-	JobStateLost         = "Lost"
-	JobStateUnknown      = "Unknown"
+	JobStatePending         = "Pending"
+	JobStateUpdating        = "Updating"
+	JobStateRestarting      = "Restarting"
+	JobStateDeploying       = "Deploying"
+	JobStateDeployFailed    = "DeployFailed"
+	JobStateSubmitterFailed = "SubmitterFailed"
+	JobStateRunning         = "Running"
+	JobStateSucceeded       = "Succeeded"
+	JobStateCancelled       = "Cancelled"
+	JobStateFailed          = "Failed"
+	JobStateLost            = "Lost"
+	JobStateUnknown         = "Unknown"
 )
 
 // AccessScope defines the access scope of JobManager service.
@@ -733,6 +734,9 @@ type JobStatus struct {
 
 	// The name of the Kubernetes job resource.
 	SubmitterName string `json:"submitterName,omitempty"`
+
+	// Exit code of the JubSubmitter job resource.
+	SubmitterExitCode int32 `json:"submitterExitCode,omitempty"`
 
 	// The state of the Flink job deployment.
 	State string `json:"state"`

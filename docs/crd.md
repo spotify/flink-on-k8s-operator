@@ -367,6 +367,7 @@ _Appears in:_
 | `id` _string_ | The ID of the Flink job. |
 | `name` _string_ | The Name of the Flink job. |
 | `submitterName` _string_ | The name of the Kubernetes job resource. |
+| `submitterExitCode` _integer_ | Exit code of the main container in JobSubmitter pod. (-1 means the main container is still running) |
 | `state` _string_ | The state of the Flink job deployment. |
 | `fromSavepoint` _string_ | The actual savepoint from which this job started. In case of restart, it might be different from the savepoint in the job spec. |
 | `savepointGeneration` _integer_ | The generation of the savepoint in `savepointsDir` taken by the operator. The value starts from 0 when there is no savepoint and increases by 1 for each successful savepoint. |
