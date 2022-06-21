@@ -573,7 +573,8 @@ func (updater *ClusterStatusUpdater) deriveJobSubmitterExitCodeAndReason(pod *co
 		if containerStatus.Name == jobSubmitterPodMainContainerName && containerStatus.State.Terminated != nil {
 			exitCode := containerStatus.State.Terminated.ExitCode
 			reason := containerStatus.State.Terminated.Reason
-			return exitCode, fmt.Sprintf("[Exit code: %d] Reason: %s", exitCode, reason)
+			message := containerStatus.State.Terminated.Message
+			return exitCode, fmt.Sprintf("[Exit code: %d] Reason: %s, Message: %s", exitCode, reason, message)
 		}
 	}
 	return -1, ""

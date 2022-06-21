@@ -168,7 +168,11 @@ function main() {
     fi
 
     echo -e "\n---------- Submitting job ----------"
+    set +e
     submit_job "$@"
+    submit_job_result=$?
+    set -e
+    exit $submit_job_result
 }
 
 main "$@"
