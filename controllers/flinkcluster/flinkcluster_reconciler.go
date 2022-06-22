@@ -764,7 +764,6 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 				if err != nil {
 					return requeueResult, err
 				}
-				log.Info("Job update triggered, suspend old job", "Savepoint", *newSavepointStatus)
 				if observedSubmitter != nil {
 					err = reconciler.deleteJob(observedSubmitter)
 				}
