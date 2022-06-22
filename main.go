@@ -26,6 +26,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -84,10 +85,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	dc, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig())
+	if err != nil {
+		setupLog.Error(err, "Unable to create discoveryclient")
+		os.Exit(1)
+	}
+
 	err = (&flinkcluster.FlinkClusterReconciler{
-		Client:    mgr.GetClient(),
-		Clientset: cs,
-		Log:       ctrl.Log.WithName("controllers").WithName("FlinkCluster"),
+		Client:          mgr.GetClient(),
+		Clientset:       cs,
+		DiscoveryClient: dc,
+		Log:             ctrl.Log.WithName("controllers").WithName("FlinkCluster"),
 	}).SetupWithManager(mgr, *maxConcurrentReconciles)
 	if err != nil {
 		setupLog.Error(err, "Unable to create controller", "controller", "FlinkCluster")

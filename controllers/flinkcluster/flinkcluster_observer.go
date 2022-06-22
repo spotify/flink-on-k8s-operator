@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	semver "github.com/hashicorp/go-version"
 
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
 	"github.com/spotify/flink-on-k8s-operator/internal/controllers/history"
@@ -42,19 +43,21 @@ import (
 
 // ClusterStateObserver gets the observed state of the cluster.
 type ClusterStateObserver struct {
-	k8sClient    client.Client
-	k8sClientset *kubernetes.Clientset
-	flinkClient  *flink.Client
-	request      ctrl.Request
-	context      context.Context
-	log          logr.Logger
-	history      history.Interface
+	k8sClient        client.Client
+	k8sClientset     *kubernetes.Clientset
+	k8sServerVersion *semver.Version
+	flinkClient      *flink.Client
+	request          ctrl.Request
+	context          context.Context
+	log              logr.Logger
+	history          history.Interface
 }
 
 // ObservedClusterState holds observed state of a cluster.
 type ObservedClusterState struct {
 	cluster                *v1beta1.FlinkCluster
 	revisions              []*appsv1.ControllerRevision
+	k8sServerVersion       *semver.Version
 	configMap              *corev1.ConfigMap
 	jmStatefulSet          *appsv1.StatefulSet
 	jmService              *corev1.Service
@@ -131,6 +134,7 @@ func (observer *ClusterStateObserver) observe(
 	observed *ObservedClusterState) error {
 	var err error
 	var log = observer.log
+	observed.k8sServerVersion = observer.k8sServerVersion
 
 	// Cluster state.
 	var observedCluster = new(v1beta1.FlinkCluster)
@@ -181,18 +185,24 @@ func (observer *ClusterStateObserver) observe(
 	}
 
 	// PodDisruptionBudget.
-	var observedPodDisruptionBudget = new(policyv1.PodDisruptionBudget)
-	err = observer.observePodDisruptionBudget(observedPodDisruptionBudget)
-	if err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			log.Error(err, "Failed to get PodDisruptionBudget")
-			return err
+	// policy/v1/PodDisruptionBuget is available >= v1.21
+	podDisruptionBugetV1AvailableVersion, _ := semver.NewVersion(v1beta1.PodDisruptionBudgetV1AvailableVersion)
+
+	if observed.k8sServerVersion.GreaterThanOrEqual(podDisruptionBugetV1AvailableVersion) {
+		var observedPodDisruptionBudgetV1 = &policyv1.PodDisruptionBudget{}
+		err = observer.observePodDisruptionBudget(observedPodDisruptionBudgetV1)
+		if err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				log.Error(err, "Failed to get PodDisruptionBudget")
+				return err
+			}
+			observed.podDisruptionBudget = nil
+		} else {
+			log.Info("Observed PodDisruptionBudget", "state", *observedPodDisruptionBudgetV1)
+			observed.podDisruptionBudget = observedPodDisruptionBudgetV1
 		}
-		log.Info("Observed PodDisruptionBudget", "state", "nil")
-		observedPodDisruptionBudget = nil
 	} else {
-		log.Info("Observed PodDisruptionBudget", "state", *observedPodDisruptionBudget)
-		observed.podDisruptionBudget = observedPodDisruptionBudget
+		log.Info("Observed PodDisruptionBudget", "state", "nil")
 	}
 
 	// JobManager StatefulSet.
@@ -241,34 +251,43 @@ func (observer *ClusterStateObserver) observe(
 	}
 
 	// TaskManager StatefulSet
-	var observedTmStatefulSet = new(appsv1.StatefulSet)
-	err = observer.observeTaskManagerStatefulSet(observedTmStatefulSet)
-	if err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			log.Error(err, "Failed to get TaskManager StatefulSet")
-			return err
+	tmDeploymentType := observed.cluster.Spec.TaskManager.DeploymentType
+	if tmDeploymentType == "" || tmDeploymentType == v1beta1.DeploymentTypeStatefulSet {
+		var observedTmStatefulSet = new(appsv1.StatefulSet)
+		err = observer.observeTaskManagerStatefulSet(observedTmStatefulSet)
+		if err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				log.Error(err, "Failed to get TaskManager StatefulSet")
+				return err
+			}
+			log.Info("Observed TaskManager StatefulSet", "state", "nil")
+			observedTmStatefulSet = nil
+		} else {
+			log.Info("Observed TaskManager StatefulSet", "state", *observedTmStatefulSet)
 		}
-		log.Info("Observed TaskManager StatefulSet", "state", "nil")
-		observedTmStatefulSet = nil
+		observed.tmStatefulSet = observedTmStatefulSet
 	} else {
-		log.Info("Observed TaskManager StatefulSet", "state", *observedTmStatefulSet)
+		observed.tmStatefulSet = nil
 	}
-	observed.tmStatefulSet = observedTmStatefulSet
 
 	// TaskManager Deployment
-	var observedTmDeployment = new(appsv1.Deployment)
-	err = observer.observeTaskManagerDeployment(observedTmDeployment)
-	if err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			log.Error(err, "Failed to get TaskManager Deployment")
-			return err
+	if tmDeploymentType == v1beta1.DeploymentTypeDeployment {
+		var observedTmDeployment = new(appsv1.Deployment)
+		err = observer.observeTaskManagerDeployment(observedTmDeployment)
+		if err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				log.Error(err, "Failed to get TaskManager Deployment")
+				return err
+			}
+			log.Info("Observed TaskManager Deployment", "state", "nil")
+			observedTmDeployment = nil
+		} else {
+			log.Info("Observed TaskManager Deployment", "state", *observedTmDeployment)
 		}
-		log.Info("Observed TaskManager Deployment", "state", "nil")
-		observedTmDeployment = nil
+		observed.tmDeployment = observedTmDeployment
 	} else {
-		log.Info("Observed TaskManager Deployment", "state", *observedTmDeployment)
+		observed.tmDeployment = nil
 	}
-	observed.tmDeployment = observedTmDeployment
 
 	// TaskManager Service.
 	var observedTmSvc = new(corev1.Service)
@@ -308,6 +327,7 @@ func (observer *ClusterStateObserver) observe(
 
 	observed.observeTime = time.Now()
 	observed.updateState = getUpdateState(observed)
+	log.Info("Observed cluster update state", "State", observed.updateState)
 
 	return nil
 }

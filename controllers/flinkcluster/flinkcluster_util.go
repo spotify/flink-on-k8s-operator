@@ -36,10 +36,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
+
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+
+	semver "github.com/hashicorp/go-version"
 )
 
 const (
@@ -52,7 +55,8 @@ const (
 )
 
 var (
-	jobIdRegexp = regexp.MustCompile("JobID (.*)\n")
+	jobIdRegexp                              = regexp.MustCompile("JobID (.*)\n")
+	podDisruptionBudgetV1AvailableVersion, _ = semver.NewVersion(v1beta1.PodDisruptionBudgetV1AvailableVersion)
 )
 
 type UpdateState string
@@ -386,15 +390,24 @@ func areComponentsUpdated(components []runtime.Object, cluster *v1beta1.FlinkClu
 }
 
 func isUpdatedAll(observed ObservedClusterState) bool {
+	tmDeploymentType := observed.cluster.Spec.TaskManager.DeploymentType
 	components := []runtime.Object{
 		observed.configMap,
-		observed.podDisruptionBudget,
-		observed.tmStatefulSet,
 		observed.tmService,
 		observed.jmStatefulSet,
 		observed.jmService,
 		observed.jmIngress,
 		observed.flinkJobSubmitter.job,
+	}
+	if tmDeploymentType == v1beta1.DeploymentTypeDeployment {
+		components = append(components, observed.tmDeployment)
+	} else {
+		components = append(components, observed.tmStatefulSet)
+	}
+	// policy/v1/PodDisruptionBuget is available >= v1.21
+	podDisruptionBugetV1AvailableVersion, _ := semver.NewVersion(v1beta1.PodDisruptionBudgetV1AvailableVersion)
+	if observed.k8sServerVersion.GreaterThanOrEqual(podDisruptionBugetV1AvailableVersion) {
+		components = append(components, observed.podDisruptionBudget)
 	}
 	return areComponentsUpdated(components, observed.cluster)
 }
@@ -404,13 +417,22 @@ func isClusterUpdateToDate(observed *ObservedClusterState) bool {
 	if !observed.cluster.Status.Revision.IsUpdateTriggered() {
 		return true
 	}
+	tmDeploymentType := observed.cluster.Spec.TaskManager.DeploymentType
 	components := []runtime.Object{
 		observed.configMap,
-		observed.podDisruptionBudget,
-		observed.tmStatefulSet,
 		observed.tmService,
 		observed.jmStatefulSet,
 		observed.jmService,
+	}
+	if tmDeploymentType == v1beta1.DeploymentTypeDeployment {
+		components = append(components, observed.tmDeployment)
+	} else {
+		components = append(components, observed.tmStatefulSet)
+	}
+	// policy/v1/PodDisruptionBuget is available >= v1.21
+	podDisruptionBugetV1AvailableVersion, _ := semver.NewVersion(v1beta1.PodDisruptionBudgetV1AvailableVersion)
+	if observed.k8sServerVersion.GreaterThanOrEqual(podDisruptionBugetV1AvailableVersion) {
+		components = append(components, observed.podDisruptionBudget)
 	}
 	return areComponentsUpdated(components, observed.cluster)
 }

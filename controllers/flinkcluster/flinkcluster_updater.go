@@ -383,48 +383,51 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 			}
 	}
 
-	// TaskManager StatefulSet.
-	var observedTmStatefulSet = observed.tmStatefulSet
-	if !isComponentUpdated(observedTmStatefulSet, observed.cluster) && shouldUpdateCluster(observed) {
-		recorded.Components.TaskManagerStatefulSet.DeepCopyInto(&status.Components.TaskManagerStatefulSet)
-		status.Components.TaskManagerStatefulSet.State = v1beta1.ComponentStateUpdating
-	} else if observedTmStatefulSet != nil {
-		status.Components.TaskManagerStatefulSet.Name =
-			observedTmStatefulSet.Name
-		status.Components.TaskManagerStatefulSet.State =
-			getStatefulSetState(observedTmStatefulSet)
-		if status.Components.TaskManagerStatefulSet.State ==
-			v1beta1.ComponentStateReady {
-			runningComponents++
-		}
-	} else if recorded.Components.TaskManagerStatefulSet.Name != "" {
-		status.Components.TaskManagerStatefulSet =
-			v1beta1.FlinkClusterComponentState{
-				Name:  recorded.Components.TaskManagerStatefulSet.Name,
-				State: v1beta1.ComponentStateDeleted,
+	var clusterTmDeploymentType = cluster.Spec.TaskManager.DeploymentType
+	if clusterTmDeploymentType == "" || clusterTmDeploymentType == v1beta1.DeploymentTypeStatefulSet {
+		// TaskManager StatefulSet.
+		var observedTmStatefulSet = observed.tmStatefulSet
+		if !isComponentUpdated(observedTmStatefulSet, observed.cluster) && shouldUpdateCluster(observed) {
+			recorded.Components.TaskManagerStatefulSet.DeepCopyInto(&status.Components.TaskManagerStatefulSet)
+			status.Components.TaskManagerStatefulSet.State = v1beta1.ComponentStateUpdating
+		} else if observedTmStatefulSet != nil {
+			status.Components.TaskManagerStatefulSet.Name =
+				observedTmStatefulSet.Name
+			status.Components.TaskManagerStatefulSet.State =
+				getStatefulSetState(observedTmStatefulSet)
+			if status.Components.TaskManagerStatefulSet.State ==
+				v1beta1.ComponentStateReady {
+				runningComponents++
 			}
-	}
-
-	// TaskManager Deployment.
-	var observedTmDeployment = observed.tmDeployment
-	if !isComponentUpdated(observedTmDeployment, observed.cluster) && shouldUpdateCluster(observed) {
-		recorded.Components.TaskManagerDeployment.DeepCopyInto(&status.Components.TaskManagerDeployment)
-		status.Components.TaskManagerDeployment.State = v1beta1.ComponentStateUpdating
-	} else if observedTmDeployment != nil {
-		status.Components.TaskManagerDeployment.Name =
-			observedTmDeployment.Name
-		status.Components.TaskManagerDeployment.State =
-			getDeploymentState(observedTmDeployment)
-		if status.Components.TaskManagerDeployment.State ==
-			v1beta1.ComponentStateReady {
-			runningComponents++
+		} else if recorded.Components.TaskManagerStatefulSet.Name != "" {
+			status.Components.TaskManagerStatefulSet =
+				v1beta1.FlinkClusterComponentState{
+					Name:  recorded.Components.TaskManagerStatefulSet.Name,
+					State: v1beta1.ComponentStateDeleted,
+				}
 		}
-	} else if recorded.Components.TaskManagerDeployment.Name != "" {
-		status.Components.TaskManagerDeployment =
-			v1beta1.FlinkClusterComponentState{
-				Name:  recorded.Components.TaskManagerDeployment.Name,
-				State: v1beta1.ComponentStateDeleted,
+	} else {
+		// TaskManager Deployment.
+		var observedTmDeployment = observed.tmDeployment
+		if !isComponentUpdated(observedTmDeployment, observed.cluster) && shouldUpdateCluster(observed) {
+			recorded.Components.TaskManagerDeployment.DeepCopyInto(&status.Components.TaskManagerDeployment)
+			status.Components.TaskManagerDeployment.State = v1beta1.ComponentStateUpdating
+		} else if observedTmDeployment != nil {
+			status.Components.TaskManagerDeployment.Name =
+				observedTmDeployment.Name
+			status.Components.TaskManagerDeployment.State =
+				getDeploymentState(observedTmDeployment)
+			if status.Components.TaskManagerDeployment.State ==
+				v1beta1.ComponentStateReady {
+				runningComponents++
 			}
+		} else if recorded.Components.TaskManagerDeployment.Name != "" {
+			status.Components.TaskManagerDeployment =
+				v1beta1.FlinkClusterComponentState{
+					Name:  recorded.Components.TaskManagerDeployment.Name,
+					State: v1beta1.ComponentStateDeleted,
+				}
+		}
 	}
 
 	// Derive the new cluster state.
@@ -662,9 +665,13 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 			newJobState = oldJob.State
 			break
 		}
+		if observedSubmitter.job == nil {
+			newJobState = v1beta1.JobStateLost
+			break
+		}
 		// Job must be in deployment but the submitter not found or tracking failed.
 		var jobDeployState = observedSubmitter.getState()
-		if observedSubmitter.job == nil || jobDeployState == JobDeployStateUnknown {
+		if jobDeployState == JobDeployStateUnknown {
 			newJobState = v1beta1.JobStateLost
 			break
 		}
@@ -950,8 +957,10 @@ func (updater *ClusterStatusUpdater) deriveSavepointStatus(
 		// Append additional error message if it already exists.
 		switch {
 		case newJobStatus.IsStopped():
-			errMsg = "Flink job is stopped: " + errMsg
-			s.State = v1beta1.SavepointStateFailed
+			if s.State != v1beta1.SavepointStateSucceeded {
+				errMsg = "Flink job is stopped: " + errMsg
+				s.State = v1beta1.SavepointStateFailed
+			}
 		case flinkJobID == nil || *flinkJobID != recordedSavepointStatus.JobID:
 			errMsg = "Savepoint triggered Flink job is lost: " + errMsg
 			s.State = v1beta1.SavepointStateFailed

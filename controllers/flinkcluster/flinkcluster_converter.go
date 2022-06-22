@@ -39,7 +39,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/hashicorp/go-version"
+	semver "github.com/hashicorp/go-version"
 )
 
 // Converter which converts the FlinkCluster spec to the desired
@@ -71,7 +71,7 @@ var (
 		"query.server.port":      {},
 		"rest.port":              {},
 	}
-	v10, _ = version.NewVersion("1.10")
+	v10, _ = semver.NewVersion("1.10")
 )
 
 // Gets the desired state of a cluster.
@@ -82,6 +82,7 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 	if cluster == nil {
 		return state
 	}
+	k8sServerVersion := observed.k8sServerVersion
 
 	jobSpec := cluster.Spec.Job
 	applicationMode := IsApplicationModeCluster(cluster)
@@ -91,7 +92,13 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 	}
 
 	if !shouldCleanup(cluster, "PodDisruptionBudget") {
-		state.PodDisruptionBudget = newPodDisruptionBudget(cluster)
+		// PodDisruptionBuget policy/v1 available in kubernetes version >= v1.21.
+		podDisruptionBugetV1AvailableVersion, _ := semver.NewVersion(v1beta1.PodDisruptionBudgetV1AvailableVersion)
+		if k8sServerVersion.GreaterThanOrEqual(podDisruptionBugetV1AvailableVersion) {
+			state.PodDisruptionBudget = newPodDisruptionBudget(cluster)
+		} else {
+			state.PodDisruptionBudget = nil
+		}
 	}
 
 	if !shouldCleanup(cluster, "JobManagerStatefulSet") && !applicationMode {
@@ -595,7 +602,7 @@ func newTaskManagerDeployment(flinkCluster *v1beta1.FlinkCluster) *appsv1.Deploy
 	}
 }
 
-// Gets the desired PodDisruptionBudget.
+// Gets the desired policy/v1/PodDisruptionBudget.
 func newPodDisruptionBudget(flinkCluster *v1beta1.FlinkCluster) *policyv1.PodDisruptionBudget {
 	var jobSpec = flinkCluster.Spec.Job
 	if jobSpec == nil {
@@ -619,6 +626,13 @@ func newPodDisruptionBudget(flinkCluster *v1beta1.FlinkCluster) *policyv1.PodDis
 			MaxUnavailable: &maxUnavailablePods,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{
+						Key:      "component",
+						Operator: "In",
+						Values:   []string{"taskmanager", "jobmanager"},
+					},
+				},
 			},
 		},
 	}
@@ -634,8 +648,8 @@ func newTaskManagerService(flinkCluster *v1beta1.FlinkCluster) *corev1.Service {
 	var clusterName = flinkCluster.Name
 	// Service name matches the service name defined in the TM StatefulSet spec
 	var tmSvcName = getTaskManagerStatefulSetName(clusterName)
-	var labels = getClusterLabels(flinkCluster)
-	var tmSelector = getComponentLabels(flinkCluster, "taskmanager")
+	selectorLabels := getComponentLabels(flinkCluster, "taskmanager")
+	serviceLabels := mergeLabels(selectorLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
 
 	var tmSvcPorts = []corev1.ServicePort{
 		{
@@ -657,10 +671,10 @@ func newTaskManagerService(flinkCluster *v1beta1.FlinkCluster) *corev1.Service {
 			Namespace:       clusterNamespace,
 			Name:            tmSvcName,
 			OwnerReferences: []metav1.OwnerReference{ToOwnerReference(flinkCluster)},
-			Labels:          labels,
+			Labels:          serviceLabels,
 		},
 		Spec: corev1.ServiceSpec{
-			Selector:  tmSelector,
+			Selector:  selectorLabels,
 			ClusterIP: corev1.ClusterIPNone,
 			Type:      corev1.ServiceTypeClusterIP,
 			Ports:     tmSvcPorts,
@@ -670,7 +684,7 @@ func newTaskManagerService(flinkCluster *v1beta1.FlinkCluster) *corev1.Service {
 
 // Gets the desired configMap.
 func newConfigMap(flinkCluster *v1beta1.FlinkCluster) *corev1.ConfigMap {
-	appVersion, _ := version.NewVersion(flinkCluster.Spec.FlinkVersion)
+	appVersion, _ := semver.NewVersion(flinkCluster.Spec.FlinkVersion)
 
 	var clusterNamespace = flinkCluster.Namespace
 	var clusterName = flinkCluster.Name

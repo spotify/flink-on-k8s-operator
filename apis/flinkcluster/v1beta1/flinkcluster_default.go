@@ -17,7 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
-	"github.com/hashicorp/go-version"
+	semver "github.com/hashicorp/go-version"
 	"github.com/imdario/mergo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -30,7 +30,7 @@ const (
 )
 
 var (
-	v10, _           = version.NewVersion("1.10")
+	v10, _           = semver.NewVersion("1.10")
 	DefaultResources = corev1.ResourceRequirements{
 		Requests: corev1.ResourceList{
 			corev1.ResourceCPU:    resource.MustParse("200m"),
@@ -57,7 +57,7 @@ func _SetDefault(cluster *FlinkCluster) {
 	}
 
 	_SetImageDefault(&cluster.Spec.Image)
-	flinkVersion, _ := version.NewVersion(cluster.Spec.FlinkVersion)
+	flinkVersion, _ := semver.NewVersion(cluster.Spec.FlinkVersion)
 	if cluster.Spec.JobManager == nil {
 		cluster.Spec.JobManager = &JobManagerSpec{}
 	}
@@ -77,7 +77,7 @@ func _SetImageDefault(imageSpec *ImageSpec) {
 	}
 }
 
-func _SetJobManagerDefault(jmSpec *JobManagerSpec, flinkVersion *version.Version) {
+func _SetJobManagerDefault(jmSpec *JobManagerSpec, flinkVersion *semver.Version) {
 	if jmSpec == nil {
 		return
 	}
@@ -163,7 +163,7 @@ func _SetJobManagerDefault(jmSpec *JobManagerSpec, flinkVersion *version.Version
 	jmSpec.ReadinessProbe = &readinessProbe
 }
 
-func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Version) {
+func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *semver.Version) {
 	if tmSpec == nil {
 		return
 	}

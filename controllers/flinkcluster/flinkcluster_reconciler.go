@@ -36,6 +36,7 @@ import (
 	"github.com/spotify/flink-on-k8s-operator/internal/model"
 	"github.com/spotify/flink-on-k8s-operator/internal/util"
 
+	semver "github.com/hashicorp/go-version"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -48,13 +49,14 @@ import (
 // ClusterReconciler takes actions to drive the observed state towards the
 // desired state.
 type ClusterReconciler struct {
-	k8sClient   client.Client
-	flinkClient *flink.Client
-	context     context.Context
-	log         logr.Logger
-	observed    ObservedClusterState
-	desired     model.DesiredClusterState
-	recorder    record.EventRecorder
+	k8sClient        client.Client
+	k8sServerVersion *semver.Version
+	flinkClient      *flink.Client
+	context          context.Context
+	log              logr.Logger
+	observed         ObservedClusterState
+	desired          model.DesiredClusterState
+	recorder         record.EventRecorder
 }
 
 const JobCheckInterval = 10 * time.Second
@@ -255,51 +257,39 @@ func (reconciler *ClusterReconciler) reconcileDeployment(
 }
 
 func (reconciler *ClusterReconciler) reconcileTaskManagerService() error {
-	var desiredSvc = reconciler.desired.TmService
-	var observedSvc = reconciler.observed.tmService
+	var desiredTmService = reconciler.desired.TmService
+	var observedTmService = reconciler.observed.tmService
 
-	if desiredSvc != nil && observedSvc == nil {
-		return reconciler.createTaskManagerService(desiredSvc, "TaskManager Service")
+	if desiredTmService != nil && observedTmService == nil {
+		return reconciler.createService(desiredTmService, "TaskManagere")
 	}
 
-	if desiredSvc == nil && observedSvc != nil {
-		return reconciler.deleteTaskManagerService(observedSvc, "TaskManager Service")
+	if desiredTmService != nil && observedTmService != nil {
+		var cluster = reconciler.observed.cluster
+		if shouldUpdateCluster(&reconciler.observed) && !isComponentUpdated(observedTmService, cluster) {
+			// v1.Service API does not handle update correctly when below values are empty.
+			desiredTmService.SetResourceVersion(observedTmService.GetResourceVersion())
+			desiredTmService.Spec.ClusterIP = observedTmService.Spec.ClusterIP
+			var err error
+			if *reconciler.observed.cluster.Spec.RecreateOnUpdate {
+				err = reconciler.deleteOldComponent(desiredTmService, observedTmService, "TaskManager")
+			} else {
+				err = reconciler.updateComponent(desiredTmService, "TaskManager")
+			}
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+		reconciler.log.Info("TaskManager service already exists, no action")
+		return nil
 	}
+
+	if desiredTmService == nil && observedTmService != nil {
+		return reconciler.deleteService(observedTmService, "TaskManager")
+	}
+
 	return nil
-
-}
-
-func (reconciler *ClusterReconciler) createTaskManagerService(
-	svc *corev1.Service, component string) error {
-	var context = reconciler.context
-	var log = reconciler.log.WithValues("component", component)
-	var k8sClient = reconciler.k8sClient
-
-	log.Info("Creating TaskManager Service", "TaskManager Service", *svc)
-	var err = k8sClient.Create(context, svc)
-	if err != nil {
-		log.Info("Failed to create TaskManager Service", "error", err)
-	} else {
-		log.Info("TaskManager Service created")
-	}
-	return err
-}
-
-func (reconciler *ClusterReconciler) deleteTaskManagerService(
-	svc *corev1.Service, component string) error {
-	var context = reconciler.context
-	var log = reconciler.log.WithValues("component", component)
-	var k8sClient = reconciler.k8sClient
-
-	log.Info("Deleting TaskManager Service", "TaskManager Service", svc)
-	var err = k8sClient.Delete(context, svc)
-	err = client.IgnoreNotFound(err)
-	if err != nil {
-		log.Error(err, "Failed to delete TaskManager Service")
-	} else {
-		log.Info("TaskManager Service deleted")
-	}
-	return err
 }
 
 func (reconciler *ClusterReconciler) createStatefulSet(
@@ -604,13 +594,16 @@ func (reconciler *ClusterReconciler) deleteConfigMap(
 }
 
 func (reconciler *ClusterReconciler) reconcilePodDisruptionBudget() error {
-	var desiredPodDisruptionBudget = reconciler.desired.PodDisruptionBudget
-	var observedPodDisruptionBudget = reconciler.observed.podDisruptionBudget
+	desiredPodDisruptionBudget := reconciler.desired.PodDisruptionBudget
+	observedPodDisruptionBudget := reconciler.observed.podDisruptionBudget
+	var log = reconciler.log.WithValues("component", "PodDisruptionBudget")
 
+	if desiredPodDisruptionBudget != nil && observedPodDisruptionBudget != nil {
+		log.Info("PodDisruptionBudget already exists, no action")
+	}
 	if desiredPodDisruptionBudget != nil && observedPodDisruptionBudget == nil {
 		return reconciler.createPodDisruptionBudget(desiredPodDisruptionBudget, "PodDisruptionBudget")
 	}
-
 	if desiredPodDisruptionBudget == nil && observedPodDisruptionBudget != nil {
 		return reconciler.deletePodDisruptionBudget(observedPodDisruptionBudget, "PodDisruptionBudget")
 	}
@@ -623,14 +616,16 @@ func (reconciler *ClusterReconciler) createPodDisruptionBudget(
 	var context = reconciler.context
 	var log = reconciler.log.WithValues("component", component)
 	var k8sClient = reconciler.k8sClient
+	var err error
 
 	log.Info("Creating PodDisruptionBudget", "PodDisruptionBudget", *pdb)
-	var err = k8sClient.Create(context, pdb)
+	err = k8sClient.Create(context, pdb)
 	if err != nil {
 		log.Info("Failed to create PodDisruptionBudget", "error", err)
 	} else {
 		log.Info("PodDisruptionBudget created")
 	}
+
 	return err
 }
 
@@ -745,13 +740,10 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 			return requeueResult, err
 		}
 		if observedSubmitter != nil {
-			log.Info("Found old job submitter")
-			err = reconciler.deleteJob(observedSubmitter)
-			if err != nil {
-				return requeueResult, err
-			}
+			log.Info("Found existing job submitter", "Submitter", *observedSubmitter)
+		} else {
+			err = reconciler.createJob(desiredJob)
 		}
-		err = reconciler.createJob(desiredJob)
 
 		return requeueResult, err
 	}
@@ -769,6 +761,13 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 			var shouldSuspend = takeSavepoint && util.IsBlank(jobSpec.FromSavepoint)
 			if shouldSuspend {
 				newSavepointStatus, err = reconciler.trySuspendJob()
+				if err != nil {
+					return requeueResult, err
+				}
+				log.Info("Job update triggered, suspend old job", "Savepoint", *newSavepointStatus)
+				if observedSubmitter != nil {
+					err = reconciler.deleteJob(observedSubmitter)
+				}
 			} else if shouldUpdateJob(&observed) {
 				err = reconciler.cancelJob()
 			}
