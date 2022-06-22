@@ -620,8 +620,6 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 	switch {
 	case oldJob == nil:
 		newJobState = v1beta1.JobStatePending
-	case oldJob.SubmitterExitCode != newJob.SubmitterExitCode && isNonZeroExitCode(newJob.SubmitterExitCode):
-		newJobState = v1beta1.JobStateSubmitterFailed
 	case shouldUpdateJob(&observed):
 		newJobState = v1beta1.JobStateUpdating
 	case oldJob.ShouldRestart(jobSpec):
@@ -647,6 +645,8 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 		} else {
 			newJobState = oldJob.State
 		}
+	case isNonZeroExitCode(newJob.SubmitterExitCode):
+		newJobState = v1beta1.JobStateSubmitterFailed
 	case shouldStopJob(observedCluster):
 		newJobState = v1beta1.JobStateCancelled
 	// When Flink job not found in JobManager or JobManager is unavailable
