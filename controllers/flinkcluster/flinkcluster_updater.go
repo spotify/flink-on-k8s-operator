@@ -620,8 +620,6 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 	switch {
 	case oldJob == nil:
 		newJobState = v1beta1.JobStatePending
-	case oldJob.SubmitterExitCode != newJob.SubmitterExitCode && isNonZeroExitCode(newJob.SubmitterExitCode):
-		newJobState = v1beta1.JobStateSubmitterFailed
 	case shouldUpdateJob(&observed):
 		newJobState = v1beta1.JobStateUpdating
 	case oldJob.ShouldRestart(jobSpec):
