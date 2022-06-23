@@ -52,18 +52,17 @@ type JobMode string
 
 // JobState defines states for a Flink job deployment.
 const (
-	JobStatePending         = "Pending"
-	JobStateUpdating        = "Updating"
-	JobStateRestarting      = "Restarting"
-	JobStateDeploying       = "Deploying"
-	JobStateDeployFailed    = "DeployFailed"
-	JobStateSubmitterFailed = "SubmitterFailed"
-	JobStateRunning         = "Running"
-	JobStateSucceeded       = "Succeeded"
-	JobStateCancelled       = "Cancelled"
-	JobStateFailed          = "Failed"
-	JobStateLost            = "Lost"
-	JobStateUnknown         = "Unknown"
+	JobStatePending      = "Pending"
+	JobStateUpdating     = "Updating"
+	JobStateRestarting   = "Restarting"
+	JobStateDeploying    = "Deploying"
+	JobStateDeployFailed = "DeployFailed"
+	JobStateRunning      = "Running"
+	JobStateSucceeded    = "Succeeded"
+	JobStateCancelled    = "Cancelled"
+	JobStateFailed       = "Failed"
+	JobStateLost         = "Lost"
+	JobStateUnknown      = "Unknown"
 )
 
 // AccessScope defines the access scope of JobManager service.
