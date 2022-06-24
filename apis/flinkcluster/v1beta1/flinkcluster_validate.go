@@ -149,7 +149,8 @@ func (v *Validator) checkControlAnnotations(old *FlinkCluster, new *FlinkCluster
 			if old.Spec.Job == nil {
 				return fmt.Errorf(SessionClusterWarnMsg, ControlNameJobCancel, ControlAnnotation)
 			} else if job == nil || job.IsTerminated(old.Spec.Job) {
-				return fmt.Errorf(InvalidJobStateForJobCancelMsg, ControlAnnotation)
+				log.Info("Attempted cancelling of non-existing or already terminated job", "job", job)
+				return nil
 			}
 		case ControlNameSavepoint:
 			var job = old.Status.Components.Job
