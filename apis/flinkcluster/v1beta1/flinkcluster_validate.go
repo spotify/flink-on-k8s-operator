@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-version"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	corev1 "k8s.io/api/core/v1"
@@ -149,7 +150,7 @@ func (v *Validator) checkControlAnnotations(old *FlinkCluster, new *FlinkCluster
 			if old.Spec.Job == nil {
 				return fmt.Errorf(SessionClusterWarnMsg, ControlNameJobCancel, ControlAnnotation)
 			} else if job == nil || job.IsTerminated(old.Spec.Job) {
-				return fmt.Errorf(InvalidJobStateForJobCancelMsg, ControlAnnotation)
+				return errors.NewResourceExpired(fmt.Sprintf(InvalidJobStateForJobCancelMsg, ControlAnnotation))
 			}
 		case ControlNameSavepoint:
 			var job = old.Status.Components.Job
