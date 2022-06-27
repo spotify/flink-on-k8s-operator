@@ -1223,6 +1223,13 @@ func TestTmDeploymentTypeDeployment(t *testing.T) {
 							VolumeSource: corev1.VolumeSource{
 								Ephemeral: &corev1.EphemeralVolumeSource{
 									VolumeClaimTemplate: &corev1.PersistentVolumeClaimTemplate{
+										ObjectMeta: metav1.ObjectMeta{
+											Labels: map[string]string{
+												"app":       "flink",
+												"cluster":   "flinkjobcluster-sample",
+												"component": "taskmanager",
+											},
+										},
 										Spec: corev1.PersistentVolumeClaimSpec{
 											AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 											Resources: corev1.ResourceRequirements{

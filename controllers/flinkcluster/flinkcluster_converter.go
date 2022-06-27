@@ -543,7 +543,7 @@ func newTaskManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1.State
 	}
 }
 
-func getEphemeralVolumesFromTaskManagerSpec(flinkCluster *v1beta1.FlinkCluster) []corev1.Volume {
+func getEphemeralVolumesFromTaskManagerSpec(flinkCluster *v1beta1.FlinkCluster, labels map[string]string) []corev1.Volume {
 	var ephemeralVolumes []corev1.Volume
 	var volumeClaimsInSpec = flinkCluster.Spec.TaskManager.VolumeClaimTemplates
 	for _, volume := range volumeClaimsInSpec {
@@ -553,6 +553,9 @@ func getEphemeralVolumesFromTaskManagerSpec(flinkCluster *v1beta1.FlinkCluster) 
 			VolumeSource: corev1.VolumeSource{
 				Ephemeral: &corev1.EphemeralVolumeSource{
 					VolumeClaimTemplate: &corev1.PersistentVolumeClaimTemplate{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: labels,
+						},
 						Spec: volume.Spec,
 					},
 				},
@@ -572,7 +575,7 @@ func newTaskManagerDeployment(flinkCluster *v1beta1.FlinkCluster) *appsv1.Deploy
 
 	mainContainer := newTaskManagerContainer(flinkCluster)
 	podSpec := newTaskManagerPodSpec(mainContainer, flinkCluster)
-	podSpec.Volumes = append(podSpec.Volumes, getEphemeralVolumesFromTaskManagerSpec(flinkCluster)...)
+	podSpec.Volumes = append(podSpec.Volumes, getEphemeralVolumesFromTaskManagerSpec(flinkCluster, podLabels)...)
 
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
