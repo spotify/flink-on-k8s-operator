@@ -614,6 +614,11 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 		if oldJob.SubmitterExitCode != exitCode && isNonZeroExitCode(exitCode) {
 			newJob.FailureReasons = append(newJob.FailureReasons, reason)
 		}
+	} else if observedSubmitter.job == nil || observed.flinkJobSubmitter.pod == nil {
+		// Submitter is nil, so the submitter exit code shouldn't be "running"
+		if oldJob != nil && oldJob.SubmitterExitCode == -1 {
+			newJob.SubmitterExitCode = 0
+		}
 	}
 
 	var newJobState string
@@ -984,7 +989,7 @@ func deriveControlStatus(
 	var c *v1beta1.FlinkClusterControlStatus
 
 	// New control status
-	if controlRequest != "" {
+	if controlStatusChanged(cluster, controlRequest) {
 		c = getControlStatus(controlRequest, v1beta1.ControlStateRequested)
 		return c
 	}
