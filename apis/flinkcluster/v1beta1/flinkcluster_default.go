@@ -17,6 +17,8 @@ limitations under the License.
 package v1beta1
 
 import (
+	"time"
+
 	"github.com/hashicorp/go-version"
 	"github.com/imdario/mergo"
 	corev1 "k8s.io/api/core/v1"
@@ -27,6 +29,7 @@ import (
 const (
 	DefaultJobManagerReplicas  = 1
 	DefaultTaskManagerReplicas = 3
+	ForceTearDownAfter         = time.Second * 10
 )
 
 var (

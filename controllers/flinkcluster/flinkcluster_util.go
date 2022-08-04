@@ -145,6 +145,7 @@ func canTakeSavepoint(cluster *v1beta1.FlinkCluster) bool {
 		(savepointStatus == nil || savepointStatus.State != v1beta1.SavepointStateInProgress)
 }
 
+// Checks if the job should be stopped because a job-cancel was requested
 func shouldStopJob(cluster *v1beta1.FlinkCluster) bool {
 	var userControl = cluster.Annotations[v1beta1.ControlAnnotation]
 	var cancelRequested = cluster.Spec.Job.CancelRequested
@@ -257,6 +258,17 @@ func getControlStatus(controlName string, state string) *v1beta1.FlinkClusterCon
 	controlStatus.State = state
 	util.SetTimestamp(&controlStatus.UpdateTime)
 	return controlStatus
+}
+
+func controlStatusChanged(cluster *v1beta1.FlinkCluster, controlName string) bool {
+	if controlName == "" {
+		return false
+	}
+	var recorded = cluster.Status
+	if recorded.Control == nil || recorded.Control.Name != controlName {
+		return true
+	}
+	return false
 }
 
 func getControlEvent(status v1beta1.FlinkClusterControlStatus) (eventType string, eventReason string, eventMessage string) {
@@ -496,4 +508,9 @@ func getFlinkJobSubmitLogFromString(podLog string) *SubmitterLog {
 func IsApplicationModeCluster(cluster *v1beta1.FlinkCluster) bool {
 	jobSpec := cluster.Spec.Job
 	return jobSpec != nil && *jobSpec.Mode == v1beta1.JobModeApplication
+}
+
+// checks if reasonable amount of time has passed since job-cancel was requested
+func shouldForceTearDown(controlStatus *v1beta1.FlinkClusterControlStatus) bool {
+	return controlStatus != nil && controlStatus.Name == v1beta1.ControlNameJobCancel && time.Since(util.GetTime(controlStatus.UpdateTime)) > v1beta1.ForceTearDownAfter
 }

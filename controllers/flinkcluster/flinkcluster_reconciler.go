@@ -793,9 +793,27 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 		return requeueResult, nil
 	}
 
-	// Job cancel requested. Stop Flink job.
-	if desiredJob == nil {
-		if job.IsActive() {
+	// Job cancel requested or job finished. Stop Flink job and kill job-submitter.
+	if desiredJob == nil && !(job.IsStopped() && observedSubmitter == nil) {
+		if shouldForceTearDown(observed.cluster.Status.Control) {
+			log.Info("Force tearing down cluster")
+			userControl := getNewControlRequest(observed.cluster)
+			if userControl == v1beta1.ControlNameJobCancel {
+				newControlStatus = getControlStatus(userControl, v1beta1.ControlStateInProgress)
+			}
+			// cancel all running jobs
+			if job.IsActive() {
+				if err := reconciler.cancelRunningJobs(true /* takeSavepoint */); err != nil {
+					return requeueResult, err
+				}
+			}
+			// kill job submitter pod
+			if observedSubmitter != nil {
+				if err := reconciler.deleteJob(observedSubmitter); err != nil {
+					return requeueResult, err
+				}
+			}
+		} else if job.IsActive() {
 			userControl := getNewControlRequest(observed.cluster)
 			if userControl == v1beta1.ControlNameJobCancel {
 				newControlStatus = getControlStatus(userControl, v1beta1.ControlStateInProgress)
@@ -805,11 +823,7 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 			if err := reconciler.cancelRunningJobs(true /* takeSavepoint */); err != nil {
 				return requeueResult, err
 			}
-
-			return requeueResult, err
-		}
-
-		if job.IsStopped() && observedSubmitter != nil {
+		} else if job.IsStopped() && observedSubmitter != nil {
 			if observed.cluster.Status.Components.Job.SubmitterExitCode == -1 {
 				log.Info("Job submitter has not finished yet")
 				return requeueResult, fmt.Errorf("wait for jobSubmitter to exit")
@@ -818,6 +832,9 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 				return requeueResult, err
 			}
 		}
+
+		// to make sure the job is stopped
+		return requeueResult, nil
 	}
 
 	if job.IsStopped() {
