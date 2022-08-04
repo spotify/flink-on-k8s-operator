@@ -609,11 +609,8 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 
 	if observedSubmitter.job != nil {
 		newJob.SubmitterName = observedSubmitter.job.Name
-		exitCode, reason := updater.deriveJobSubmitterExitCodeAndReason(observed.flinkJobSubmitter.pod)
+		exitCode, _ := updater.deriveJobSubmitterExitCodeAndReason(observed.flinkJobSubmitter.pod)
 		newJob.SubmitterExitCode = exitCode
-		if oldJob.SubmitterExitCode != exitCode && isNonZeroExitCode(exitCode) {
-			newJob.FailureReasons = append(newJob.FailureReasons, reason)
-		}
 	} else if observedSubmitter.job == nil || observed.flinkJobSubmitter.pod == nil {
 		// Submitter is nil, so the submitter exit code shouldn't be "running"
 		if oldJob != nil && oldJob.SubmitterExitCode == -1 {
