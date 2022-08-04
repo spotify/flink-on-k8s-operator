@@ -265,10 +265,14 @@ func getControlEvent(status v1beta1.FlinkClusterControlStatus) (eventType string
 		msg = msg[:100] + "..."
 	}
 	switch status.State {
-	case v1beta1.ControlStateInProgress:
+	case v1beta1.ControlStateRequested:
 		eventType = corev1.EventTypeNormal
 		eventReason = "ControlRequested"
 		eventMessage = fmt.Sprintf("Requested new user control %v", status.Name)
+	case v1beta1.ControlStateInProgress:
+		eventType = corev1.EventTypeNormal
+		eventReason = "ControlInProgress"
+		eventMessage = fmt.Sprintf("In progress user control %v", status.Name)
 	case v1beta1.ControlStateSucceeded:
 		eventType = corev1.EventTypeNormal
 		eventReason = "ControlSucceeded"
