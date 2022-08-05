@@ -609,11 +609,8 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 
 	if observedSubmitter.job != nil {
 		newJob.SubmitterName = observedSubmitter.job.Name
-		exitCode, reason := updater.deriveJobSubmitterExitCodeAndReason(observed.flinkJobSubmitter.pod)
+		exitCode, _ := updater.deriveJobSubmitterExitCodeAndReason(observed.flinkJobSubmitter.pod)
 		newJob.SubmitterExitCode = exitCode
-		if oldJob.SubmitterExitCode != exitCode && isNonZeroExitCode(exitCode) {
-			newJob.FailureReasons = append(newJob.FailureReasons, reason)
-		}
 	} else if observedSubmitter.job == nil || observed.flinkJobSubmitter.pod == nil {
 		// Submitter is nil, so the submitter exit code shouldn't be "running"
 		if oldJob != nil && oldJob.SubmitterExitCode == -1 {
@@ -725,7 +722,12 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 			if newJob.State == v1beta1.JobStateLost && oldJob.FinalSavepoint {
 				newJob.FinalSavepoint = false
 			}
+			// The job submitter may have failed even though the job execution was successful
+			if len(newJob.FailureReasons) == 0 && oldJob.SubmitterExitCode != newJob.SubmitterExitCode && isNonZeroExitCode(newJob.SubmitterExitCode) && observedSubmitter.log != nil {
+				newJob.FailureReasons = append(newJob.FailureReasons, observedSubmitter.log.message)
+			}
 		}
+
 	}
 
 	// Savepoint
