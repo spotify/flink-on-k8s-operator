@@ -722,7 +722,12 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 			if newJob.State == v1beta1.JobStateLost && oldJob.FinalSavepoint {
 				newJob.FinalSavepoint = false
 			}
+			// The job submitter may have failed even though the job execution was successful
+			if len(newJob.FailureReasons) == 0 && oldJob.SubmitterExitCode != newJob.SubmitterExitCode && isNonZeroExitCode(newJob.SubmitterExitCode) && observedSubmitter.log != nil {
+				newJob.FailureReasons = append(newJob.FailureReasons, observedSubmitter.log.message)
+			}
 		}
+
 	}
 
 	// Savepoint
