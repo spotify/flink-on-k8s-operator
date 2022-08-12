@@ -176,6 +176,7 @@ spec:
                 job:
                   properties:
                     allowNonRestoredState:
+                      default: false
                       type: boolean
                     args:
                       items:
@@ -193,6 +194,10 @@ spec:
                         type: string
                       type: array
                     cleanupPolicy:
+                      default:
+                        afterJobCancelled: DeleteCluster
+                        afterJobFails: KeepCluster
+                        afterJobSucceeds: DeleteCluster
                       properties:
                         afterJobCancelled:
                           type: string
@@ -778,8 +783,14 @@ spec:
                       minimum: 0
                       type: integer
                     mode:
+                      default: Detached
+                      enum:
+                        - Detached
+                        - Blocking
+                        - Application
                       type: string
                     noLoggingToStdout:
+                      default: false
                       type: boolean
                     nodeSelector:
                       additionalProperties:
@@ -803,6 +814,13 @@ spec:
                     pyModule:
                       type: string
                     resources:
+                      default:
+                        limits:
+                          cpu: 2
+                          memory: 2Gi
+                        requests:
+                          cpu: 200m
+                          memory: 512Mi
                       properties:
                         limits:
                           additionalProperties:
@@ -822,6 +840,7 @@ spec:
                           type: object
                       type: object
                     restartPolicy:
+                      default: Never
                       type: string
                     savepointGeneration:
                       format: int32
@@ -1627,8 +1646,6 @@ spec:
                           - name
                         type: object
                       type: array
-                  required:
-                    - restartPolicy
                   type: object
                 jobManager:
                   properties:
@@ -2336,18 +2353,35 @@ spec:
                         type: string
                       type: object
                     ports:
+                      default:
+                        blob: 6124
+                        query: 6125
+                        rpc: 6123
+                        ui: 8081
                       properties:
                         blob:
+                          default: 6124
                           format: int32
+                          maximum: 65535
+                          minimum: 1
                           type: integer
                         query:
+                          default: 6125
                           format: int32
+                          maximum: 65535
+                          minimum: 1
                           type: integer
                         rpc:
+                          default: 6123
                           format: int32
+                          maximum: 65535
+                          minimum: 1
                           type: integer
                         ui:
+                          default: 8081
                           format: int32
+                          maximum: 65535
+                          minimum: 1
                           type: integer
                       type: object
                     readinessProbe:
@@ -4637,15 +4671,28 @@ spec:
                         type: string
                       type: object
                     ports:
+                      default:
+                        data: 6121
+                        query: 6125
+                        rpc: 6122
                       properties:
                         data:
+                          default: 6121
                           format: int32
+                          maximum: 65535
+                          minimum: 1
                           type: integer
                         query:
+                          default: 6125
                           format: int32
+                          maximum: 65535
+                          minimum: 1
                           type: integer
                         rpc:
+                          default: 6122
                           format: int32
+                          maximum: 65535
+                          minimum: 1
                           type: integer
                       type: object
                     readinessProbe:

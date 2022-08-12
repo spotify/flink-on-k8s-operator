@@ -33,17 +33,7 @@ const (
 )
 
 var (
-	v10, _           = version.NewVersion("1.10")
-	DefaultResources = corev1.ResourceRequirements{
-		Requests: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse("200m"),
-			corev1.ResourceMemory: resource.MustParse("512Mi"),
-		},
-		Limits: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse("2"),
-			corev1.ResourceMemory: resource.MustParse("2Gi"),
-		},
-	}
+	v10, _ = version.NewVersion("1.10")
 )
 
 // Sets default values for unspecified FlinkCluster properties.
@@ -69,7 +59,6 @@ func _SetDefault(cluster *FlinkCluster) {
 		cluster.Spec.TaskManager = &TaskManagerSpec{}
 	}
 	_SetTaskManagerDefault(cluster.Spec.TaskManager, flinkVersion)
-	_SetJobDefault(cluster.Spec.Job)
 	_SetHadoopConfigDefault(cluster.Spec.HadoopConfig)
 
 }
@@ -98,22 +87,6 @@ func _SetJobManagerDefault(jmSpec *JobManagerSpec, flinkVersion *version.Version
 			*jmSpec.Ingress.UseTLS = false
 		}
 	}
-	if jmSpec.Ports.RPC == nil {
-		jmSpec.Ports.RPC = new(int32)
-		*jmSpec.Ports.RPC = 6123
-	}
-	if jmSpec.Ports.Blob == nil {
-		jmSpec.Ports.Blob = new(int32)
-		*jmSpec.Ports.Blob = 6124
-	}
-	if jmSpec.Ports.Query == nil {
-		jmSpec.Ports.Query = new(int32)
-		*jmSpec.Ports.Query = 6125
-	}
-	if jmSpec.Ports.UI == nil {
-		jmSpec.Ports.UI = new(int32)
-		*jmSpec.Ports.UI = 8081
-	}
 
 	if flinkVersion == nil || flinkVersion.LessThan(v10) {
 		if jmSpec.MemoryOffHeapMin.Format == "" {
@@ -128,9 +101,6 @@ func _SetJobManagerDefault(jmSpec *JobManagerSpec, flinkVersion *version.Version
 			jmSpec.MemoryProcessRatio = new(int32)
 			*jmSpec.MemoryProcessRatio = 80
 		}
-	}
-	if jmSpec.Resources.Size() == 0 {
-		jmSpec.Resources = DefaultResources
 	}
 
 	var livenessProbe = corev1.Probe{
@@ -174,18 +144,6 @@ func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Versi
 		tmSpec.Replicas = new(int32)
 		*tmSpec.Replicas = DefaultTaskManagerReplicas
 	}
-	if tmSpec.Ports.Data == nil {
-		tmSpec.Ports.Data = new(int32)
-		*tmSpec.Ports.Data = 6121
-	}
-	if tmSpec.Ports.RPC == nil {
-		tmSpec.Ports.RPC = new(int32)
-		*tmSpec.Ports.RPC = 6122
-	}
-	if tmSpec.Ports.Query == nil {
-		tmSpec.Ports.Query = new(int32)
-		*tmSpec.Ports.Query = 6125
-	}
 	if flinkVersion == nil || flinkVersion.LessThan(v10) {
 		if tmSpec.MemoryOffHeapMin.Format == "" {
 			tmSpec.MemoryOffHeapMin = *resource.NewScaledQuantity(600, 6) // 600MB
@@ -199,9 +157,6 @@ func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Versi
 			tmSpec.MemoryProcessRatio = new(int32)
 			*tmSpec.MemoryProcessRatio = 80
 		}
-	}
-	if tmSpec.Resources.Size() == 0 {
-		tmSpec.Resources = DefaultResources
 	}
 
 	var livenessProbe = corev1.Probe{
@@ -238,38 +193,6 @@ func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Versi
 
 	if tmSpec.DeploymentType == "" {
 		tmSpec.DeploymentType = DeploymentTypeStatefulSet
-	}
-}
-
-func _SetJobDefault(jobSpec *JobSpec) {
-	if jobSpec == nil {
-		return
-	}
-	if jobSpec.AllowNonRestoredState == nil {
-		jobSpec.AllowNonRestoredState = new(bool)
-		*jobSpec.AllowNonRestoredState = false
-	}
-	if jobSpec.NoLoggingToStdout == nil {
-		jobSpec.NoLoggingToStdout = new(bool)
-		*jobSpec.NoLoggingToStdout = false
-	}
-	if jobSpec.RestartPolicy == nil {
-		jobSpec.RestartPolicy = new(JobRestartPolicy)
-		*jobSpec.RestartPolicy = JobRestartPolicyNever
-	}
-	if jobSpec.CleanupPolicy == nil {
-		jobSpec.CleanupPolicy = &CleanupPolicy{
-			AfterJobSucceeds:  CleanupActionDeleteCluster,
-			AfterJobFails:     CleanupActionKeepCluster,
-			AfterJobCancelled: CleanupActionDeleteCluster,
-		}
-	}
-	if jobSpec.Mode == nil {
-		jobSpec.Mode = new(JobMode)
-		*jobSpec.Mode = JobModeDetached
-	}
-	if jobSpec.Resources.Size() == 0 {
-		jobSpec.Resources = DefaultResources
 	}
 }
 

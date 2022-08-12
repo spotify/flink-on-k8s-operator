@@ -153,15 +153,27 @@ type NamedPort struct {
 // JobManagerPorts defines ports of JobManager.
 type JobManagerPorts struct {
 	// RPC port, default: `6123`.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +kubebuilder:default:=6123
 	RPC *int32 `json:"rpc,omitempty"`
 
 	// Blob port, default: `6124`.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +kubebuilder:default:=6124
 	Blob *int32 `json:"blob,omitempty"`
 
 	// Query port, default: `6125`.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +kubebuilder:default:=6125
 	Query *int32 `json:"query,omitempty"`
 
 	// UI port, default: `8081`.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +kubebuilder:default:=8081
 	UI *int32 `json:"ui,omitempty"`
 }
 
@@ -205,6 +217,7 @@ type JobManagerSpec struct {
 	Ingress *JobManagerIngressSpec `json:"ingress,omitempty"`
 
 	// Ports that JobManager listening on.
+	// +kubebuilder:default:={rpc:6123, blob:6124, query:6125, ui:8081}
 	Ports JobManagerPorts `json:"ports,omitempty"`
 
 	// _(Optional)_ Extra ports to be exposed. For example, Flink metrics reporter ports: Prometheus, JMX and so on.
@@ -288,12 +301,21 @@ type JobManagerSpec struct {
 // TaskManagerPorts defines ports of TaskManager.
 type TaskManagerPorts struct {
 	// Data port, default: `6121`.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +kubebuilder:default:=6121
 	Data *int32 `json:"data,omitempty"`
 
 	// RPC port, default: `6122`.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +kubebuilder:default:=6122
 	RPC *int32 `json:"rpc,omitempty"`
 
 	// Query port, default: `6125`.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +kubebuilder:default:=6125
 	Query *int32 `json:"query,omitempty"`
 }
 
@@ -319,6 +341,7 @@ type TaskManagerSpec struct {
 	Replicas *int32 `json:"replicas,omitempty"`
 
 	// Ports that TaskManager listening on.
+	// +kubebuilder:default:={data:6121, rpc:6122, query:6125}
 	Ports TaskManagerPorts `json:"ports,omitempty"`
 
 	// _(Optional)_ Extra ports to be exposed. For example, Flink metrics reporter ports: Prometheus, JMX and so on.
@@ -461,6 +484,7 @@ type JobSpec struct {
 	FromSavepoint *string `json:"fromSavepoint,omitempty"`
 
 	// Allow non-restored state, default: `false`.
+	// +kubebuilder:default:=false
 	AllowNonRestoredState *bool `json:"allowNonRestoredState,omitempty"`
 
 	// _(Optional)_ Savepoints dir where to store savepoints of the job.
@@ -488,6 +512,7 @@ type JobSpec struct {
 	Parallelism *int32 `json:"parallelism,omitempty"`
 
 	// No logging output to STDOUT, default: `false`.
+	// +kubebuilder:default:=false
 	NoLoggingToStdout *bool `json:"noLoggingToStdout,omitempty"`
 
 	// _(Optional)_ Volumes in the Job pod.
@@ -521,9 +546,11 @@ type JobSpec struct {
 	// job from the savepoint recorded in the job status if available; otherwise,
 	// the job will stay in failed state. This option is usually used together
 	// with `autoSavepointSeconds` and `savepointsDir`.
-	RestartPolicy *JobRestartPolicy `json:"restartPolicy"`
+	// +kubebuilder:default:=Never
+	RestartPolicy *JobRestartPolicy `json:"restartPolicy,omitempty"`
 
 	// The action to take after job finishes.
+	// +kubebuilder:default:={afterJobSucceeds:DeleteCluster, afterJobFails:KeepCluster, afterJobCancelled:DeleteCluster}
 	CleanupPolicy *CleanupPolicy `json:"cleanupPolicy,omitempty"`
 
 	// Deprecated: _(Optional)_ Request the job to be cancelled. Only applies to running jobs. If
@@ -543,6 +570,7 @@ type JobSpec struct {
 	// If omitted, a default value will be used.
 	// It Cannot be updated.
 	// More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
+	// +kubebuilder:default:={requests:{cpu:"200m", memory:"512Mi"}, limits: {cpu:2, memory:"2Gi"}}
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
 
 	// _(Optional)_ SecurityContext of the Job pod.
@@ -554,6 +582,8 @@ type JobSpec struct {
 	HostAliases []corev1.HostAlias `json:"hostAliases,omitempty"`
 
 	// Job running mode, `"Blocking", "Detached"`, default: `"Detached"`
+	// +kubebuilder:validation:Enum=Detached;Blocking;Application
+	// +kubebuilder:default:=Detached
 	Mode *JobMode `json:"mode,omitempty"`
 }
 
