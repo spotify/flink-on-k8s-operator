@@ -155,6 +155,7 @@ spec:
                     configMapName:
                       type: string
                     mountPath:
+                      default: /etc/hadoop/conf
                       type: string
                   type: object
                 image:
@@ -162,6 +163,7 @@ spec:
                     name:
                       type: string
                     pullPolicy:
+                      default: Always
                       type: string
                     pullSecrets:
                       items:
@@ -797,6 +799,7 @@ spec:
                         type: string
                       type: object
                     parallelism:
+                      default: 1
                       format: int32
                       type: integer
                     podAnnotations:
@@ -1648,6 +1651,8 @@ spec:
                       type: array
                   type: object
                 jobManager:
+                  default:
+                    replicas: 1
                   properties:
                     ServiceAnnotations:
                       additionalProperties:
@@ -1658,6 +1663,7 @@ spec:
                         type: string
                       type: object
                     accessScope:
+                      default: Cluster
                       type: string
                     extraPorts:
                       items:
@@ -1701,6 +1707,7 @@ spec:
                         tlsSecretName:
                           type: string
                         useTls:
+                          default: false
                           type: boolean
                       type: object
                     initContainers:
@@ -2453,9 +2460,17 @@ spec:
                           type: integer
                       type: object
                     replicas:
+                      default: 1
                       format: int32
                       type: integer
                     resources:
+                      default:
+                        limits:
+                          cpu: 2
+                          memory: 2Gi
+                        requests:
+                          cpu: 200m
+                          memory: 512Mi
                       properties:
                         limits:
                           additionalProperties:
@@ -3980,6 +3995,7 @@ spec:
                     type: string
                   type: object
                 recreateOnUpdate:
+                  default: true
                   type: boolean
                 revisionHistoryLimit:
                   format: int32
@@ -3987,8 +4003,11 @@ spec:
                 serviceAccountName:
                   type: string
                 taskManager:
+                  default:
+                    replicas: 3
                   properties:
                     deploymentType:
+                      default: StatefulSet
                       type: string
                     extraPorts:
                       items:
@@ -4764,9 +4783,17 @@ spec:
                           type: integer
                       type: object
                     replicas:
+                      default: 3
                       format: int32
                       type: integer
                     resources:
+                      default:
+                        limits:
+                          cpu: 2
+                          memory: 2Gi
+                        requests:
+                          cpu: 200m
+                          memory: 512Mi
                       properties:
                         limits:
                           additionalProperties:

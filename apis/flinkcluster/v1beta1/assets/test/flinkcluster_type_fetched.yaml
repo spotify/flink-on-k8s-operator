@@ -1,0 +1,53 @@
+metadata:
+  name: state-machine
+  namespace: default
+spec:
+  flinkVersion: "1.15"
+  image:
+    name: arm64v8/flink:1.15
+    pullPolicy: Always
+  jobManager:
+    replicas: 1
+    accessScope: Cluster
+    ports:
+      rpc: 6123
+      blob: 6124
+      query: 6125
+      ui: 8081
+    resources:
+      limits:
+        cpu: "2"
+        memory: 2Gi
+      requests:
+        cpu: 200m
+        memory: 512Mi
+    memoryOffHeapMin: "0"
+  taskManager:
+    deploymentType: StatefulSet
+    replicas: 3
+    ports:
+      data: 6121
+      rpc: 6122
+      query: 6125
+    resources:
+      limits:
+        cpu: "2"
+        memory: 2Gi
+      requests:
+        cpu: 200m
+        memory: 512Mi
+    memoryOffHeapMin: "0"
+  job:
+    jarFile: ./examples/streaming/StateMachineExample.jar
+    allowNonRestoredState: false
+    parallelism: 1
+    noLoggingToStdout: false
+    restartPolicy: Never
+    cleanupPolicy:
+      afterJobSucceeds: DeleteCluster
+      afterJobFails: KeepCluster
+      afterJobCancelled: DeleteCluster
+    mode: Detached
+  flinkProperties:
+    taskmanager.numberOfTaskSlots: "1"
+  recreateOnUpdate: true

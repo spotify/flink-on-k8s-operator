@@ -1,0 +1,13 @@
+apiVersion: flinkoperator.k8s.io/v1beta1
+kind: FlinkCluster
+metadata:
+  namespace: default
+  name: state-machine
+spec:
+  flinkVersion: "1.15"
+  image:
+    name: arm64v8/flink:1.15
+  job:
+    jarFile: ./examples/streaming/StateMachineExample.jar
+  flinkProperties:
+    taskmanager.numberOfTaskSlots: "1"

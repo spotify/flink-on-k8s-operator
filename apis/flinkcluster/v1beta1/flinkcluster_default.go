@@ -33,23 +33,27 @@ const (
 )
 
 var (
-	v10, _ = version.NewVersion("1.10")
+	v10, _           = version.NewVersion("1.10")
+	DefaultResources = corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("200m"),
+			corev1.ResourceMemory: resource.MustParse("512Mi"),
+		},
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("2"),
+			corev1.ResourceMemory: resource.MustParse("2Gi"),
+		},
+	}
 )
 
 // Sets default values for unspecified FlinkCluster properties.
 func _SetDefault(cluster *FlinkCluster) {
-	if cluster.Spec.RecreateOnUpdate == nil {
-		cluster.Spec.RecreateOnUpdate = new(bool)
-		*cluster.Spec.RecreateOnUpdate = true
-	}
-
 	if cluster.Spec.BatchSchedulerName != nil {
 		cluster.Spec.BatchScheduler = &BatchSchedulerSpec{
 			Name: *cluster.Spec.BatchSchedulerName,
 		}
 	}
 
-	_SetImageDefault(&cluster.Spec.Image)
 	flinkVersion, _ := version.NewVersion(cluster.Spec.FlinkVersion)
 	if cluster.Spec.JobManager == nil {
 		cluster.Spec.JobManager = &JobManagerSpec{}
@@ -59,33 +63,11 @@ func _SetDefault(cluster *FlinkCluster) {
 		cluster.Spec.TaskManager = &TaskManagerSpec{}
 	}
 	_SetTaskManagerDefault(cluster.Spec.TaskManager, flinkVersion)
-	_SetHadoopConfigDefault(cluster.Spec.HadoopConfig)
-
-}
-
-func _SetImageDefault(imageSpec *ImageSpec) {
-	if len(imageSpec.PullPolicy) == 0 {
-		imageSpec.PullPolicy = corev1.PullAlways
-	}
 }
 
 func _SetJobManagerDefault(jmSpec *JobManagerSpec, flinkVersion *version.Version) {
 	if jmSpec == nil {
 		return
-	}
-
-	if jmSpec.Replicas == nil {
-		jmSpec.Replicas = new(int32)
-		*jmSpec.Replicas = DefaultJobManagerReplicas
-	}
-	if len(jmSpec.AccessScope) == 0 {
-		jmSpec.AccessScope = AccessScopeCluster
-	}
-	if jmSpec.Ingress != nil {
-		if jmSpec.Ingress.UseTLS == nil {
-			jmSpec.Ingress.UseTLS = new(bool)
-			*jmSpec.Ingress.UseTLS = false
-		}
 	}
 
 	if flinkVersion == nil || flinkVersion.LessThan(v10) {
@@ -140,10 +122,6 @@ func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Versi
 	if tmSpec == nil {
 		return
 	}
-	if tmSpec.Replicas == nil {
-		tmSpec.Replicas = new(int32)
-		*tmSpec.Replicas = DefaultTaskManagerReplicas
-	}
 	if flinkVersion == nil || flinkVersion.LessThan(v10) {
 		if tmSpec.MemoryOffHeapMin.Format == "" {
 			tmSpec.MemoryOffHeapMin = *resource.NewScaledQuantity(600, 6) // 600MB
@@ -190,17 +168,4 @@ func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Versi
 		mergo.Merge(&readinessProbe, tmSpec.ReadinessProbe, mergo.WithOverride)
 	}
 	tmSpec.ReadinessProbe = &readinessProbe
-
-	if tmSpec.DeploymentType == "" {
-		tmSpec.DeploymentType = DeploymentTypeStatefulSet
-	}
-}
-
-func _SetHadoopConfigDefault(hadoopConfig *HadoopConfig) {
-	if hadoopConfig == nil {
-		return
-	}
-	if len(hadoopConfig.MountPath) == 0 {
-		hadoopConfig.MountPath = "/etc/hadoop/conf"
-	}
 }

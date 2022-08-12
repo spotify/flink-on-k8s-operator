@@ -125,6 +125,7 @@ type ImageSpec struct {
 	// Image pull policy. One of `Always, Never, IfNotPresent`, default: `Always`.
 	// if :latest tag is specified, or IfNotPresent otherwise.
 	// [More info](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy)
+	// +kubebuilder:default:=Always
 	PullPolicy corev1.PullPolicy `json:"pullPolicy,omitempty"`
 
 	// _(Optional)_ Secrets for image pull.
@@ -187,6 +188,7 @@ type JobManagerIngressSpec struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 
 	// TLS use, default: `false`.
+	// +kubebuilder:default:=false
 	UseTLS *bool `json:"useTls,omitempty"`
 
 	// _(Optional)_TLS secret name.
@@ -196,6 +198,7 @@ type JobManagerIngressSpec struct {
 // JobManagerSpec defines properties of JobManager.
 type JobManagerSpec struct {
 	// The number of JobManager replicas, default: `1`
+	// +kubebuilder:default:=1
 	Replicas *int32 `json:"replicas,omitempty"`
 
 	// Access scope, default: `Cluster`.
@@ -205,6 +208,7 @@ type JobManagerSpec struct {
 	// `NodePort`: accessible through node port.
 	// `Headless`: pod IPs assumed to be routable and advertised directly with `clusterIP: None``.
 	// Currently `VPC, External` are only available for GKE.
+	// +kubebuilder:default:=Cluster
 	AccessScope string `json:"accessScope,omitempty"`
 
 	// _(Optional)_ Define JobManager Service annotations for configuration.
@@ -228,6 +232,7 @@ type JobManagerSpec struct {
 	// default: 2 CPUs with 2Gi Memory.
 	// It Cannot be updated.
 	// [More info](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/)
+	// +kubebuilder:default:={requests:{cpu:"200m", memory:"512Mi"}, limits: {cpu:2, memory:"2Gi"}}
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
 
 	// Percentage of off-heap memory in containers, as a safety margin to avoid OOM kill, default: `25`
@@ -335,9 +340,11 @@ const (
 // TaskManagerSpec defines properties of TaskManager.
 type TaskManagerSpec struct {
 	// _(Optional)_ Defines the replica workload's type: `StatefulSet` or `Deployment`. If not specified, the default value is `StatefulSet`.
+	// +kubebuilder:default:=StatefulSet
 	DeploymentType DeploymentType `json:"deploymentType,omitempty"`
 
 	// The number of replicas. default: `3`
+	// +kubebuilder:default:=3
 	Replicas *int32 `json:"replicas,omitempty"`
 
 	// Ports that TaskManager listening on.
@@ -351,6 +358,7 @@ type TaskManagerSpec struct {
 	// default: 2 CPUs with 2Gi Memory.
 	// It Cannot be updated.
 	// [More info](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/)
+	// +kubebuilder:default:={requests:{cpu:"200m", memory:"512Mi"}, limits: {cpu:2, memory:"2Gi"}}
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
 
 	// TODO: Memory calculation would be change. Let's watch the issue FLINK-13980.
@@ -509,6 +517,7 @@ type JobSpec struct {
 	SavepointGeneration int32 `json:"savepointGeneration,omitempty"`
 
 	// Job parallelism, default: `1`.
+	// +kubebuilder:default:=1
 	Parallelism *int32 `json:"parallelism,omitempty"`
 
 	// No logging output to STDOUT, default: `false`.
@@ -626,9 +635,11 @@ type FlinkClusterSpec struct {
 	BatchScheduler *BatchSchedulerSpec `json:"batchScheduler,omitempty"`
 
 	// _(Optional)_ Flink JobManager spec.
+	// +kubebuilder:default:={replicas:1}
 	JobManager *JobManagerSpec `json:"jobManager,omitempty"`
 
 	// _(Optional)_ Flink TaskManager spec.
+	// +kubebuilder:default:={replicas:3}
 	TaskManager *TaskManagerSpec `json:"taskManager,omitempty"`
 
 	// _(Optional)_ Job spec. If specified, this cluster is an ephemeral Job
@@ -667,6 +678,7 @@ type FlinkClusterSpec struct {
 	RevisionHistoryLimit *int32 `json:"revisionHistoryLimit,omitempty"`
 
 	// Recreate components when updating flinkcluster, default: true.
+	// +kubebuilder:default:=true
 	RecreateOnUpdate *bool `json:"recreateOnUpdate,omitempty"`
 }
 
@@ -678,6 +690,7 @@ type HadoopConfig struct {
 
 	// The path where to mount the Volume of the ConfigMap.
 	// default: `/etc/hadoop/conf`.
+	// +kubebuilder:default:=/etc/hadoop/conf
 	MountPath string `json:"mountPath,omitempty"`
 }
 
