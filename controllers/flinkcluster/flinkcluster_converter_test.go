@@ -61,7 +61,7 @@ var (
 	ingressPathType                    = networkingv1.PathTypePrefix
 	storageClassName                   = "default-class"
 	jmReadinessProbe                   = corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(int(jmRPCPort)),
 			},
@@ -72,7 +72,7 @@ var (
 		FailureThreshold:    60,
 	}
 	jmLivenessProbe = corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(int(jmRPCPort)),
 			},
@@ -83,7 +83,7 @@ var (
 		FailureThreshold:    5,
 	}
 	tmReadinessProbe = corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(int(tmRPCPort)),
 			},
@@ -94,7 +94,7 @@ var (
 		FailureThreshold:    60,
 	}
 	tmLivenessProbe = corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.FromInt(int(tmRPCPort)),
 			},
@@ -444,7 +444,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 								},
 							},
 							Lifecycle: &corev1.Lifecycle{
-								PreStop: &corev1.Handler{
+								PreStop: &corev1.LifecycleHandler{
 									Exec: &corev1.ExecAction{
 										Command: []string{"sleep", strconv.Itoa(preStopSleepSeconds)},
 									},
@@ -753,7 +753,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 								},
 							},
 							Lifecycle: &corev1.Lifecycle{
-								PreStop: &corev1.Handler{
+								PreStop: &corev1.LifecycleHandler{
 									Exec: &corev1.ExecAction{
 										Command: []string{"sleep", strconv.Itoa(preStopSleepSeconds)},
 									},
@@ -1174,7 +1174,7 @@ func TestTmDeploymentTypeDeployment(t *testing.T) {
 								},
 							},
 							Lifecycle: &corev1.Lifecycle{
-								PreStop: &corev1.Handler{
+								PreStop: &corev1.LifecycleHandler{
 									Exec: &corev1.ExecAction{
 										Command: []string{"sleep", strconv.Itoa(preStopSleepSeconds)},
 									},
