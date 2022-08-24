@@ -11,11 +11,11 @@ require (
 	github.com/onsi/gomega v1.19.0
 	golang.org/x/net v0.0.0-20220225172249-27dd8689420f
 	golang.org/x/tools v0.1.5 // indirect
-	k8s.io/api v0.22.8
-	k8s.io/apimachinery v0.22.8
-	k8s.io/client-go v0.22.8
+	k8s.io/api v0.24.1
+	k8s.io/apimachinery v0.24.1
+	k8s.io/client-go v0.24.1
 	k8s.io/klog v1.0.0
-	sigs.k8s.io/controller-runtime v0.9.6
+	sigs.k8s.io/controller-runtime v0.12.1
 	volcano.sh/apis v0.0.0-20210924061932-d4408f25a528
 )
 
