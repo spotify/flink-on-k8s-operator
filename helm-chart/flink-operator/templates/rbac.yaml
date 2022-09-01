@@ -134,6 +134,7 @@ rules:
       - ""
     resources:
       - events
+      - secrets
     verbs:
       - create
       - delete
@@ -251,6 +252,16 @@ rules:
       - scheduling.volcano.sh
     resources:
       - podgroups
+    verbs:
+      - get
+      - create
+      - update
+      - delete
+  - apiGroups: 
+      - admissionregistration.k8s.io
+    resources:
+      - mutatingwebhookconfigurations
+      - validatingwebhookconfigurations
     verbs:
       - get
       - create
