@@ -32,6 +32,8 @@ import (
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
 	"github.com/spotify/flink-on-k8s-operator/internal/util"
 	"gotest.tools/v3/assert"
+
+	semver "github.com/hashicorp/go-version"
 )
 
 func TestTimeConverter(t *testing.T) {
@@ -254,11 +256,13 @@ func TestIsComponentUpdated(t *testing.T) {
 }
 
 func TestGetUpdateState(t *testing.T) {
+	k8sServerVersion, _ := semver.NewVersion("v1.21.1")
 	var observed = ObservedClusterState{
 		cluster: &v1beta1.FlinkCluster{
 			Spec: v1beta1.FlinkClusterSpec{
-				JobManager: &v1beta1.JobManagerSpec{Ingress: &v1beta1.JobManagerIngressSpec{}},
-				Job:        &v1beta1.JobSpec{},
+				JobManager:  &v1beta1.JobManagerSpec{Ingress: &v1beta1.JobManagerIngressSpec{}},
+				TaskManager: &v1beta1.TaskManagerSpec{DeploymentType: v1beta1.DeploymentTypeStatefulSet},
+				Job:         &v1beta1.JobSpec{},
 			},
 			Status: v1beta1.FlinkClusterStatus{
 				Components: v1beta1.FlinkClusterComponentsStatus{Job: &v1beta1.JobStatus{State: v1beta1.JobStateRunning}},
@@ -271,6 +275,7 @@ func TestGetUpdateState(t *testing.T) {
 		tmStatefulSet:       &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "cluster-85dc8f749"}}},
 		tmService:           &corev1.Service{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "cluster-85dc8f749"}}},
 		jmService:           &corev1.Service{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "cluster-85dc8f749"}}},
+		k8sServerVersion:    k8sServerVersion,
 	}
 	var state = getUpdateState(&observed)
 	assert.Equal(t, state, UpdateStatePreparing)
@@ -278,16 +283,18 @@ func TestGetUpdateState(t *testing.T) {
 	observed = ObservedClusterState{
 		cluster: &v1beta1.FlinkCluster{
 			Spec: v1beta1.FlinkClusterSpec{
-				JobManager: &v1beta1.JobManagerSpec{Ingress: &v1beta1.JobManagerIngressSpec{}},
-				Job:        &v1beta1.JobSpec{},
+				JobManager:  &v1beta1.JobManagerSpec{Ingress: &v1beta1.JobManagerIngressSpec{}},
+				TaskManager: &v1beta1.TaskManagerSpec{DeploymentType: v1beta1.DeploymentTypeStatefulSet},
+				Job:         &v1beta1.JobSpec{},
 			},
 			Status: v1beta1.FlinkClusterStatus{
 				Revision: v1beta1.RevisionStatus{CurrentRevision: "cluster-85dc8f749-2", NextRevision: "cluster-aa5e3a87z-3"},
 			},
 		},
-		jmStatefulSet: &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "cluster-aa5e3a87z"}}},
-		tmStatefulSet: &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "cluster-85dc8f749"}}},
-		jmService:     &corev1.Service{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "cluster-85dc8f749"}}},
+		jmStatefulSet:    &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "cluster-aa5e3a87z"}}},
+		tmStatefulSet:    &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "cluster-85dc8f749"}}},
+		jmService:        &corev1.Service{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "cluster-85dc8f749"}}},
+		k8sServerVersion: k8sServerVersion,
 	}
 	state = getUpdateState(&observed)
 	assert.Equal(t, state, UpdateStateInProgress)
@@ -295,8 +302,9 @@ func TestGetUpdateState(t *testing.T) {
 	observed = ObservedClusterState{
 		cluster: &v1beta1.FlinkCluster{
 			Spec: v1beta1.FlinkClusterSpec{
-				JobManager: &v1beta1.JobManagerSpec{Ingress: &v1beta1.JobManagerIngressSpec{}},
-				Job:        &v1beta1.JobSpec{},
+				JobManager:  &v1beta1.JobManagerSpec{Ingress: &v1beta1.JobManagerIngressSpec{}},
+				TaskManager: &v1beta1.TaskManagerSpec{DeploymentType: v1beta1.DeploymentTypeStatefulSet},
+				Job:         &v1beta1.JobSpec{},
 			},
 			Status: v1beta1.FlinkClusterStatus{Revision: v1beta1.RevisionStatus{CurrentRevision: "cluster-85dc8f749-2", NextRevision: "cluster-aa5e3a87z-3"}},
 		},
@@ -308,6 +316,7 @@ func TestGetUpdateState(t *testing.T) {
 		jmService:           &corev1.Service{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "cluster-aa5e3a87z"}}},
 		tmService:           &corev1.Service{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "cluster-aa5e3a87z"}}},
 		jmIngress:           &networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "cluster-aa5e3a87z"}}},
+		k8sServerVersion:    k8sServerVersion,
 	}
 	state = getUpdateState(&observed)
 	assert.Equal(t, state, UpdateStateFinished)

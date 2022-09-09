@@ -36,6 +36,7 @@ import (
 	"github.com/spotify/flink-on-k8s-operator/internal/model"
 	"github.com/spotify/flink-on-k8s-operator/internal/util"
 
+	semver "github.com/hashicorp/go-version"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -48,13 +49,14 @@ import (
 // ClusterReconciler takes actions to drive the observed state towards the
 // desired state.
 type ClusterReconciler struct {
-	k8sClient   client.Client
-	flinkClient *flink.Client
-	context     context.Context
-	log         logr.Logger
-	observed    ObservedClusterState
-	desired     model.DesiredClusterState
-	recorder    record.EventRecorder
+	k8sClient        client.Client
+	k8sServerVersion *semver.Version
+	flinkClient      *flink.Client
+	context          context.Context
+	log              logr.Logger
+	observed         ObservedClusterState
+	desired          model.DesiredClusterState
+	recorder         record.EventRecorder
 }
 
 const JobCheckInterval = 10 * time.Second
@@ -604,13 +606,16 @@ func (reconciler *ClusterReconciler) deleteConfigMap(
 }
 
 func (reconciler *ClusterReconciler) reconcilePodDisruptionBudget() error {
-	var desiredPodDisruptionBudget = reconciler.desired.PodDisruptionBudget
-	var observedPodDisruptionBudget = reconciler.observed.podDisruptionBudget
+	desiredPodDisruptionBudget := reconciler.desired.PodDisruptionBudget
+	observedPodDisruptionBudget := reconciler.observed.podDisruptionBudget
+	var log = reconciler.log.WithValues("component", "PodDisruptionBudget")
 
+	if desiredPodDisruptionBudget != nil && observedPodDisruptionBudget != nil {
+		log.Info("PodDisruptionBudget already exists, no action")
+	}
 	if desiredPodDisruptionBudget != nil && observedPodDisruptionBudget == nil {
 		return reconciler.createPodDisruptionBudget(desiredPodDisruptionBudget, "PodDisruptionBudget")
 	}
-
 	if desiredPodDisruptionBudget == nil && observedPodDisruptionBudget != nil {
 		return reconciler.deletePodDisruptionBudget(observedPodDisruptionBudget, "PodDisruptionBudget")
 	}
@@ -623,14 +628,16 @@ func (reconciler *ClusterReconciler) createPodDisruptionBudget(
 	var context = reconciler.context
 	var log = reconciler.log.WithValues("component", component)
 	var k8sClient = reconciler.k8sClient
+	var err error
 
 	log.Info("Creating PodDisruptionBudget", "PodDisruptionBudget", *pdb)
-	var err = k8sClient.Create(context, pdb)
+	err = k8sClient.Create(context, pdb)
 	if err != nil {
 		log.Info("Failed to create PodDisruptionBudget", "error", err)
 	} else {
 		log.Info("PodDisruptionBudget created")
 	}
+
 	return err
 }
 

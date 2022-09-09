@@ -117,6 +117,10 @@ const (
 	SavepointReasonUpdate        SavepointReason = "update"
 )
 
+const (
+	PodDisruptionBudgetV1AvailableVersion = "v1.21"
+)
+
 // ImageSpec defines Flink image of JobManager and TaskManager containers.
 type ImageSpec struct {
 	// Flink image name.

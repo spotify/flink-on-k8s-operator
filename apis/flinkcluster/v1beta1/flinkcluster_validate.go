@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-version"
+	semver "github.com/hashicorp/go-version"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -55,9 +55,9 @@ func (v *Validator) ValidateCreate(cluster *FlinkCluster) error {
 		return err
 	}
 
-	var flinkVersion *version.Version
+	var flinkVersion *semver.Version
 	if len(cluster.Spec.FlinkVersion) != 0 {
-		flinkVersion, err = version.NewVersion(cluster.Spec.FlinkVersion)
+		flinkVersion, err = semver.NewVersion(cluster.Spec.FlinkVersion)
 		if err != nil {
 			return err
 		}
@@ -341,7 +341,7 @@ func (v *Validator) validateImage(imageSpec *ImageSpec) error {
 	return nil
 }
 
-func (v *Validator) validateJobManager(flinkVersion *version.Version, jmSpec *JobManagerSpec) error {
+func (v *Validator) validateJobManager(flinkVersion *semver.Version, jmSpec *JobManagerSpec) error {
 	var err error
 	if jmSpec == nil {
 		return nil
@@ -436,7 +436,7 @@ func (v *Validator) validateJobManager(flinkVersion *version.Version, jmSpec *Jo
 	return nil
 }
 
-func (v *Validator) validateTaskManager(flinkVersion *version.Version, tmSpec *TaskManagerSpec) error {
+func (v *Validator) validateTaskManager(flinkVersion *semver.Version, tmSpec *TaskManagerSpec) error {
 	if tmSpec == nil {
 		return nil
 	}

@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
+	semver "github.com/hashicorp/go-version"
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
 	"gotest.tools/v3/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -134,10 +135,10 @@ var (
 		RunAsUser:  &userAndGroupId,
 		RunAsGroup: &userAndGroupId,
 	}
+	k8sServerVersion, _ = semver.NewVersion("v1.21.1")
 )
 
 func getObservedClusterState() *ObservedClusterState {
-
 	return &ObservedClusterState{
 		cluster: &v1beta1.FlinkCluster{
 			TypeMeta: metav1.TypeMeta{
@@ -328,6 +329,7 @@ func getObservedClusterState() *ObservedClusterState {
 				Revision: v1beta1.RevisionStatus{NextRevision: "flinkjobcluster-sample-85dc8f749-1"},
 			},
 		},
+		k8sServerVersion: k8sServerVersion,
 	}
 }
 
@@ -1319,6 +1321,7 @@ func TestSecurityContext(t *testing.T) {
 				Revision: v1beta1.RevisionStatus{NextRevision: "flinkjobcluster-sample-85dc8f749-1"},
 			},
 		},
+		k8sServerVersion: k8sServerVersion,
 	}
 
 	var desired = getDesiredClusterState(observed)
@@ -1359,6 +1362,7 @@ func TestSecurityContext(t *testing.T) {
 				Revision: v1beta1.RevisionStatus{NextRevision: "flinkjobcluster-sample-85dc8f749-1"},
 			},
 		},
+		k8sServerVersion: k8sServerVersion,
 	}
 
 	var desired2 = getDesiredClusterState(observed2)
@@ -1650,6 +1654,7 @@ func TestClassPath(t *testing.T) {
 				Revision: v1beta1.RevisionStatus{NextRevision: "flinkjobcluster-sample-85dc8f749-1"},
 			},
 		},
+		k8sServerVersion: k8sServerVersion,
 	}
 
 	var desired = getDesiredClusterState(observed)

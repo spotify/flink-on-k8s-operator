@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	semver "github.com/hashicorp/go-version"
 
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
 	"github.com/spotify/flink-on-k8s-operator/internal/controllers/history"
@@ -42,19 +43,21 @@ import (
 
 // ClusterStateObserver gets the observed state of the cluster.
 type ClusterStateObserver struct {
-	k8sClient    client.Client
-	k8sClientset *kubernetes.Clientset
-	flinkClient  *flink.Client
-	request      ctrl.Request
-	context      context.Context
-	log          logr.Logger
-	history      history.Interface
+	k8sClient        client.Client
+	k8sClientset     *kubernetes.Clientset
+	k8sServerVersion *semver.Version
+	flinkClient      *flink.Client
+	request          ctrl.Request
+	context          context.Context
+	log              logr.Logger
+	history          history.Interface
 }
 
 // ObservedClusterState holds observed state of a cluster.
 type ObservedClusterState struct {
 	cluster                *v1beta1.FlinkCluster
 	revisions              []*appsv1.ControllerRevision
+	k8sServerVersion       *semver.Version
 	configMap              *corev1.ConfigMap
 	jmStatefulSet          *appsv1.StatefulSet
 	jmService              *corev1.Service
@@ -131,6 +134,7 @@ func (observer *ClusterStateObserver) observe(
 	observed *ObservedClusterState) error {
 	var err error
 	var log = observer.log
+	observed.k8sServerVersion = observer.k8sServerVersion
 
 	// Cluster state.
 	var observedCluster = new(v1beta1.FlinkCluster)
@@ -181,18 +185,24 @@ func (observer *ClusterStateObserver) observe(
 	}
 
 	// PodDisruptionBudget.
-	var observedPodDisruptionBudget = new(policyv1.PodDisruptionBudget)
-	err = observer.observePodDisruptionBudget(observedPodDisruptionBudget)
-	if err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			log.Error(err, "Failed to get PodDisruptionBudget")
-			return err
+	// policy/v1/PodDisruptionBuget is available >= v1.21
+	podDisruptionBugetV1AvailableVersion, _ := semver.NewVersion(v1beta1.PodDisruptionBudgetV1AvailableVersion)
+
+	if observed.k8sServerVersion.GreaterThanOrEqual(podDisruptionBugetV1AvailableVersion) {
+		var observedPodDisruptionBudgetV1 = &policyv1.PodDisruptionBudget{}
+		err = observer.observePodDisruptionBudget(observedPodDisruptionBudgetV1)
+		if err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				log.Error(err, "Failed to get PodDisruptionBudget")
+				return err
+			}
+			observed.podDisruptionBudget = nil
+		} else {
+			log.Info("Observed PodDisruptionBudget", "state", *observedPodDisruptionBudgetV1)
+			observed.podDisruptionBudget = observedPodDisruptionBudgetV1
 		}
-		log.Info("Observed PodDisruptionBudget", "state", "nil")
-		observedPodDisruptionBudget = nil
 	} else {
-		log.Info("Observed PodDisruptionBudget", "state", *observedPodDisruptionBudget)
-		observed.podDisruptionBudget = observedPodDisruptionBudget
+		log.Info("Observed PodDisruptionBudget", "state", "nil")
 	}
 
 	// JobManager StatefulSet.
