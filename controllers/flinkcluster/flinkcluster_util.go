@@ -402,15 +402,20 @@ func areComponentsUpdated(components []runtime.Object, cluster *v1beta1.FlinkClu
 }
 
 func isUpdatedAll(observed ObservedClusterState) bool {
+	tmDeploymentType := observed.cluster.Spec.TaskManager.DeploymentType
 	components := []runtime.Object{
 		observed.configMap,
 		observed.podDisruptionBudget,
-		observed.tmStatefulSet,
 		observed.tmService,
 		observed.jmStatefulSet,
 		observed.jmService,
 		observed.jmIngress,
 		observed.flinkJobSubmitter.job,
+	}
+	if tmDeploymentType == v1beta1.DeploymentTypeDeployment {
+		components = append(components, observed.tmDeployment)
+	} else {
+		components = append(components, observed.tmStatefulSet)
 	}
 	return areComponentsUpdated(components, observed.cluster)
 }
@@ -420,13 +425,18 @@ func isClusterUpdateToDate(observed *ObservedClusterState) bool {
 	if !observed.cluster.Status.Revision.IsUpdateTriggered() {
 		return true
 	}
+	tmDeploymentType := observed.cluster.Spec.TaskManager.DeploymentType
 	components := []runtime.Object{
 		observed.configMap,
 		observed.podDisruptionBudget,
-		observed.tmStatefulSet,
 		observed.tmService,
 		observed.jmStatefulSet,
 		observed.jmService,
+	}
+	if tmDeploymentType == v1beta1.DeploymentTypeDeployment {
+		components = append(components, observed.tmDeployment)
+	} else {
+		components = append(components, observed.tmStatefulSet)
 	}
 	return areComponentsUpdated(components, observed.cluster)
 }

@@ -197,6 +197,11 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 	} else {
 		log.Info("Desired state", "TaskManager Service", "nil")
 	}
+	if desired.TmService != nil {
+		log.Info("Desired state", "TaskManager Service", *desired.TmService)
+	} else {
+		log.Info("Desired state", "TaskManager Service", "nil")
+	}
 	if desired.JmStatefulSet != nil {
 		log.Info("Desired state", "JobManager StatefulSet", *desired.JmStatefulSet)
 	} else {
