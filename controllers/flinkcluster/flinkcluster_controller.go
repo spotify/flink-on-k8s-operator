@@ -139,6 +139,7 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 		request:      request,
 		context:      context,
 		log:          log,
+		recorder:     handler.recorder,
 		history:      history,
 	}
 	err = observer.observe(observed)

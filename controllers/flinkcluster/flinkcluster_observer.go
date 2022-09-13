@@ -19,6 +19,8 @@ package flinkcluster
 import (
 	"context"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/record"
 	"strings"
 	"time"
 
@@ -49,6 +51,7 @@ type ClusterStateObserver struct {
 	context      context.Context
 	log          logr.Logger
 	history      history.Interface
+	recorder     record.EventRecorder
 }
 
 // ObservedClusterState holds observed state of a cluster.
@@ -141,6 +144,7 @@ func (observer *ClusterStateObserver) observe(
 			return err
 		}
 		log.Info("Observed cluster", "cluster", "nil")
+		observer.sendDeletedEvent()
 		observedCluster = nil
 	} else {
 		log.Info("Observed cluster", "cluster", *observedCluster)
@@ -310,6 +314,24 @@ func (observer *ClusterStateObserver) observe(
 	observed.updateState = getUpdateState(observed)
 
 	return nil
+}
+
+func (observer *ClusterStateObserver) sendDeletedEvent() {
+	var eventCluster = &v1beta1.FlinkCluster{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "FlinkCluster",
+			APIVersion: "flinkoperator.k8s.io/v1beta1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      observer.request.Name,
+			Namespace: observer.request.Namespace,
+		},
+	}
+	observer.recorder.Event(
+		eventCluster,
+		"Normal",
+		"StatusUpdate",
+		fmt.Sprintf("Cluster status: Deleted"))
 }
 
 func (observer *ClusterStateObserver) observeJob(
