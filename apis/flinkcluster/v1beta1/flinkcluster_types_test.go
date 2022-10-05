@@ -17,61 +17,60 @@ limitations under the License.
 package v1beta1
 
 import (
+	"encoding/json"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/util/yaml"
+	"os"
+	"path/filepath"
+	"time"
 
 	"golang.org/x/net/context"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
 // These tests are written in BDD-style using Ginkgo framework. Refer to
 // http://onsi.github.io/ginkgo to learn more.
 
-var _ = Describe("FlinkCluster", func() {
-	var (
-		key              types.NamespacedName
-		created, fetched *FlinkCluster
+var _ = Describe("FlinkCluster type", func() {
+
+	// Define utility constants for object names and testing timeouts/durations and intervals.
+	const (
+		Namespace = "default"
+		JobName   = "state-machine"
+
+		timeout  = time.Second * 10
+		duration = time.Second * 10
+		interval = time.Millisecond * 250
 	)
 
-	BeforeEach(func() {
-		// Add any setup steps that needs to be executed before each test
-	})
+	var flinkJob FlinkCluster
+	flinkJobManifestPath, _ := filepath.Abs("assets/test/flinkcluster_type_test.yaml")
+	flinkJobManifest, _ := os.ReadFile(flinkJobManifestPath)
+	yaml.Unmarshal(flinkJobManifest, &flinkJob)
 
-	AfterEach(func() {
-		// Add any teardown steps that needs to be executed after each test
-	})
+	Context("When creating FlinkCluster", func() {
+		It("Should set default values", func() {
+			By("By creating a new FlinkCluster")
+			ctx := context.Background()
 
-	// Add Tests for OpenAPI validation (or additonal CRD features) specified in
-	// your API definition.
-	// Avoid adding tests for vanilla CRUD operations because they would
-	// test Kubernetes API server, which isn't the goal here.
-	Context("Create API", func() {
+			requested, _ := json.Marshal(flinkJob)
+			GinkgoWriter.Println("FlinkCluster requested: ", string(requested))
+			Expect(k8sClient.Create(ctx, &flinkJob)).Should(Succeed())
 
-		It("should create an object successfully", func() {
+			jobLookupKey := types.NamespacedName{Name: JobName, Namespace: Namespace}
+			createdjob := &FlinkCluster{}
 
-			key = types.NamespacedName{
-				Name:      "foo",
-				Namespace: "default",
-			}
-			created = &FlinkCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "default",
-				}}
-
-			By("creating an API obj")
-			Expect(k8sClient.Create(context.TODO(), created)).To(Succeed())
-
-			fetched = &FlinkCluster{}
-			Expect(k8sClient.Get(context.TODO(), key, fetched)).To(Succeed())
-			Expect(fetched).To(Equal(created))
-
-			By("deleting the created object")
-			Expect(k8sClient.Delete(context.TODO(), created)).To(Succeed())
-			Expect(k8sClient.Get(context.TODO(), key, created)).ToNot(Succeed())
+			// We'll need to retry getting this newly created FlinkCluster, given that creation may not immediately happen.
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, jobLookupKey, createdjob)
+				if err != nil {
+					return false
+				}
+				created, _ := json.Marshal(createdjob)
+				GinkgoWriter.Println("FlinkCluster created: ", string(created))
+				return true
+			}, timeout, interval).Should(BeTrue())
 		})
-
 	})
-
 })

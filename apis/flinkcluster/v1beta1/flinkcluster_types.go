@@ -125,6 +125,7 @@ type ImageSpec struct {
 	// Image pull policy. One of `Always, Never, IfNotPresent`, default: `Always`.
 	// if :latest tag is specified, or IfNotPresent otherwise.
 	// [More info](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy)
+	// +kubebuilder:default:=Always
 	PullPolicy corev1.PullPolicy `json:"pullPolicy,omitempty"`
 
 	// _(Optional)_ Secrets for image pull.
@@ -153,15 +154,27 @@ type NamedPort struct {
 // JobManagerPorts defines ports of JobManager.
 type JobManagerPorts struct {
 	// RPC port, default: `6123`.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +kubebuilder:default:=6123
 	RPC *int32 `json:"rpc,omitempty"`
 
 	// Blob port, default: `6124`.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +kubebuilder:default:=6124
 	Blob *int32 `json:"blob,omitempty"`
 
 	// Query port, default: `6125`.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +kubebuilder:default:=6125
 	Query *int32 `json:"query,omitempty"`
 
 	// UI port, default: `8081`.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +kubebuilder:default:=8081
 	UI *int32 `json:"ui,omitempty"`
 }
 
@@ -175,6 +188,7 @@ type JobManagerIngressSpec struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 
 	// TLS use, default: `false`.
+	// +kubebuilder:default:=false
 	UseTLS *bool `json:"useTls,omitempty"`
 
 	// _(Optional)_TLS secret name.
@@ -184,6 +198,7 @@ type JobManagerIngressSpec struct {
 // JobManagerSpec defines properties of JobManager.
 type JobManagerSpec struct {
 	// The number of JobManager replicas, default: `1`
+	// +kubebuilder:default:=1
 	Replicas *int32 `json:"replicas,omitempty"`
 
 	// Access scope, default: `Cluster`.
@@ -193,6 +208,7 @@ type JobManagerSpec struct {
 	// `NodePort`: accessible through node port.
 	// `Headless`: pod IPs assumed to be routable and advertised directly with `clusterIP: None``.
 	// Currently `VPC, External` are only available for GKE.
+	// +kubebuilder:default:=Cluster
 	AccessScope string `json:"accessScope,omitempty"`
 
 	// _(Optional)_ Define JobManager Service annotations for configuration.
@@ -205,6 +221,7 @@ type JobManagerSpec struct {
 	Ingress *JobManagerIngressSpec `json:"ingress,omitempty"`
 
 	// Ports that JobManager listening on.
+	// +kubebuilder:default:={rpc:6123, blob:6124, query:6125, ui:8081}
 	Ports JobManagerPorts `json:"ports,omitempty"`
 
 	// _(Optional)_ Extra ports to be exposed. For example, Flink metrics reporter ports: Prometheus, JMX and so on.
@@ -215,6 +232,7 @@ type JobManagerSpec struct {
 	// default: 2 CPUs with 2Gi Memory.
 	// It Cannot be updated.
 	// [More info](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/)
+	// +kubebuilder:default:={requests:{cpu:"200m", memory:"512Mi"}, limits: {cpu:2, memory:"2Gi"}}
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
 
 	// Percentage of off-heap memory in containers, as a safety margin to avoid OOM kill, default: `25`
@@ -288,12 +306,21 @@ type JobManagerSpec struct {
 // TaskManagerPorts defines ports of TaskManager.
 type TaskManagerPorts struct {
 	// Data port, default: `6121`.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +kubebuilder:default:=6121
 	Data *int32 `json:"data,omitempty"`
 
 	// RPC port, default: `6122`.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +kubebuilder:default:=6122
 	RPC *int32 `json:"rpc,omitempty"`
 
 	// Query port, default: `6125`.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +kubebuilder:default:=6125
 	Query *int32 `json:"query,omitempty"`
 }
 
@@ -313,12 +340,15 @@ const (
 // TaskManagerSpec defines properties of TaskManager.
 type TaskManagerSpec struct {
 	// _(Optional)_ Defines the replica workload's type: `StatefulSet` or `Deployment`. If not specified, the default value is `StatefulSet`.
+	// +kubebuilder:default:=StatefulSet
 	DeploymentType DeploymentType `json:"deploymentType,omitempty"`
 
 	// The number of replicas. default: `3`
+	// +kubebuilder:default:=3
 	Replicas *int32 `json:"replicas,omitempty"`
 
 	// Ports that TaskManager listening on.
+	// +kubebuilder:default:={data:6121, rpc:6122, query:6125}
 	Ports TaskManagerPorts `json:"ports,omitempty"`
 
 	// _(Optional)_ Extra ports to be exposed. For example, Flink metrics reporter ports: Prometheus, JMX and so on.
@@ -328,6 +358,7 @@ type TaskManagerSpec struct {
 	// default: 2 CPUs with 2Gi Memory.
 	// It Cannot be updated.
 	// [More info](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/)
+	// +kubebuilder:default:={requests:{cpu:"200m", memory:"512Mi"}, limits: {cpu:2, memory:"2Gi"}}
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
 
 	// TODO: Memory calculation would be change. Let's watch the issue FLINK-13980.
@@ -461,6 +492,7 @@ type JobSpec struct {
 	FromSavepoint *string `json:"fromSavepoint,omitempty"`
 
 	// Allow non-restored state, default: `false`.
+	// +kubebuilder:default:=false
 	AllowNonRestoredState *bool `json:"allowNonRestoredState,omitempty"`
 
 	// _(Optional)_ Savepoints dir where to store savepoints of the job.
@@ -485,9 +517,11 @@ type JobSpec struct {
 	SavepointGeneration int32 `json:"savepointGeneration,omitempty"`
 
 	// Job parallelism, default: `1`.
+	// +kubebuilder:default:=1
 	Parallelism *int32 `json:"parallelism,omitempty"`
 
 	// No logging output to STDOUT, default: `false`.
+	// +kubebuilder:default:=false
 	NoLoggingToStdout *bool `json:"noLoggingToStdout,omitempty"`
 
 	// _(Optional)_ Volumes in the Job pod.
@@ -521,9 +555,11 @@ type JobSpec struct {
 	// job from the savepoint recorded in the job status if available; otherwise,
 	// the job will stay in failed state. This option is usually used together
 	// with `autoSavepointSeconds` and `savepointsDir`.
-	RestartPolicy *JobRestartPolicy `json:"restartPolicy"`
+	// +kubebuilder:default:=Never
+	RestartPolicy *JobRestartPolicy `json:"restartPolicy,omitempty"`
 
 	// The action to take after job finishes.
+	// +kubebuilder:default:={afterJobSucceeds:DeleteCluster, afterJobFails:KeepCluster, afterJobCancelled:DeleteCluster}
 	CleanupPolicy *CleanupPolicy `json:"cleanupPolicy,omitempty"`
 
 	// Deprecated: _(Optional)_ Request the job to be cancelled. Only applies to running jobs. If
@@ -543,6 +579,7 @@ type JobSpec struct {
 	// If omitted, a default value will be used.
 	// It Cannot be updated.
 	// More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
+	// +kubebuilder:default:={requests:{cpu:"200m", memory:"512Mi"}, limits: {cpu:2, memory:"2Gi"}}
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
 
 	// _(Optional)_ SecurityContext of the Job pod.
@@ -554,6 +591,8 @@ type JobSpec struct {
 	HostAliases []corev1.HostAlias `json:"hostAliases,omitempty"`
 
 	// Job running mode, `"Blocking", "Detached"`, default: `"Detached"`
+	// +kubebuilder:validation:Enum=Detached;Blocking;Application
+	// +kubebuilder:default:=Detached
 	Mode *JobMode `json:"mode,omitempty"`
 }
 
@@ -596,9 +635,11 @@ type FlinkClusterSpec struct {
 	BatchScheduler *BatchSchedulerSpec `json:"batchScheduler,omitempty"`
 
 	// _(Optional)_ Flink JobManager spec.
+	// +kubebuilder:default:={replicas:1}
 	JobManager *JobManagerSpec `json:"jobManager,omitempty"`
 
 	// _(Optional)_ Flink TaskManager spec.
+	// +kubebuilder:default:={replicas:3}
 	TaskManager *TaskManagerSpec `json:"taskManager,omitempty"`
 
 	// _(Optional)_ Job spec. If specified, this cluster is an ephemeral Job
@@ -637,6 +678,7 @@ type FlinkClusterSpec struct {
 	RevisionHistoryLimit *int32 `json:"revisionHistoryLimit,omitempty"`
 
 	// Recreate components when updating flinkcluster, default: true.
+	// +kubebuilder:default:=true
 	RecreateOnUpdate *bool `json:"recreateOnUpdate,omitempty"`
 }
 
@@ -648,6 +690,7 @@ type HadoopConfig struct {
 
 	// The path where to mount the Volume of the ConfigMap.
 	// default: `/etc/hadoop/conf`.
+	// +kubebuilder:default:=/etc/hadoop/conf
 	MountPath string `json:"mountPath,omitempty"`
 }
 

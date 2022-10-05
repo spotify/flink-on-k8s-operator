@@ -31,35 +31,26 @@ import (
 
 // Tests default values are set as expected.
 func TestSetDefault(t *testing.T) {
+	var clusterJmRPCPort = int32(6123)
+	var clusterTmRPCPort = int32(6122)
 	var cluster = FlinkCluster{
 		Spec: FlinkClusterSpec{
 			Job: &JobSpec{},
 			JobManager: &JobManagerSpec{
 				Ingress: &JobManagerIngressSpec{},
+				Ports:   JobManagerPorts{RPC: &clusterJmRPCPort},
 			},
-			HadoopConfig: &HadoopConfig{},
+			TaskManager: &TaskManagerSpec{
+				Ports: TaskManagerPorts{RPC: &clusterTmRPCPort},
+			},
 		},
 	}
 	_SetDefault(&cluster)
 
-	var defaultJobMode JobMode = JobModeDetached
-	var defaultJmReplicas = int32(1)
 	var defaultJmRPCPort = int32(6123)
-	var defaultJmBlobPort = int32(6124)
-	var defaultJmQueryPort = int32(6125)
-	var defaultJmUIPort = int32(8081)
-	var defaultJmIngressTLSUse = false
-	var defaultTmDataPort = int32(6121)
 	var defaultTmRPCPort = int32(6122)
-	var defaultTmQueryPort = int32(6125)
-	var defaultJobAllowNonRestoredState = false
-	var defaultJobNoLoggingToStdout = false
-	var defaultJobRestartPolicy = JobRestartPolicyNever
 	var defaultMemoryOffHeapRatio = int32(25)
 	var defaultMemoryOffHeapMin = resource.MustParse("600M")
-	var defaultRecreateOnUpdate = true
-	resources := DefaultResources
-	tmReplicas := int32(DefaultTaskManagerReplicas)
 	var defaultJmReadinessProbe = corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
@@ -111,22 +102,13 @@ func TestSetDefault(t *testing.T) {
 		Spec: FlinkClusterSpec{
 			Image: ImageSpec{
 				Name:        "",
-				PullPolicy:  "Always",
 				PullSecrets: nil,
 			},
 			JobManager: &JobManagerSpec{
-				Replicas:    &defaultJmReplicas,
-				AccessScope: "Cluster",
-				Ingress: &JobManagerIngressSpec{
-					UseTLS: &defaultJmIngressTLSUse,
-				},
+				Ingress: &JobManagerIngressSpec{},
 				Ports: JobManagerPorts{
-					RPC:   &defaultJmRPCPort,
-					Blob:  &defaultJmBlobPort,
-					Query: &defaultJmQueryPort,
-					UI:    &defaultJmUIPort,
+					RPC: &defaultJmRPCPort,
 				},
-				Resources:          resources,
 				MemoryOffHeapRatio: &defaultMemoryOffHeapRatio,
 				MemoryOffHeapMin:   defaultMemoryOffHeapMin,
 				Volumes:            nil,
@@ -136,14 +118,9 @@ func TestSetDefault(t *testing.T) {
 				ReadinessProbe:     &defaultJmReadinessProbe,
 			},
 			TaskManager: &TaskManagerSpec{
-				Replicas:       &tmReplicas,
-				DeploymentType: DeploymentTypeStatefulSet,
 				Ports: TaskManagerPorts{
-					Data:  &defaultTmDataPort,
-					RPC:   &defaultTmRPCPort,
-					Query: &defaultTmQueryPort,
+					RPC: &defaultTmRPCPort,
 				},
-				Resources:          resources,
 				MemoryOffHeapRatio: &defaultMemoryOffHeapRatio,
 				MemoryOffHeapMin:   defaultMemoryOffHeapMin,
 				Volumes:            nil,
@@ -152,24 +129,10 @@ func TestSetDefault(t *testing.T) {
 				ReadinessProbe:     &defaultTmReadinessProbe,
 			},
 			Job: &JobSpec{
-				AllowNonRestoredState: &defaultJobAllowNonRestoredState,
-				NoLoggingToStdout:     &defaultJobNoLoggingToStdout,
-				RestartPolicy:         &defaultJobRestartPolicy,
-				CleanupPolicy: &CleanupPolicy{
-					AfterJobSucceeds:  "DeleteCluster",
-					AfterJobFails:     "KeepCluster",
-					AfterJobCancelled: "DeleteCluster",
-				},
 				SecurityContext: nil,
-				Mode:            &defaultJobMode,
-				Resources:       resources,
 			},
 			FlinkProperties: nil,
-			HadoopConfig: &HadoopConfig{
-				MountPath: "/etc/hadoop/conf",
-			},
-			EnvVars:          nil,
-			RecreateOnUpdate: &defaultRecreateOnUpdate,
+			EnvVars:         nil,
 		},
 		Status: FlinkClusterStatus{},
 	}
@@ -183,7 +146,6 @@ func TestSetDefault(t *testing.T) {
 
 // Tests non-default values are not overwritten unexpectedly.
 func TestSetNonDefault(t *testing.T) {
-	var defaultJobMode = JobMode(JobModeDetached)
 	var jmReplicas = int32(2)
 	var jmRPCPort = int32(8123)
 	var jmBlobPort = int32(8124)
@@ -292,8 +254,7 @@ func TestSetNonDefault(t *testing.T) {
 				ReadinessProbe:  &jmReadinessProbe,
 			},
 			TaskManager: &TaskManagerSpec{
-				Replicas:       &tmReplicas,
-				DeploymentType: DeploymentTypeDeployment,
+				Replicas: &tmReplicas,
 				Ports: TaskManagerPorts{
 					Data:  &tmDataPort,
 					RPC:   &tmRPCPort,
@@ -311,16 +272,8 @@ func TestSetNonDefault(t *testing.T) {
 				NoLoggingToStdout:     &jobNoLoggingToStdout,
 				RestartPolicy:         &jobRestartPolicy,
 				SecurityContext:       &securityContext,
-				CleanupPolicy: &CleanupPolicy{
-					AfterJobSucceeds:  "DeleteTaskManagers",
-					AfterJobFails:     "DeleteCluster",
-					AfterJobCancelled: "KeepCluster",
-				},
 			},
-			FlinkProperties: nil,
-			HadoopConfig: &HadoopConfig{
-				MountPath: "/opt/flink/hadoop/conf",
-			},
+			FlinkProperties:  nil,
 			EnvVars:          nil,
 			RecreateOnUpdate: &recreateOnUpdate,
 		},
@@ -382,8 +335,7 @@ func TestSetNonDefault(t *testing.T) {
 				ReadinessProbe:     &jmExpectedReadinessProbe,
 			},
 			TaskManager: &TaskManagerSpec{
-				Replicas:       &tmReplicas,
-				DeploymentType: DeploymentTypeDeployment,
+				Replicas: &tmReplicas,
 				Ports: TaskManagerPorts{
 					Data:  &tmDataPort,
 					RPC:   &tmRPCPort,
@@ -402,18 +354,8 @@ func TestSetNonDefault(t *testing.T) {
 				NoLoggingToStdout:     &jobNoLoggingToStdout,
 				RestartPolicy:         &jobRestartPolicy,
 				SecurityContext:       &securityContext,
-				CleanupPolicy: &CleanupPolicy{
-					AfterJobSucceeds:  "DeleteTaskManagers",
-					AfterJobFails:     "DeleteCluster",
-					AfterJobCancelled: "KeepCluster",
-				},
-				Mode:      &defaultJobMode,
-				Resources: DefaultResources,
 			},
-			FlinkProperties: nil,
-			HadoopConfig: &HadoopConfig{
-				MountPath: "/opt/flink/hadoop/conf",
-			},
+			FlinkProperties:  nil,
 			EnvVars:          nil,
 			RecreateOnUpdate: &recreateOnUpdate,
 		},
