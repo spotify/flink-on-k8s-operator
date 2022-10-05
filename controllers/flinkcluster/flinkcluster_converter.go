@@ -1109,7 +1109,7 @@ func calTaskManagerTaskSlots(cluster *v1beta1.FlinkCluster) (int32, error) {
 		return int32(parsed), nil
 	}
 
-	resources := util.UpperBoundedResourceList(cluster.Spec.TaskManager.Resources)
+	resources := cluster.Spec.TaskManager.GetResources()
 	slots := int32(resources.Cpu().Value()) / 2
 	if slots == 0 {
 		return 1, nil
@@ -1126,11 +1126,9 @@ func calFlinkHeapSize(cluster *v1beta1.FlinkCluster) map[string]string {
 	}
 
 	var flinkHeapSize = make(map[string]string)
-	jmResources := util.UpperBoundedResourceList(jm.Resources)
-	tmResources := util.UpperBoundedResourceList(tm.Resources)
 
 	jmHeapSizeMB := calHeapSize(
-		jmResources.Memory().Value(),
+		jm.GetResources().Memory().Value(),
 		jm.MemoryOffHeapMin.Value(),
 		int64(*jm.MemoryOffHeapRatio))
 	if jmHeapSizeMB > 0 {
@@ -1138,7 +1136,7 @@ func calFlinkHeapSize(cluster *v1beta1.FlinkCluster) map[string]string {
 	}
 
 	tmHeapSizeMB := calHeapSize(
-		tmResources.Memory().Value(),
+		tm.GetResources().Memory().Value(),
 		tm.MemoryOffHeapMin.Value(),
 		int64(*tm.MemoryOffHeapRatio))
 	if tmHeapSizeMB > 0 {
@@ -1181,17 +1179,15 @@ func calFlinkMemoryProcessSize(cluster *v1beta1.FlinkCluster) map[string]string 
 	var flinkProcessMemory = make(map[string]string)
 	jm := cluster.Spec.JobManager
 	tm := cluster.Spec.TaskManager
-	jmResources := util.UpperBoundedResourceList(jm.Resources)
-	tmResources := util.UpperBoundedResourceList(tm.Resources)
 
-	jmMemoryByte := jmResources.Memory().Value()
+	jmMemoryByte := jm.GetResources().Memory().Value()
 	jmRatio := int64(*jm.MemoryProcessRatio)
 	jmSizeMB := calProcessMemorySize(jmMemoryByte, jmRatio)
 	if jmSizeMB > 0 {
 		flinkProcessMemory["jobmanager.memory.process.size"] = strconv.FormatInt(jmSizeMB, 10) + "m"
 	}
 
-	tmMemByte := tmResources.Memory().Value()
+	tmMemByte := tm.GetResources().Memory().Value()
 	ratio := int64(*tm.MemoryProcessRatio)
 	sizeMB := calProcessMemorySize(tmMemByte, ratio)
 	if sizeMB > 0 {

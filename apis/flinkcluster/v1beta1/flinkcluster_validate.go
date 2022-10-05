@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-version"
-	"github.com/spotify/flink-on-k8s-operator/internal/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -418,8 +417,7 @@ func (v *Validator) validateJobManager(flinkVersion *version.Version, jmSpec *Jo
 		}
 
 		// MemoryOffHeapMin
-		resources := util.UpperBoundedResourceList(jmSpec.Resources)
-		err = v.validateMemoryOffHeapMin(&jmSpec.MemoryOffHeapMin, resources.Memory(), "jobmanager")
+		err = v.validateMemoryOffHeapMin(&jmSpec.MemoryOffHeapMin, jmSpec.GetResources().Memory(), "jobmanager")
 		if err != nil {
 			return err
 		}
@@ -498,8 +496,7 @@ func (v *Validator) validateTaskManager(flinkVersion *version.Version, tmSpec *T
 		}
 
 		// MemoryOffHeapMin
-		resources := util.UpperBoundedResourceList(tmSpec.Resources)
-		err = v.validateMemoryOffHeapMin(&tmSpec.MemoryOffHeapMin, resources.Memory(), "taskmanager")
+		err = v.validateMemoryOffHeapMin(&tmSpec.MemoryOffHeapMin, tmSpec.GetResources().Memory(), "taskmanager")
 		if err != nil {
 			return err
 		}

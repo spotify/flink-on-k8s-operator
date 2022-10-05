@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/spotify/flink-on-k8s-operator/internal/util"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func (j *JobStatus) IsActive() bool {
@@ -140,4 +143,12 @@ func hasTimeElapsed(timeToCheckStr string, now time.Time, intervalSec int) bool 
 
 func isBlank(s *string) bool {
 	return s == nil || strings.TrimSpace(*s) == ""
+}
+
+func (jm *JobManagerSpec) GetResources() *corev1.ResourceList {
+	return util.UpperBoundedResourceList(jm.Resources)
+}
+
+func (tm *TaskManagerSpec) GetResources() *corev1.ResourceList {
+	return util.UpperBoundedResourceList(tm.Resources)
 }
