@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-version"
+	"github.com/spotify/flink-on-k8s-operator/internal/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -417,7 +418,8 @@ func (v *Validator) validateJobManager(flinkVersion *version.Version, jmSpec *Jo
 		}
 
 		// MemoryOffHeapMin
-		err = v.validateMemoryOffHeapMin(&jmSpec.MemoryOffHeapMin, jmSpec.Resources.Limits.Memory(), "jobmanager")
+		resources := util.UpperBoundedResourceList(jmSpec.Resources)
+		err = v.validateMemoryOffHeapMin(&jmSpec.MemoryOffHeapMin, resources.Memory(), "jobmanager")
 		if err != nil {
 			return err
 		}
@@ -496,7 +498,8 @@ func (v *Validator) validateTaskManager(flinkVersion *version.Version, tmSpec *T
 		}
 
 		// MemoryOffHeapMin
-		err = v.validateMemoryOffHeapMin(&tmSpec.MemoryOffHeapMin, tmSpec.Resources.Limits.Memory(), "taskmanager")
+		resources := util.UpperBoundedResourceList(tmSpec.Resources)
+		err = v.validateMemoryOffHeapMin(&tmSpec.MemoryOffHeapMin, resources.Memory(), "taskmanager")
 		if err != nil {
 			return err
 		}
@@ -585,8 +588,26 @@ func (v *Validator) validateJob(jobSpec *JobSpec) error {
 }
 
 func (v *Validator) validateResourceRequirements(rr corev1.ResourceRequirements, component string) error {
-	if rr.Limits.Memory().IsZero() || rr.Limits.Cpu().IsZero() {
-		return fmt.Errorf("%s: cpu/memory resource limit requirements are not specified", component)
+	if rr.Requests != nil {
+		if rr.Requests.Cpu().IsZero() {
+			return fmt.Errorf("%s cpu request is unspecified", component)
+		}
+		if rr.Requests.Memory().IsZero() {
+			return fmt.Errorf("%s memory request is unspecified", component)
+		}
+	}
+
+	if rr.Limits != nil {
+		if rr.Limits.Cpu().IsZero() {
+			return fmt.Errorf("%s cpu limit is unspecified", component)
+		}
+		if rr.Limits.Memory().IsZero() {
+			return fmt.Errorf("%s memory limit is unspecified", component)
+		}
+	}
+
+	if rr.Requests == nil && rr.Limits == nil {
+		return fmt.Errorf("%s resource requests/limits are unspecified", component)
 	}
 
 	return nil

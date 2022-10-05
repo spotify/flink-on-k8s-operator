@@ -8,6 +8,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -59,4 +60,25 @@ func GetNonLiveHistory(revisions []*appsv1.ControllerRevision, historyLimit int)
 
 	nonLiveHistory = append(nonLiveHistory, history[:(historyLen-historyLimit)]...)
 	return nonLiveHistory
+}
+
+func UpperBoundedResourceList(resources corev1.ResourceRequirements) *corev1.ResourceList {
+	var cpu resource.Quantity
+	var mem resource.Quantity
+	if !resources.Limits.Cpu().IsZero() {
+		cpu = *resources.Limits.Cpu()
+	} else {
+		cpu = *resources.Requests.Cpu()
+	}
+
+	if !resources.Limits.Memory().IsZero() {
+		mem = *resources.Limits.Memory()
+	} else {
+		mem = *resources.Requests.Memory()
+	}
+
+	return &corev1.ResourceList{
+		corev1.ResourceCPU:    cpu,
+		corev1.ResourceMemory: mem,
+	}
 }
