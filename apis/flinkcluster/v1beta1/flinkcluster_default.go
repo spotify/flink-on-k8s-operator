@@ -27,6 +27,7 @@ import (
 )
 
 const (
+	DefaultParallelism         = -1
 	DefaultJobManagerReplicas  = 1
 	DefaultTaskManagerReplicas = 3
 	ForceTearDownAfter         = time.Second * 10
