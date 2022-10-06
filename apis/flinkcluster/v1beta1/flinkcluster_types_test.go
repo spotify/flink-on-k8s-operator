@@ -39,38 +39,43 @@ var _ = Describe("FlinkCluster type", func() {
 		Namespace = "default"
 		JobName   = "state-machine"
 
-		timeout  = time.Second * 10
-		duration = time.Second * 10
+		timeout  = time.Second * 5
 		interval = time.Millisecond * 250
 	)
 
 	var flinkJob FlinkCluster
-	flinkJobManifestPath, _ := filepath.Abs("assets/test/flinkcluster_type_test.yaml")
+	flinkJobManifestPath, _ := filepath.Abs("assets/test/flinkcluster_type_request.yaml")
 	flinkJobManifest, _ := os.ReadFile(flinkJobManifestPath)
 	yaml.Unmarshal(flinkJobManifest, &flinkJob)
+
+	var expectedFlinkJob FlinkCluster
+	expectedFlinkJobManifestPath, _ := filepath.Abs("assets/test/flinkcluster_type_expected.yaml")
+	expectedFlinkJobManifest, _ := os.ReadFile(expectedFlinkJobManifestPath)
+	yaml.Unmarshal(expectedFlinkJobManifest, &expectedFlinkJob)
+	expectedSpecByte, _ := json.Marshal(expectedFlinkJob.Spec)
+	expectedSpec := string(expectedSpecByte)
 
 	Context("When creating FlinkCluster", func() {
 		It("Should set default values", func() {
 			By("By creating a new FlinkCluster")
 			ctx := context.Background()
-
-			requested, _ := json.Marshal(flinkJob)
-			GinkgoWriter.Println("FlinkCluster requested: ", string(requested))
 			Expect(k8sClient.Create(ctx, &flinkJob)).Should(Succeed())
 
-			jobLookupKey := types.NamespacedName{Name: JobName, Namespace: Namespace}
-			createdjob := &FlinkCluster{}
-
 			// We'll need to retry getting this newly created FlinkCluster, given that creation may not immediately happen.
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, jobLookupKey, createdjob)
+			GinkgoWriter.Println("FlinkCluster expected spec: ", expectedSpec)
+			jobLookupKey := types.NamespacedName{Name: JobName, Namespace: Namespace}
+			Eventually(func() string {
+				createdJob := &FlinkCluster{}
+				err := k8sClient.Get(ctx, jobLookupKey, createdJob)
 				if err != nil {
-					return false
+					return ""
 				}
-				created, _ := json.Marshal(createdjob)
-				GinkgoWriter.Println("FlinkCluster created: ", string(created))
-				return true
-			}, timeout, interval).Should(BeTrue())
+				createdSpecBytes, _ := json.Marshal(createdJob.Spec)
+				createdSpec := string(createdSpecBytes)
+				GinkgoWriter.Println("FlinkCluster created spec: ", expectedSpec)
+
+				return createdSpec
+			}, timeout, interval).Should(Equal(expectedSpec))
 		})
 	})
 })
