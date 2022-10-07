@@ -254,7 +254,6 @@ func (reconciler *ClusterReconciler) reconcileDeployment(
 	return nil
 }
 
-
 func (reconciler *ClusterReconciler) reconcileTaskManagerService() error {
 	var desiredTmService = reconciler.desired.TmService
 	var observedTmService = reconciler.observed.tmService
