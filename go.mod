@@ -7,7 +7,7 @@ require (
 	github.com/go-logr/logr v1.2.3
 	github.com/google/go-cmp v0.5.9
 	github.com/hashicorp/go-version v1.6.0
-	github.com/imdario/mergo v0.3.12
+	github.com/imdario/mergo v0.3.13
 	github.com/onsi/gomega v1.21.1
 	golang.org/x/net v0.0.0-20220722155237-a158d28d115b
 	k8s.io/api v0.24.1
