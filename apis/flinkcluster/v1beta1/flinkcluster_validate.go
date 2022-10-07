@@ -233,11 +233,14 @@ func (v *Validator) checkSavepointGeneration(
 
 func (v *Validator) validateTaskManagerUpdate(old *FlinkCluster, new *FlinkCluster) error {
 	//  When flink-operator updated, old flinkCluster does not have TaskManager.DeploymentType, may cause update failed.
-	if old.Spec.TaskManager.DeploymentType == "" && (new.Spec.TaskManager.DeploymentType != "" && new.Spec.TaskManager.DeploymentType != DeploymentTypeStatefulSet) {
+	oldDeploymentType := old.Spec.TaskManager.DeploymentType
+	newDeploymentType := new.Spec.TaskManager.DeploymentType
+
+	if oldDeploymentType == "" && (newDeploymentType != "" && newDeploymentType != DeploymentTypeStatefulSet) {
 		return fmt.Errorf(
 			"updating deploymentType is not allowed")
 	}
-	if old.Spec.TaskManager.DeploymentType != "" && (old.Spec.TaskManager.DeploymentType != new.Spec.TaskManager.DeploymentType) {
+	if oldDeploymentType != "" && (oldDeploymentType != newDeploymentType) {
 		return fmt.Errorf(
 			"updating deploymentType is not allowed")
 	}
