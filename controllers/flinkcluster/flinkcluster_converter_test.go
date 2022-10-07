@@ -690,26 +690,6 @@ func TestGetDesiredClusterState(t *testing.T) {
 							ReadinessProbe: &tmReadinessProbe,
 							Env: []corev1.EnvVar{
 								{
-									Name: "TASK_MANAGER_CPU_LIMIT",
-									ValueFrom: &corev1.EnvVarSource{
-										ResourceFieldRef: &corev1.ResourceFieldSelector{
-											ContainerName: "taskmanager",
-											Resource:      "limits.cpu",
-											Divisor:       resource.MustParse("1m"),
-										},
-									},
-								},
-								{
-									Name: "TASK_MANAGER_MEMORY_LIMIT",
-									ValueFrom: &corev1.EnvVarSource{
-										ResourceFieldRef: &corev1.ResourceFieldSelector{
-											ContainerName: "taskmanager",
-											Resource:      "limits.memory",
-											Divisor:       resource.MustParse("1Mi"),
-										},
-									},
-								},
-								{
 									Name:  "FOO",
 									Value: "abc",
 								},
@@ -1110,26 +1090,6 @@ func TestTmDeploymentTypeDeployment(t *testing.T) {
 							LivenessProbe:  &tmLivenessProbe,
 							ReadinessProbe: &tmReadinessProbe,
 							Env: []corev1.EnvVar{
-								{
-									Name: "TASK_MANAGER_CPU_LIMIT",
-									ValueFrom: &corev1.EnvVarSource{
-										ResourceFieldRef: &corev1.ResourceFieldSelector{
-											ContainerName: "taskmanager",
-											Resource:      "limits.cpu",
-											Divisor:       resource.MustParse("1m"),
-										},
-									},
-								},
-								{
-									Name: "TASK_MANAGER_MEMORY_LIMIT",
-									ValueFrom: &corev1.EnvVarSource{
-										ResourceFieldRef: &corev1.ResourceFieldSelector{
-											ContainerName: "taskmanager",
-											Resource:      "limits.memory",
-											Divisor:       resource.MustParse("1Mi"),
-										},
-									},
-								},
 								{
 									Name:  "FOO",
 									Value: "abc",
