@@ -257,8 +257,9 @@ func TestGetUpdateState(t *testing.T) {
 	var observed = ObservedClusterState{
 		cluster: &v1beta1.FlinkCluster{
 			Spec: v1beta1.FlinkClusterSpec{
-				JobManager: &v1beta1.JobManagerSpec{Ingress: &v1beta1.JobManagerIngressSpec{}},
-				Job:        &v1beta1.JobSpec{},
+				JobManager:  &v1beta1.JobManagerSpec{Ingress: &v1beta1.JobManagerIngressSpec{}},
+				TaskManager: &v1beta1.TaskManagerSpec{DeploymentType: v1beta1.DeploymentTypeStatefulSet},
+				Job:         &v1beta1.JobSpec{},
 			},
 			Status: v1beta1.FlinkClusterStatus{
 				Components: v1beta1.FlinkClusterComponentsStatus{Job: &v1beta1.JobStatus{State: v1beta1.JobStateRunning}},
@@ -278,8 +279,9 @@ func TestGetUpdateState(t *testing.T) {
 	observed = ObservedClusterState{
 		cluster: &v1beta1.FlinkCluster{
 			Spec: v1beta1.FlinkClusterSpec{
-				JobManager: &v1beta1.JobManagerSpec{Ingress: &v1beta1.JobManagerIngressSpec{}},
-				Job:        &v1beta1.JobSpec{},
+				JobManager:  &v1beta1.JobManagerSpec{Ingress: &v1beta1.JobManagerIngressSpec{}},
+				TaskManager: &v1beta1.TaskManagerSpec{DeploymentType: v1beta1.DeploymentTypeStatefulSet},
+				Job:         &v1beta1.JobSpec{},
 			},
 			Status: v1beta1.FlinkClusterStatus{
 				Revision: v1beta1.RevisionStatus{CurrentRevision: "cluster-85dc8f749-2", NextRevision: "cluster-aa5e3a87z-3"},
@@ -295,8 +297,9 @@ func TestGetUpdateState(t *testing.T) {
 	observed = ObservedClusterState{
 		cluster: &v1beta1.FlinkCluster{
 			Spec: v1beta1.FlinkClusterSpec{
-				JobManager: &v1beta1.JobManagerSpec{Ingress: &v1beta1.JobManagerIngressSpec{}},
-				Job:        &v1beta1.JobSpec{},
+				JobManager:  &v1beta1.JobManagerSpec{Ingress: &v1beta1.JobManagerIngressSpec{}},
+				TaskManager: &v1beta1.TaskManagerSpec{DeploymentType: v1beta1.DeploymentTypeStatefulSet},
+				Job:         &v1beta1.JobSpec{},
 			},
 			Status: v1beta1.FlinkClusterStatus{Revision: v1beta1.RevisionStatus{CurrentRevision: "cluster-85dc8f749-2", NextRevision: "cluster-aa5e3a87z-3"}},
 		},

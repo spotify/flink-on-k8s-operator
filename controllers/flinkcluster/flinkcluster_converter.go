@@ -637,8 +637,8 @@ func newTaskManagerService(flinkCluster *v1beta1.FlinkCluster) *corev1.Service {
 	var clusterName = flinkCluster.Name
 	// Service name matches the service name defined in the TM StatefulSet spec
 	var tmSvcName = getTaskManagerStatefulSetName(clusterName)
-	var labels = getClusterLabels(flinkCluster)
-	var tmSelector = getComponentLabels(flinkCluster, "taskmanager")
+	selectorLabels := getComponentLabels(flinkCluster, "taskmanager")
+	serviceLabels := mergeLabels(selectorLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
 
 	var tmSvcPorts = []corev1.ServicePort{
 		{
@@ -660,10 +660,10 @@ func newTaskManagerService(flinkCluster *v1beta1.FlinkCluster) *corev1.Service {
 			Namespace:       clusterNamespace,
 			Name:            tmSvcName,
 			OwnerReferences: []metav1.OwnerReference{ToOwnerReference(flinkCluster)},
-			Labels:          labels,
+			Labels:          serviceLabels,
 		},
 		Spec: corev1.ServiceSpec{
-			Selector:  tmSelector,
+			Selector:  selectorLabels,
 			ClusterIP: corev1.ClusterIPNone,
 			Type:      corev1.ServiceTypeClusterIP,
 			Ports:     tmSvcPorts,

@@ -382,49 +382,51 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 				State: v1beta1.ComponentStateDeleted,
 			}
 	}
-
-	// TaskManager StatefulSet.
-	var observedTmStatefulSet = observed.tmStatefulSet
-	if !isComponentUpdated(observedTmStatefulSet, observed.cluster) && shouldUpdateCluster(observed) {
-		recorded.Components.TaskManagerStatefulSet.DeepCopyInto(&status.Components.TaskManagerStatefulSet)
-		status.Components.TaskManagerStatefulSet.State = v1beta1.ComponentStateUpdating
-	} else if observedTmStatefulSet != nil {
-		status.Components.TaskManagerStatefulSet.Name =
-			observedTmStatefulSet.Name
-		status.Components.TaskManagerStatefulSet.State =
-			getStatefulSetState(observedTmStatefulSet)
-		if status.Components.TaskManagerStatefulSet.State ==
-			v1beta1.ComponentStateReady {
-			runningComponents++
-		}
-	} else if recorded.Components.TaskManagerStatefulSet.Name != "" {
-		status.Components.TaskManagerStatefulSet =
-			v1beta1.FlinkClusterComponentState{
-				Name:  recorded.Components.TaskManagerStatefulSet.Name,
-				State: v1beta1.ComponentStateDeleted,
+	var clusterTmDeploymentType = cluster.Spec.TaskManager.DeploymentType
+	if clusterTmDeploymentType == "" || clusterTmDeploymentType == v1beta1.DeploymentTypeStatefulSet {
+		// TaskManager StatefulSet.
+		var observedTmStatefulSet = observed.tmStatefulSet
+		if !isComponentUpdated(observedTmStatefulSet, observed.cluster) && shouldUpdateCluster(observed) {
+			recorded.Components.TaskManagerStatefulSet.DeepCopyInto(&status.Components.TaskManagerStatefulSet)
+			status.Components.TaskManagerStatefulSet.State = v1beta1.ComponentStateUpdating
+		} else if observedTmStatefulSet != nil {
+			status.Components.TaskManagerStatefulSet.Name =
+				observedTmStatefulSet.Name
+			status.Components.TaskManagerStatefulSet.State =
+				getStatefulSetState(observedTmStatefulSet)
+			if status.Components.TaskManagerStatefulSet.State ==
+				v1beta1.ComponentStateReady {
+				runningComponents++
 			}
-	}
-
-	// TaskManager Deployment.
-	var observedTmDeployment = observed.tmDeployment
-	if !isComponentUpdated(observedTmDeployment, observed.cluster) && shouldUpdateCluster(observed) {
-		recorded.Components.TaskManagerDeployment.DeepCopyInto(&status.Components.TaskManagerDeployment)
-		status.Components.TaskManagerDeployment.State = v1beta1.ComponentStateUpdating
-	} else if observedTmDeployment != nil {
-		status.Components.TaskManagerDeployment.Name =
-			observedTmDeployment.Name
-		status.Components.TaskManagerDeployment.State =
-			getDeploymentState(observedTmDeployment)
-		if status.Components.TaskManagerDeployment.State ==
-			v1beta1.ComponentStateReady {
-			runningComponents++
+		} else if recorded.Components.TaskManagerStatefulSet.Name != "" {
+			status.Components.TaskManagerStatefulSet =
+				v1beta1.FlinkClusterComponentState{
+					Name:  recorded.Components.TaskManagerStatefulSet.Name,
+					State: v1beta1.ComponentStateDeleted,
+				}
 		}
-	} else if recorded.Components.TaskManagerDeployment.Name != "" {
-		status.Components.TaskManagerDeployment =
-			v1beta1.FlinkClusterComponentState{
-				Name:  recorded.Components.TaskManagerDeployment.Name,
-				State: v1beta1.ComponentStateDeleted,
+	} else {
+		// TaskManager Deployment.
+		var observedTmDeployment = observed.tmDeployment
+		if !isComponentUpdated(observedTmDeployment, observed.cluster) && shouldUpdateCluster(observed) {
+			recorded.Components.TaskManagerDeployment.DeepCopyInto(&status.Components.TaskManagerDeployment)
+			status.Components.TaskManagerDeployment.State = v1beta1.ComponentStateUpdating
+		} else if observedTmDeployment != nil {
+			status.Components.TaskManagerDeployment.Name =
+				observedTmDeployment.Name
+			status.Components.TaskManagerDeployment.State =
+				getDeploymentState(observedTmDeployment)
+			if status.Components.TaskManagerDeployment.State ==
+				v1beta1.ComponentStateReady {
+				runningComponents++
 			}
+		} else if recorded.Components.TaskManagerDeployment.Name != "" {
+			status.Components.TaskManagerDeployment =
+				v1beta1.FlinkClusterComponentState{
+					Name:  recorded.Components.TaskManagerDeployment.Name,
+					State: v1beta1.ComponentStateDeleted,
+				}
+		}
 	}
 
 	// Derive the new cluster state.

@@ -245,34 +245,43 @@ func (observer *ClusterStateObserver) observe(
 	}
 
 	// TaskManager StatefulSet
-	var observedTmStatefulSet = new(appsv1.StatefulSet)
-	err = observer.observeTaskManagerStatefulSet(observedTmStatefulSet)
-	if err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			log.Error(err, "Failed to get TaskManager StatefulSet")
-			return err
+	tmDeploymentType := observed.cluster.Spec.TaskManager.DeploymentType
+	if tmDeploymentType == "" || tmDeploymentType == v1beta1.DeploymentTypeStatefulSet {
+		var observedTmStatefulSet = new(appsv1.StatefulSet)
+		err = observer.observeTaskManagerStatefulSet(observedTmStatefulSet)
+		if err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				log.Error(err, "Failed to get TaskManager StatefulSet")
+				return err
+			}
+			log.Info("Observed TaskManager StatefulSet", "state", "nil")
+			observedTmStatefulSet = nil
+		} else {
+			log.Info("Observed TaskManager StatefulSet", "state", *observedTmStatefulSet)
 		}
-		log.Info("Observed TaskManager StatefulSet", "state", "nil")
-		observedTmStatefulSet = nil
+		observed.tmStatefulSet = observedTmStatefulSet
 	} else {
-		log.Info("Observed TaskManager StatefulSet", "state", *observedTmStatefulSet)
+		observed.tmStatefulSet = nil
 	}
-	observed.tmStatefulSet = observedTmStatefulSet
 
 	// TaskManager Deployment
-	var observedTmDeployment = new(appsv1.Deployment)
-	err = observer.observeTaskManagerDeployment(observedTmDeployment)
-	if err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			log.Error(err, "Failed to get TaskManager Deployment")
-			return err
+	if tmDeploymentType == v1beta1.DeploymentTypeDeployment {
+		var observedTmDeployment = new(appsv1.Deployment)
+		err = observer.observeTaskManagerDeployment(observedTmDeployment)
+		if err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				log.Error(err, "Failed to get TaskManager Deployment")
+				return err
+			}
+			log.Info("Observed TaskManager Deployment", "state", "nil")
+			observedTmDeployment = nil
+		} else {
+			log.Info("Observed TaskManager Deployment", "state", *observedTmDeployment)
 		}
-		log.Info("Observed TaskManager Deployment", "state", "nil")
-		observedTmDeployment = nil
+		observed.tmDeployment = observedTmDeployment
 	} else {
-		log.Info("Observed TaskManager Deployment", "state", *observedTmDeployment)
+		observed.tmDeployment = nil
 	}
-	observed.tmDeployment = observedTmDeployment
 
 	// TaskManager Service.
 	var observedTmSvc = new(corev1.Service)
