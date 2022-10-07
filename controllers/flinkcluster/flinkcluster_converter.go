@@ -425,31 +425,6 @@ func newTaskManagerContainer(flinkCluster *v1beta1.FlinkCluster) *corev1.Contain
 		ports = append(ports, corev1.ContainerPort{Name: port.Name, ContainerPort: port.ContainerPort, Protocol: corev1.Protocol(port.Protocol)})
 	}
 
-	var envVars = []corev1.EnvVar{
-		{
-			Name: "TASK_MANAGER_CPU_LIMIT",
-			ValueFrom: &corev1.EnvVarSource{
-				ResourceFieldRef: &corev1.ResourceFieldSelector{
-					ContainerName: "taskmanager",
-					Resource:      "limits.cpu",
-					Divisor:       resource.MustParse("1m"),
-				},
-			},
-		},
-		{
-			Name: "TASK_MANAGER_MEMORY_LIMIT",
-			ValueFrom: &corev1.EnvVarSource{
-				ResourceFieldRef: &corev1.ResourceFieldSelector{
-					ContainerName: "taskmanager",
-					Resource:      "limits.memory",
-					Divisor:       resource.MustParse("1Mi"),
-				},
-			},
-		},
-	}
-
-	envVars = append(envVars, flinkCluster.Spec.EnvVars...)
-
 	return &corev1.Container{
 		Name:            "taskmanager",
 		Image:           imageSpec.Name,
@@ -459,7 +434,7 @@ func newTaskManagerContainer(flinkCluster *v1beta1.FlinkCluster) *corev1.Contain
 		LivenessProbe:   taskManagerSpec.LivenessProbe,
 		ReadinessProbe:  taskManagerSpec.ReadinessProbe,
 		Resources:       taskManagerSpec.Resources,
-		Env:             envVars,
+		Env:             flinkCluster.Spec.EnvVars,
 		EnvFrom:         flinkCluster.Spec.EnvFrom,
 		VolumeMounts:    taskManagerSpec.VolumeMounts,
 		Lifecycle: &corev1.Lifecycle{
