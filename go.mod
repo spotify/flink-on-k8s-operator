@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-logr/logr v1.2.3
-	github.com/google/go-cmp v0.5.8
+	github.com/google/go-cmp v0.5.9
 	github.com/hashicorp/go-version v1.6.0
 	github.com/imdario/mergo v0.3.12
 	github.com/onsi/gomega v1.20.1
@@ -20,7 +20,7 @@ require (
 
 require (
 	github.com/onsi/ginkgo/v2 v2.2.0
-	gotest.tools/v3 v3.1.0
+	gotest.tools/v3 v3.3.0
 )
 
 require (
