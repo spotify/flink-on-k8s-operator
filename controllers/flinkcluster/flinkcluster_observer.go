@@ -280,9 +280,16 @@ func (observer *ClusterStateObserver) observe(observed *ObservedClusterState) er
 			log = log.WithValues("SavepointStatus", observed.savepoint.status)
 		}
 
-		var pvcs = new(corev1.PersistentVolumeClaimList)
-		observer.observePersistentVolumeClaims(pvcs)
-		observed.persistentVolumeClaims = pvcs
+		observed.persistentVolumeClaims = new(corev1.PersistentVolumeClaimList)
+		if err := observer.observePersistentVolumeClaims(observed.persistentVolumeClaims); err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				observer.log.Error(err, "Failed to get persistent volume claim list")
+				return err
+			}
+			log = log.WithValues("PersistentVolumeClaimList", "nil")
+		} else {
+			log = log.WithValues("PersistentVolumeClaimList", len(observed.persistentVolumeClaims.Items))
+		}
 
 		// (Optional) job.
 		if err := observer.observeJob(observed); err != nil {
@@ -672,27 +679,15 @@ func (observer *ClusterStateObserver) observeJobSubmitterPod(
 
 func (observer *ClusterStateObserver) observePersistentVolumeClaims(
 	observedClaims *corev1.PersistentVolumeClaimList) error {
-	var log = observer.log
 	var clusterNamespace = observer.request.Namespace
 	var clusterName = observer.request.Name
 	var selector = labels.SelectorFromSet(map[string]string{"cluster": clusterName})
 
-	var err = observer.k8sClient.List(
+	return observer.k8sClient.List(
 		observer.context,
 		observedClaims,
 		client.InNamespace(clusterNamespace),
 		client.MatchingLabelsSelector{Selector: selector})
-	if err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			log.Error(err, "Failed to get persistent volume claim list")
-			return err
-		}
-		log.Info("Observed persistent volume claim list", "state", "nil")
-	} else {
-		log.Info("Observed persistent volume claim list", "state", len(observedClaims.Items))
-	}
-
-	return nil
 }
 
 // syncRevisionStatus synchronizes current FlinkCluster resource and its child ControllerRevision resources.
