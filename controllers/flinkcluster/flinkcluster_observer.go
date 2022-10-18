@@ -132,7 +132,7 @@ func (s *FlinkJobSubmitter) getState() JobSubmitState {
 // Observes the state of the cluster and its components.
 // NOT_FOUND error is ignored because it is normal, other errors are returned.
 func (observer *ClusterStateObserver) observe(observed *ObservedClusterState) error {
-	var log = observer.log.WithName("Observer")
+	var log = observer.log
 
 	// Cluster state.
 	observed.cluster = new(v1beta1.FlinkCluster)
@@ -143,152 +143,65 @@ func (observer *ClusterStateObserver) observe(observed *ObservedClusterState) er
 		}
 		observer.sendDeletedEvent()
 		observed.cluster = nil
-		log = log.WithValues("cluster", "nil")
-	} else {
-		log = log.WithValues("cluster", *observed.cluster)
 	}
 
 	if observed.cluster != nil {
 		// Revisions.
-		observed.revisions = []*appsv1.ControllerRevision{}
-		if err := observer.observeRevisions(&observed.revisions, observed.cluster); err != nil {
-			if client.IgnoreNotFound(err) != nil {
-				log.Error(err, "Failed to get the controllerRevision resource list")
-				return err
-			}
+		if err := observer.observeRevisions(observed); err != nil {
+			log.Error(err, "Failed to get the controllerRevision resource list")
+			return err
 		}
-
-		var b strings.Builder
-		for _, cr := range observed.revisions {
-			fmt.Fprintf(&b, "{name: %v, revision: %v},", cr.Name, cr.Revision)
-		}
-		log = log.WithValues("controllerRevisions", fmt.Sprintf("[%v]", b.String()))
 
 		// ConfigMap.
-		observed.configMap = new(corev1.ConfigMap)
-		if err := observer.observeConfigMap(observed.configMap); err != nil {
-			if client.IgnoreNotFound(err) != nil {
-				log.Error(err, "Failed to get configMap")
-				return err
-			}
-			observed.configMap = nil
-			log = log.WithValues("configMap", "nil")
-		} else {
-			log = log.WithValues("configMap", *observed.configMap)
+		if err := observer.observeConfigMap(observed); err != nil {
+			log.Error(err, "Failed to get configMap")
+			return err
 		}
 
 		// PodDisruptionBudget.
-		observed.podDisruptionBudget = new(policyv1.PodDisruptionBudget)
-		if err := observer.observePodDisruptionBudget(observed.podDisruptionBudget); err != nil {
-			if client.IgnoreNotFound(err) != nil {
-				log.Error(err, "Failed to get PodDisruptionBudget")
-				return err
-			}
-			observed.podDisruptionBudget = nil
-			log = log.WithValues("PodDisruptionBudget", "nil")
-		} else {
-			log = log.WithValues("PodDisruptionBudget", *observed.podDisruptionBudget)
+		if err := observer.observePodDisruptionBudget(observed); err != nil {
+			log.Error(err, "Failed to get PodDisruptionBudget")
+			return err
 		}
 
 		// JobManager StatefulSet.
-		observed.jmStatefulSet = new(appsv1.StatefulSet)
-		if err := observer.observeJobManagerStatefulSet(observed.jmStatefulSet); err != nil {
-			if client.IgnoreNotFound(err) != nil {
-				log.Error(err, "Failed to get JobManager StatefulSet")
-				return err
-			}
-			observed.jmStatefulSet = nil
-			log = log.WithValues("JobManagerStatefulSet", "nil")
-		} else {
-			log = log.WithValues("JobManagerStatefulSet", *observed.jmStatefulSet)
+		if err := observer.observeJobManager(observed); err != nil {
+			log.Error(err, "Failed to get JobManager StatefulSet")
+			return err
 		}
 
 		// JobManager service.
-		observed.jmService = new(corev1.Service)
-		if err := observer.observeJobManagerService(observed.jmService); err != nil {
-			if client.IgnoreNotFound(err) != nil {
-				log.Error(err, "Failed to get JobManager service")
-				return err
-			}
-			observed.jmService = nil
-			log = log.WithValues("JobManagerService", "nil")
-		} else {
-			log = log.WithValues("JobManagerService", *observed.jmService)
+		if err := observer.observeJobManagerService(observed); err != nil {
+			log.Error(err, "Failed to get JobManager service")
+			return err
 		}
 
 		// (Optional) JobManager ingress.
-		observed.jmIngress = new(networkingv1.Ingress)
-		if err := observer.observeJobManagerIngress(observed.jmIngress); err != nil {
-			if client.IgnoreNotFound(err) != nil {
-				log.Error(err, "Failed to get JobManager ingress")
-				return err
-			}
-			observed.jmIngress = nil
-			log = log.WithValues("JobManagerIngress", "nil")
-		} else {
-			log = log.WithValues("JobManagerIngress", *observed.jmIngress)
+		if err := observer.observeJobManagerIngress(observed); err != nil {
+			log.Error(err, "Failed to get JobManager ingress")
+			return err
 		}
 
-		// TaskManager StatefulSet
-		tmDeploymentType := observed.cluster.Spec.TaskManager.DeploymentType
-		if tmDeploymentType == "" || tmDeploymentType == v1beta1.DeploymentTypeStatefulSet {
-			observed.tmStatefulSet = new(appsv1.StatefulSet)
-			if err := observer.observeTaskManagerStatefulSet(observed.tmStatefulSet); err != nil {
-				if client.IgnoreNotFound(err) != nil {
-					log.Error(err, "Failed to get TaskManager StatefulSet")
-					return err
-				}
-				observed.tmStatefulSet = nil
-				log = log.WithValues("TaskManagerStatefulSet", "nil")
-			} else {
-				log = log.WithValues("TaskManagerStatefulSet", observed.tmStatefulSet)
-			}
-		}
-
-		// TaskManager Deployment
-		if tmDeploymentType == v1beta1.DeploymentTypeDeployment {
-			observed.tmDeployment = new(appsv1.Deployment)
-			if err := observer.observeTaskManagerDeployment(observed.tmDeployment); err != nil {
-				if client.IgnoreNotFound(err) != nil {
-					log.Error(err, "Failed to get TaskManager Deployment")
-					return err
-				}
-				observed.tmDeployment = nil
-				log = log.WithValues("TaskManagerDeployment", "nil")
-			} else {
-				log = log.WithValues("TaskManagerDeployment", observed.tmDeployment)
-			}
+		// TaskManager
+		if err := observer.observeTaskManager(observed); err != nil {
+			log.Error(err, "Failed to get TaskManager")
+			return err
 		}
 
 		// TaskManager Service.
-		observed.tmService = new(corev1.Service)
-		if err := observer.observeTaskManagerService(observed.tmService); err != nil {
-			if client.IgnoreNotFound(err) != nil {
-				log.Error(err, "Failed to get TaskManager Service")
-				return err
-			}
-			observed.tmService = nil
-			log = log.WithValues("TaskManagerService", "nil")
-		} else {
-			log = log.WithValues("TaskManagerService", *observed.tmService)
+		if err := observer.observeTaskManagerService(observed); err != nil {
+			log.Error(err, "Failed to get TaskManager Service")
+			return err
 		}
 
 		// (Optional) Savepoint.
 		if err := observer.observeSavepoint(observed.cluster, &observed.savepoint); err != nil {
 			log.Error(err, "Failed to get Flink job savepoint status")
-		} else {
-			log = log.WithValues("SavepointStatus", observed.savepoint.status)
 		}
 
-		observed.persistentVolumeClaims = new(corev1.PersistentVolumeClaimList)
-		if err := observer.observePersistentVolumeClaims(observed.persistentVolumeClaims); err != nil {
-			if client.IgnoreNotFound(err) != nil {
-				observer.log.Error(err, "Failed to get persistent volume claim list")
-				return err
-			}
-			log = log.WithValues("PersistentVolumeClaimList", "nil")
-		} else {
-			log = log.WithValues("PersistentVolumeClaimList", len(observed.persistentVolumeClaims.Items))
+		if err := observer.observePersistentVolumeClaims(observed); err != nil {
+			log.Error(err, "Failed to get persistent volume claim list")
+			return err
 		}
 
 		// (Optional) job.
@@ -298,10 +211,10 @@ func (observer *ClusterStateObserver) observe(observed *ObservedClusterState) er
 		}
 	}
 
-	log.Info("observed state")
-
 	observed.observeTime = time.Now()
 	observed.updateState = getUpdateState(observed)
+
+	observer.logObservedState(observed)
 
 	return nil
 }
@@ -343,7 +256,7 @@ func (observer *ClusterStateObserver) observeJob(
 
 	// Job resource.
 	job := new(batchv1.Job)
-	if err := observer.observeJobSubmitter(jobName, job); err != nil {
+	if err := observer.observeObject(jobName, job); err != nil {
 		log.Error(err, "Failed to get the job submitter")
 		job = nil
 	}
@@ -482,174 +395,135 @@ func (observer *ClusterStateObserver) observeCluster(
 }
 
 func (observer *ClusterStateObserver) observeRevisions(
-	revisions *[]*appsv1.ControllerRevision,
-	cluster *v1beta1.FlinkCluster) error {
-	if cluster == nil {
-		return nil
-	}
-	selector := labels.SelectorFromSet(labels.Set(map[string]string{history.ControllerRevisionManagedByLabel: cluster.GetName()}))
-	controllerRevisions, err := observer.history.ListControllerRevisions(cluster, selector)
-	*revisions = append(*revisions, controllerRevisions...)
+	observed *ObservedClusterState) error {
+	observed.revisions = []*appsv1.ControllerRevision{}
+	selector := labels.SelectorFromSet(labels.Set(map[string]string{history.ControllerRevisionManagedByLabel: observed.cluster.GetName()}))
+	controllerRevisions, err := observer.history.ListControllerRevisions(observed.cluster, selector)
+	observed.revisions = append(observed.revisions, controllerRevisions...)
 
-	return err
+	if client.IgnoreNotFound(err) != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (observer *ClusterStateObserver) observePodDisruptionBudget(
-	observedPodDisruptionBudget *policyv1.PodDisruptionBudget) error {
-	var clusterNamespace = observer.request.Namespace
+	observed *ObservedClusterState) error {
 	var clusterName = observer.request.Name
-
-	return observer.k8sClient.Get(
-		observer.context,
-		types.NamespacedName{
-			Namespace: clusterNamespace,
-			Name:      getPodDisruptionBudgetName(clusterName),
-		},
-		observedPodDisruptionBudget)
+	observed.podDisruptionBudget = new(policyv1.PodDisruptionBudget)
+	pdbName := getPodDisruptionBudgetName(clusterName)
+	if err := observer.observeObject(pdbName, observed.podDisruptionBudget); err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			return err
+		}
+		observed.podDisruptionBudget = nil
+	}
+	return nil
 }
 
 func (observer *ClusterStateObserver) observeConfigMap(
-	observedConfigMap *corev1.ConfigMap) error {
-	var clusterNamespace = observer.request.Namespace
+	observed *ObservedClusterState) error {
 	var clusterName = observer.request.Name
+	observed.configMap = new(corev1.ConfigMap)
+	configMapName := getConfigMapName(clusterName)
+	if err := observer.observeObject(configMapName, observed.configMap); err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			return err
+		}
+		observed.configMap = nil
+	}
 
-	return observer.k8sClient.Get(
-		observer.context,
-		types.NamespacedName{
-			Namespace: clusterNamespace,
-			Name:      getConfigMapName(clusterName),
-		},
-		observedConfigMap)
+	return nil
 }
 
-func (observer *ClusterStateObserver) observeJobManagerStatefulSet(
-	observedStatefulSet *appsv1.StatefulSet) error {
-	var clusterNamespace = observer.request.Namespace
+func (observer *ClusterStateObserver) observeJobManager(
+	observed *ObservedClusterState) error {
 	var clusterName = observer.request.Name
 	var jmStatefulSetName = getJobManagerStatefulSetName(clusterName)
-	return observer.observeStatefulSet(
-		clusterNamespace, jmStatefulSetName, "JobManager", observedStatefulSet)
+	observed.jmStatefulSet = new(appsv1.StatefulSet)
+	if err := observer.observeObject(jmStatefulSetName, observed.jmStatefulSet); err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			return err
+		}
+		observed.jmStatefulSet = nil
+	}
+
+	return nil
 }
 
-func (observer *ClusterStateObserver) observeTaskManagerStatefulSet(
-	observedStatefulSet *appsv1.StatefulSet) error {
-	var clusterNamespace = observer.request.Namespace
+func (observer *ClusterStateObserver) observeTaskManager(
+	observed *ObservedClusterState) error {
 	var clusterName = observer.request.Name
-	var tmStatefulSetName = getTaskManagerStatefulSetName(clusterName)
-	return observer.observeStatefulSet(
-		clusterNamespace, tmStatefulSetName, "TaskManager", observedStatefulSet)
-}
+	// TaskManager StatefulSet
+	tmDeploymentType := observed.cluster.Spec.TaskManager.DeploymentType
+	if tmDeploymentType == "" || tmDeploymentType == v1beta1.DeploymentTypeStatefulSet {
+		observed.tmStatefulSet = new(appsv1.StatefulSet)
+		tmName := getTaskManagerStatefulSetName(clusterName)
+		if err := observer.observeObject(tmName, observed.tmStatefulSet); err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				return err
+			}
+			observed.tmStatefulSet = nil
+		}
+	}
 
-func (observer *ClusterStateObserver) observeTaskManagerDeployment(
-	observedDeployment *appsv1.Deployment) error {
-	var clusterNamespace = observer.request.Namespace
-	var clusterName = observer.request.Name
-	var tmDeploymentName = getTaskManagerDeploymentName(clusterName)
-	return observer.observeDeployment(
-		clusterNamespace, tmDeploymentName, "TaskManager", observedDeployment)
+	// TaskManager Deployment
+	if tmDeploymentType == v1beta1.DeploymentTypeDeployment {
+		observed.tmDeployment = new(appsv1.Deployment)
+		tmName := getTaskManagerDeploymentName(clusterName)
+		if err := observer.observeObject(tmName, observed.tmDeployment); err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				return err
+			}
+			observed.tmDeployment = nil
+		}
+	}
+
+	return nil
 }
 
 func (observer *ClusterStateObserver) observeTaskManagerService(
-	observedSvc *corev1.Service) error {
-	var clusterNamespace = observer.request.Namespace
+	observed *ObservedClusterState) error {
 	var clusterName = observer.request.Name
-
-	return observer.k8sClient.Get(
-		observer.context,
-		types.NamespacedName{
-			Namespace: clusterNamespace,
-			Name:      getTaskManagerStatefulSetName(clusterName),
-		},
-		observedSvc)
-}
-
-func (observer *ClusterStateObserver) observeStatefulSet(
-	namespace string,
-	name string,
-	component string,
-	observedStatefulSet *appsv1.StatefulSet) error {
-	var log = observer.log.WithValues("component", component)
-	var err = observer.k8sClient.Get(
-		observer.context,
-		types.NamespacedName{
-			Namespace: namespace,
-			Name:      name,
-		},
-		observedStatefulSet)
-	if err != nil {
+	observed.tmService = new(corev1.Service)
+	name := getTaskManagerStatefulSetName(clusterName)
+	if err := observer.observeObject(name, observed.tmService); err != nil {
 		if client.IgnoreNotFound(err) != nil {
-			log.Error(err, "Failed to get StatefulSet")
-		} else {
-			log.Info("Deployment not found")
+			return err
 		}
+		observed.jmService = nil
 	}
-	return err
-}
-
-// observe deployment
-func (observer *ClusterStateObserver) observeDeployment(
-	namespace string,
-	name string,
-	component string,
-	observedDeployment *appsv1.Deployment) error {
-	var log = observer.log.WithValues("component", component)
-	var err = observer.k8sClient.Get(
-		observer.context,
-		types.NamespacedName{
-			Namespace: namespace,
-			Name:      name,
-		},
-		observedDeployment)
-	if err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			log.Error(err, "Failed to get Deployment")
-		} else {
-			log.Info("Deployment not found")
-		}
-	}
-	return err
+	return nil
 }
 
 func (observer *ClusterStateObserver) observeJobManagerService(
-	observedService *corev1.Service) error {
-	var clusterNamespace = observer.request.Namespace
+	observed *ObservedClusterState) error {
 	var clusterName = observer.request.Name
-
-	return observer.k8sClient.Get(
-		observer.context,
-		types.NamespacedName{
-			Namespace: clusterNamespace,
-			Name:      getJobManagerServiceName(clusterName),
-		},
-		observedService)
+	observed.jmService = new(corev1.Service)
+	jmSvcName := getJobManagerServiceName(clusterName)
+	if err := observer.observeObject(jmSvcName, observed.jmService); err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			return err
+		}
+		observed.jmService = nil
+	}
+	return nil
 }
 
 func (observer *ClusterStateObserver) observeJobManagerIngress(
-	observedIngress *networkingv1.Ingress) error {
-	var clusterNamespace = observer.request.Namespace
+	observed *ObservedClusterState) error {
 	var clusterName = observer.request.Name
+	observed.jmIngress = new(networkingv1.Ingress)
+	jmIngressName := getJobManagerIngressName(clusterName)
+	if err := observer.observeObject(jmIngressName, observed.jmIngress); err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			return err
+		}
+		observed.jmIngress = nil
+	}
 
-	return observer.k8sClient.Get(
-		observer.context,
-		types.NamespacedName{
-			Namespace: clusterNamespace,
-			Name:      getJobManagerIngressName(clusterName),
-		},
-		observedIngress)
-}
-
-func (observer *ClusterStateObserver) observeJobSubmitter(
-	jobName string,
-	observedJob *batchv1.Job) error {
-	var clusterNamespace = observer.request.Namespace
-
-	return observer.k8sClient.Get(
-		observer.context,
-		types.NamespacedName{
-			Namespace: clusterNamespace,
-			Name:      jobName,
-		},
-		observedJob)
+	return nil
 }
 
 // observeJobSubmitterPod observes job submitter pod.
@@ -678,16 +552,22 @@ func (observer *ClusterStateObserver) observeJobSubmitterPod(
 }
 
 func (observer *ClusterStateObserver) observePersistentVolumeClaims(
-	observedClaims *corev1.PersistentVolumeClaimList) error {
+	observed *ObservedClusterState) error {
 	var clusterNamespace = observer.request.Namespace
 	var clusterName = observer.request.Name
 	var selector = labels.SelectorFromSet(map[string]string{"cluster": clusterName})
 
-	return observer.k8sClient.List(
+	observed.persistentVolumeClaims = new(corev1.PersistentVolumeClaimList)
+	err := observer.k8sClient.List(
 		observer.context,
-		observedClaims,
+		observed.persistentVolumeClaims,
 		client.InNamespace(clusterNamespace),
 		client.MatchingLabelsSelector{Selector: selector})
+	if client.IgnoreNotFound(err) != nil {
+		return err
+	}
+
+	return nil
 }
 
 // syncRevisionStatus synchronizes current FlinkCluster resource and its child ControllerRevision resources.
@@ -800,5 +680,82 @@ func (observer *ClusterStateObserver) truncateHistory(observed *ObservedClusterS
 			return err
 		}
 	}
+	return nil
+}
+
+func (observer *ClusterStateObserver) observeObject(name string, obj client.Object) error {
+	var namespace = observer.request.Namespace
+	return observer.k8sClient.Get(
+		observer.context,
+		types.NamespacedName{Namespace: namespace, Name: name},
+		obj)
+}
+
+func (observer *ClusterStateObserver) logObservedState(observed *ObservedClusterState) error {
+	log := observer.log
+
+	if observed.cluster == nil {
+		log = log.WithValues("cluster", "nil")
+	} else {
+		log = log.WithValues("cluster", *observed.cluster)
+
+		var b strings.Builder
+		for _, cr := range observed.revisions {
+			fmt.Fprintf(&b, "{name: %v, revision: %v},", cr.Name, cr.Revision)
+		}
+		log = log.WithValues("controllerRevisions", fmt.Sprintf("[%v]", b.String()))
+		if observed.configMap != nil {
+			log = log.WithValues("configMap", *observed.configMap)
+		} else {
+			log = log.WithValues("configMap", "nil")
+		}
+		if observed.podDisruptionBudget != nil {
+			log = log.WithValues("podDisruptionBudget", *observed.podDisruptionBudget)
+		} else {
+			log = log.WithValues("podDisruptionBudget", "nil")
+		}
+		if observed.jmStatefulSet != nil {
+			log = log.WithValues("jmStatefulSet", *observed.jmStatefulSet)
+		} else {
+			log = log.WithValues("jmStatefulSet", "nil")
+		}
+		if observed.jmService != nil {
+			log = log.WithValues("jmService", *observed.jmService)
+		} else {
+			log = log.WithValues("jmService", "nil")
+		}
+		if observed.jmIngress != nil {
+			log = log.WithValues("jmIngress", *observed.jmIngress)
+		} else {
+			log = log.WithValues("jmIngress", "nil")
+		}
+		if observed.tmStatefulSet != nil {
+			log = log.WithValues("tmStatefulSet", *observed.tmStatefulSet)
+		} else {
+			log = log.WithValues("tmStatefulSet", "nil")
+		}
+		if observed.tmDeployment != nil {
+			log = log.WithValues("tmDeployment", *observed.tmDeployment)
+		} else {
+			log = log.WithValues("tmDeployment", "nil")
+		}
+		if observed.tmService != nil {
+			log = log.WithValues("tmService", *observed.tmService)
+		} else {
+			log = log.WithValues("tmService", "nil")
+		}
+		if observed.savepoint.status != nil {
+			log = log.WithValues("savepoint", *observed.savepoint.status)
+		} else {
+			log = log.WithValues("savepoint", "nil")
+		}
+		if observed.persistentVolumeClaims != nil {
+			log = log.WithValues("persistentVolumeClaims", len(observed.persistentVolumeClaims.Items))
+		} else {
+			log = log.WithValues("persistentVolumeClaims", "nil")
+		}
+
+	}
+	log.Info("Observed state")
 	return nil
 }
