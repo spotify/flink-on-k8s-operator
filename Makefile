@@ -11,6 +11,11 @@ RESOURCE_PREFIX ?= flink-operator-
 # The Kubernetes namespace to limit watching.
 WATCH_NAMESPACE ?=
 
+# Env test configuration
+ENVTEST_K8S_VERSION=1.25.0
+SETUP_ENVTEST_VERSION=v0.0.0-20221007015352-8ad090e0663e
+LOCALBIN=$(shell pwd)/bin
+
 all: build
 
 ##@ General
@@ -56,8 +61,7 @@ vet: ## Run go vet against code.
 test: manifests generate fmt vet tidy kustomize envtest ## Run tests.
 	rm -rf config/test && mkdir -p config/test/crd
 	$(KUSTOMIZE) build config/crd > config/test/crd/flinkoperator.k8s.io_flinkclusters.yaml
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
-
+	KUBEBUILDER_ASSETS=$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path) go test ./... -coverprofile cover.out
 ##@ Build
 
 build: generate fmt vet tidy ## Build manager binary.
@@ -125,7 +129,8 @@ kustomize: ## Download kustomize locally if necessary.
 ENVTEST = $(shell pwd)/bin/setup-envtest
 .PHONY: envtest
 envtest: ## Download envtest-setup locally if necessary.
-	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
+	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@$(SETUP_ENVTEST_VERSION))
+
 
 CRD_REF_DOCS = $(shell pwd)/bin/crd-ref-docs
 crd-ref-docs:

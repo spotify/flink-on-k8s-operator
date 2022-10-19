@@ -136,198 +136,201 @@ var (
 	}
 )
 
-func getObservedClusterState() *ObservedClusterState {
-
-	return &ObservedClusterState{
-		cluster: &v1beta1.FlinkCluster{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "FlinkCluster",
-				APIVersion: "flinkoperator.k8s.io/v1beta1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "flinkjobcluster-sample",
-				Namespace: "default",
-			},
-			Spec: v1beta1.FlinkClusterSpec{
-				Image:              v1beta1.ImageSpec{Name: "flink:1.8.1"},
-				ServiceAccountName: &serviceAccount,
-				Job: &v1beta1.JobSpec{
-					Args:        []string{"--input", "./README.txt"},
-					ClassName:   &className,
-					JarFile:     &jarFile,
-					Parallelism: &parallelism,
-					Resources: corev1.ResourceRequirements{
-						Requests: map[corev1.ResourceName]resource.Quantity{
-							corev1.ResourceCPU:    resource.MustParse("100m"),
-							corev1.ResourceMemory: resource.MustParse("256Mi"),
-						},
-						Limits: map[corev1.ResourceName]resource.Quantity{
-							corev1.ResourceCPU:    resource.MustParse("200m"),
-							corev1.ResourceMemory: resource.MustParse("512Mi"),
-						},
+func getDummyFlinkCluster() *v1beta1.FlinkCluster {
+	return &v1beta1.FlinkCluster{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "FlinkCluster",
+			APIVersion: "flinkoperator.k8s.io/v1beta1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "flinkjobcluster-sample",
+			Namespace: "default",
+		},
+		Spec: v1beta1.FlinkClusterSpec{
+			Image:              v1beta1.ImageSpec{Name: "flink:1.8.1"},
+			ServiceAccountName: &serviceAccount,
+			Job: &v1beta1.JobSpec{
+				Args:        []string{"--input", "./README.txt"},
+				ClassName:   &className,
+				JarFile:     &jarFile,
+				Parallelism: &parallelism,
+				Resources: corev1.ResourceRequirements{
+					Requests: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceCPU:    resource.MustParse("100m"),
+						corev1.ResourceMemory: resource.MustParse("256Mi"),
 					},
-					Mode:          &jobMode,
-					RestartPolicy: &restartPolicy,
-					Volumes: []corev1.Volume{
-						{
-							Name: "cache-volume",
-							VolumeSource: corev1.VolumeSource{
-								EmptyDir: &corev1.EmptyDirVolumeSource{},
-							},
-						},
+					Limits: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceCPU:    resource.MustParse("200m"),
+						corev1.ResourceMemory: resource.MustParse("512Mi"),
 					},
-					VolumeMounts: []corev1.VolumeMount{
-						{Name: "cache-volume", MountPath: "/cache"},
-					},
-					InitContainers: []corev1.Container{
-						{
-							Name:    "gcs-downloader",
-							Image:   "google/cloud-sdk",
-							Command: []string{"gsutil"},
-							Args: []string{
-								"cp", "gs://my-bucket/my-job.jar", "/cache/my-job.jar",
-							},
-						},
-					},
-					PodAnnotations: map[string]string{
-						"example.com": "example",
-					},
-					SecurityContext: &securityContext,
-					HostAliases:     hostAliases,
 				},
-				JobManager: &v1beta1.JobManagerSpec{
-					AccessScope: v1beta1.AccessScopeVPC,
-					Ingress: &v1beta1.JobManagerIngressSpec{
-						HostFormat: &hostFormat,
-						Annotations: map[string]string{
-							"kubernetes.io/ingress.class":                "nginx",
-							"certmanager.k8s.io/cluster-issuer":          "letsencrypt-stg",
-							"nginx.ingress.kubernetes.io/rewrite-target": "/",
-						},
-						UseTLS: &useTLS,
-					},
-					Ports: v1beta1.JobManagerPorts{
-						RPC:   &jmRPCPort,
-						Blob:  &jmBlobPort,
-						Query: &jmQueryPort,
-						UI:    &jmUIPort,
-					},
-					LivenessProbe:  &jmLivenessProbe,
-					ReadinessProbe: &jmReadinessProbe,
-					Resources: corev1.ResourceRequirements{
-						Requests: map[corev1.ResourceName]resource.Quantity{
-							corev1.ResourceCPU:    resource.MustParse("100m"),
-							corev1.ResourceMemory: resource.MustParse("256Mi"),
-						},
-						Limits: map[corev1.ResourceName]resource.Quantity{
-							corev1.ResourceCPU:    resource.MustParse("200m"),
-							corev1.ResourceMemory: resource.MustParse("512Mi"),
+				Mode:          &jobMode,
+				RestartPolicy: &restartPolicy,
+				Volumes: []corev1.Volume{
+					{
+						Name: "cache-volume",
+						VolumeSource: corev1.VolumeSource{
+							EmptyDir: &corev1.EmptyDirVolumeSource{},
 						},
 					},
-					Tolerations:        tolerations,
-					HostAliases:        hostAliases,
-					MemoryOffHeapRatio: &memoryOffHeapRatio,
-					MemoryOffHeapMin:   memoryOffHeapMin,
-					MemoryProcessRatio: &memoryProcessRatio,
-					PodAnnotations: map[string]string{
-						"example.com": "example",
-					},
-					SecurityContext: &securityContext,
 				},
-				TaskManager: &v1beta1.TaskManagerSpec{
-					DeploymentType: v1beta1.DeploymentTypeStatefulSet,
-					Replicas:       &replicas,
-					Ports: v1beta1.TaskManagerPorts{
-						Data:  &tmDataPort,
-						RPC:   &tmRPCPort,
-						Query: &tmQueryPort,
-					},
-					Resources: corev1.ResourceRequirements{
-						Requests: map[corev1.ResourceName]resource.Quantity{
-							corev1.ResourceCPU:    resource.MustParse("200m"),
-							corev1.ResourceMemory: resource.MustParse("512Mi"),
-						},
-						Limits: map[corev1.ResourceName]resource.Quantity{
-							corev1.ResourceCPU:    resource.MustParse("500m"),
-							corev1.ResourceMemory: resource.MustParse("1Gi"),
+				VolumeMounts: []corev1.VolumeMount{
+					{Name: "cache-volume", MountPath: "/cache"},
+				},
+				InitContainers: []corev1.Container{
+					{
+						Name:    "gcs-downloader",
+						Image:   "google/cloud-sdk",
+						Command: []string{"gsutil"},
+						Args: []string{
+							"cp", "gs://my-bucket/my-job.jar", "/cache/my-job.jar",
 						},
 					},
-					LivenessProbe:      &tmLivenessProbe,
-					ReadinessProbe:     &tmReadinessProbe,
-					MemoryOffHeapRatio: &memoryOffHeapRatio,
-					MemoryOffHeapMin:   memoryOffHeapMin,
-					MemoryProcessRatio: &memoryProcessRatio,
-					Sidecars:           []corev1.Container{{Name: "sidecar", Image: "alpine"}},
-					Volumes: []corev1.Volume{
-						{
-							Name: "cache-volume",
-							VolumeSource: corev1.VolumeSource{
-								EmptyDir: &corev1.EmptyDirVolumeSource{},
-							},
+				},
+				PodAnnotations: map[string]string{
+					"example.com": "example",
+				},
+				SecurityContext: &securityContext,
+				HostAliases:     hostAliases,
+			},
+			JobManager: &v1beta1.JobManagerSpec{
+				AccessScope: v1beta1.AccessScopeVPC,
+				Ingress: &v1beta1.JobManagerIngressSpec{
+					HostFormat: &hostFormat,
+					Annotations: map[string]string{
+						"kubernetes.io/ingress.class":                "nginx",
+						"certmanager.k8s.io/cluster-issuer":          "letsencrypt-stg",
+						"nginx.ingress.kubernetes.io/rewrite-target": "/",
+					},
+					UseTLS: &useTLS,
+				},
+				Ports: v1beta1.JobManagerPorts{
+					RPC:   &jmRPCPort,
+					Blob:  &jmBlobPort,
+					Query: &jmQueryPort,
+					UI:    &jmUIPort,
+				},
+				LivenessProbe:  &jmLivenessProbe,
+				ReadinessProbe: &jmReadinessProbe,
+				Resources: corev1.ResourceRequirements{
+					Requests: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceCPU:    resource.MustParse("100m"),
+						corev1.ResourceMemory: resource.MustParse("256Mi"),
+					},
+					Limits: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceCPU:    resource.MustParse("200m"),
+						corev1.ResourceMemory: resource.MustParse("512Mi"),
+					},
+				},
+				Tolerations:        tolerations,
+				HostAliases:        hostAliases,
+				MemoryOffHeapRatio: &memoryOffHeapRatio,
+				MemoryOffHeapMin:   memoryOffHeapMin,
+				MemoryProcessRatio: &memoryProcessRatio,
+				PodAnnotations: map[string]string{
+					"example.com": "example",
+				},
+				SecurityContext: &securityContext,
+			},
+			TaskManager: &v1beta1.TaskManagerSpec{
+				DeploymentType: v1beta1.DeploymentTypeStatefulSet,
+				Replicas:       &replicas,
+				Ports: v1beta1.TaskManagerPorts{
+					Data:  &tmDataPort,
+					RPC:   &tmRPCPort,
+					Query: &tmQueryPort,
+				},
+				Resources: corev1.ResourceRequirements{
+					Requests: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceCPU:    resource.MustParse("200m"),
+						corev1.ResourceMemory: resource.MustParse("512Mi"),
+					},
+					Limits: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceCPU:    resource.MustParse("500m"),
+						corev1.ResourceMemory: resource.MustParse("1Gi"),
+					},
+				},
+				LivenessProbe:      &tmLivenessProbe,
+				ReadinessProbe:     &tmReadinessProbe,
+				MemoryOffHeapRatio: &memoryOffHeapRatio,
+				MemoryOffHeapMin:   memoryOffHeapMin,
+				MemoryProcessRatio: &memoryProcessRatio,
+				Sidecars:           []corev1.Container{{Name: "sidecar", Image: "alpine"}},
+				Volumes: []corev1.Volume{
+					{
+						Name: "cache-volume",
+						VolumeSource: corev1.VolumeSource{
+							EmptyDir: &corev1.EmptyDirVolumeSource{},
 						},
 					},
-					VolumeMounts: []corev1.VolumeMount{
-						{Name: "cache-volume", MountPath: "/cache"},
-					},
-					VolumeClaimTemplates: []corev1.PersistentVolumeClaim{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "pvc-test",
-								OwnerReferences: []metav1.OwnerReference{
-									{
-										APIVersion:         "flinkoperator.k8s.io/v1beta1",
-										Kind:               "FlinkCluster",
-										Name:               "flinkjobcluster-sample",
-										Controller:         &controller,
-										BlockOwnerDeletion: &blockOwnerDeletion,
-									},
+				},
+				VolumeMounts: []corev1.VolumeMount{
+					{Name: "cache-volume", MountPath: "/cache"},
+				},
+				VolumeClaimTemplates: []corev1.PersistentVolumeClaim{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "pvc-test",
+							OwnerReferences: []metav1.OwnerReference{
+								{
+									APIVersion:         "flinkoperator.k8s.io/v1beta1",
+									Kind:               "FlinkCluster",
+									Name:               "flinkjobcluster-sample",
+									Controller:         &controller,
+									BlockOwnerDeletion: &blockOwnerDeletion,
 								},
 							},
-							Spec: corev1.PersistentVolumeClaimSpec{
-								AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-								Resources: corev1.ResourceRequirements{
-									Requests: map[corev1.ResourceName]resource.Quantity{
-										corev1.ResourceStorage: resource.MustParse("100Gi"),
-									},
+						},
+						Spec: corev1.PersistentVolumeClaimSpec{
+							AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+							Resources: corev1.ResourceRequirements{
+								Requests: map[corev1.ResourceName]resource.Quantity{
+									corev1.ResourceStorage: resource.MustParse("100Gi"),
 								},
-								StorageClassName: &storageClassName,
 							},
+							StorageClassName: &storageClassName,
 						},
 					},
-					Tolerations: tolerations,
-					HostAliases: hostAliases,
-					PodAnnotations: map[string]string{
-						"example.com": "example",
-					},
-					SecurityContext: &securityContext,
 				},
-				EnvVars: []corev1.EnvVar{{Name: "FOO", Value: "abc"}},
-				EnvFrom: []corev1.EnvFromSource{{ConfigMapRef: &corev1.ConfigMapEnvSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: "FOOMAP",
-					}}}},
-				HadoopConfig: &v1beta1.HadoopConfig{
-					ConfigMapName: "hadoop-configmap",
-					MountPath:     "/etc/hadoop/conf",
+				Tolerations: tolerations,
+				HostAliases: hostAliases,
+				PodAnnotations: map[string]string{
+					"example.com": "example",
 				},
-				GCPConfig: &v1beta1.GCPConfig{
-					ServiceAccount: &v1beta1.GCPServiceAccount{
-						SecretName: "gcp-service-account-secret",
-						KeyFile:    "gcp_service_account_key.json",
-						MountPath:  "/etc/gcp_service_account/",
-					},
-				},
-				LogConfig: map[string]string{
-					"extra-file.txt":           "hello!",
-					"log4j-console.properties": "foo",
-					"logback-console.xml":      "bar",
-					"log4j-cli.properties":     "baz",
+				SecurityContext: &securityContext,
+			},
+			EnvVars: []corev1.EnvVar{{Name: "FOO", Value: "abc"}},
+			EnvFrom: []corev1.EnvFromSource{{ConfigMapRef: &corev1.ConfigMapEnvSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: "FOOMAP",
+				}}}},
+			HadoopConfig: &v1beta1.HadoopConfig{
+				ConfigMapName: "hadoop-configmap",
+				MountPath:     "/etc/hadoop/conf",
+			},
+			GCPConfig: &v1beta1.GCPConfig{
+				ServiceAccount: &v1beta1.GCPServiceAccount{
+					SecretName: "gcp-service-account-secret",
+					KeyFile:    "gcp_service_account_key.json",
+					MountPath:  "/etc/gcp_service_account/",
 				},
 			},
-			Status: v1beta1.FlinkClusterStatus{
-				Revision: v1beta1.RevisionStatus{NextRevision: "flinkjobcluster-sample-85dc8f749-1"},
+			LogConfig: map[string]string{
+				"extra-file.txt":           "hello!",
+				"log4j-console.properties": "foo",
+				"logback-console.xml":      "bar",
+				"log4j-cli.properties":     "baz",
 			},
 		},
+		Status: v1beta1.FlinkClusterStatus{
+			Revision: v1beta1.RevisionStatus{NextRevision: "flinkjobcluster-sample-85dc8f749-1"},
+		},
+	}
+}
+
+func getObservedClusterState() *ObservedClusterState {
+	return &ObservedClusterState{
+		cluster: getDummyFlinkCluster(),
 	}
 }
 
