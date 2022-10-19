@@ -60,7 +60,7 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test: manifests generate fmt vet kustomize envtest ## Run tests.
+test: manifests generate fmt vet tidy kustomize envtest ## Run tests.
 	rm -rf config/test && mkdir -p config/test/crd \
 	&& $(KUSTOMIZE) build config/crd > config/test/crd/flinkoperator.k8s.io_flinkclusters.yaml \
 	&& export KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) \
