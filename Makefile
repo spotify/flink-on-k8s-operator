@@ -15,8 +15,6 @@ WATCH_NAMESPACE ?=
 ENVTEST_K8S_VERSION=1.25.0
 SETUP_ENVTEST_VERSION=v0.0.0-20221007015352-8ad090e0663e
 LOCALBIN=$(shell pwd)/bin
-KUBEBUILDER_ASSETS=$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)
-
 
 all: build
 
@@ -61,10 +59,9 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: manifests generate fmt vet tidy kustomize envtest ## Run tests.
-	rm -rf config/test && mkdir -p config/test/crd \
-	&& $(KUSTOMIZE) build config/crd > config/test/crd/flinkoperator.k8s.io_flinkclusters.yaml \
-	&& export KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) \
-	&& go test ./... -coverprofile cover.out
+	rm -rf config/test && mkdir -p config/test/crd
+	$(KUSTOMIZE) build config/crd > config/test/crd/flinkoperator.k8s.io_flinkclusters.yaml
+	KUBEBUILDER_ASSETS=$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path) go test ./... -coverprofile cover.out
 ##@ Build
 
 build: generate fmt vet tidy ## Build manager binary.
