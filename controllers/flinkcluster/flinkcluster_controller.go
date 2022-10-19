@@ -183,48 +183,49 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 
 	*desired = *getDesiredClusterState(observed)
 	if desired.ConfigMap != nil {
-		log.Info("Desired state", "ConfigMap", *desired.ConfigMap)
+		log = log.WithValues("ConfigMap", *desired.ConfigMap)
 	} else {
-		log.Info("Desired state", "ConfigMap", "nil")
+		log = log.WithValues("ConfigMap", "nil")
 	}
 	if desired.PodDisruptionBudget != nil {
-		log.Info("Desired state", "PodDisruptionBudget", *desired.PodDisruptionBudget)
+		log = log.WithValues("PodDisruptionBudget", *desired.PodDisruptionBudget)
 	} else {
-		log.Info("Desired state", "PodDisruptionBudget", "nil")
+		log = log.WithValues("PodDisruptionBudget", "nil")
 	}
 	if desired.TmService != nil {
-		log.Info("Desired state", "TaskManager Service", *desired.TmService)
+		log = log.WithValues("TaskManager Service", *desired.TmService)
 	} else {
-		log.Info("Desired state", "TaskManager Service", "nil")
+		log = log.WithValues("TaskManager Service", "nil")
 	}
 	if desired.JmStatefulSet != nil {
-		log.Info("Desired state", "JobManager StatefulSet", *desired.JmStatefulSet)
+		log = log.WithValues("JobManager StatefulSet", *desired.JmStatefulSet)
 	} else {
-		log.Info("Desired state", "JobManager StatefulSet", "nil")
+		log = log.WithValues("JobManager StatefulSet", "nil")
 	}
 	if desired.JmService != nil {
-		log.Info("Desired state", "JobManager service", *desired.JmService)
+		log = log.WithValues("JobManager service", *desired.JmService)
 	} else {
-		log.Info("Desired state", "JobManager service", "nil")
+		log = log.WithValues("JobManager service", "nil")
 	}
 	if desired.JmIngress != nil {
-		log.Info("Desired state", "JobManager ingress", *desired.JmIngress)
+		log = log.WithValues("JobManager ingress", *desired.JmIngress)
 	} else {
-		log.Info("Desired state", "JobManager ingress", "nil")
+		log = log.WithValues("JobManager ingress", "nil")
 	}
 	if desired.TmStatefulSet != nil {
-		log.Info("Desired state", "TaskManager StatefulSet", *desired.TmStatefulSet)
+		log = log.WithValues("TaskManager StatefulSet", *desired.TmStatefulSet)
 	} else if desired.TmDeployment != nil {
-		log.Info("Desired state", "TaskManager Deployment", *desired.TmDeployment)
+		log = log.WithValues("TaskManager Deployment", *desired.TmDeployment)
 	} else {
-		log.Info("Desired state", "TaskManager", "nil")
+		log = log.WithValues("TaskManager", "nil")
 	}
 
 	if desired.Job != nil {
-		log.Info("Desired state", "Job", *desired.Job)
+		log = log.WithValues("Job", *desired.Job)
 	} else {
-		log.Info("Desired state", "Job", "nil")
+		log = log.WithValues("Job", "nil")
 	}
+	log.Info("Desired state")
 
 	log.Info("---------- 4. Take actions ----------")
 
