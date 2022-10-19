@@ -18,11 +18,13 @@ package flinkcluster
 
 import (
 	"context"
+	"path/filepath"
+	"testing"
+	"time"
+
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -98,7 +100,11 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	cancel()
+	ctx.Done()
 	By("tearing down the test environment")
-	err := testEnv.Stop()
-	Expect(err).ToNot(HaveOccurred())
+	timeout := 30 * time.Second
+	poll := 5 * time.Second
+	Eventually(func() error {
+		return testEnv.Stop()
+	}, timeout, poll).ShouldNot(HaveOccurred())
 })
