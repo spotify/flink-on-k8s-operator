@@ -593,26 +593,29 @@ func (v *Validator) validateJob(jobSpec *JobSpec) error {
 }
 
 func (v *Validator) validateResourceRequirements(rr corev1.ResourceRequirements, component string) error {
-	if rr.Requests != nil {
-		if rr.Requests.Cpu().IsZero() {
-			return fmt.Errorf("%s cpu request is unspecified", component)
-		}
-		if rr.Requests.Memory().IsZero() {
-			return fmt.Errorf("%s memory request is unspecified", component)
-		}
-	}
-
-	if rr.Limits != nil {
-		if rr.Limits.Cpu().IsZero() {
-			return fmt.Errorf("%s cpu limit is unspecified", component)
-		}
-		if rr.Limits.Memory().IsZero() {
-			return fmt.Errorf("%s memory limit is unspecified", component)
-		}
-	}
+	memoryNotSet := true
+	cpuNotSet := true
 
 	if rr.Requests == nil && rr.Limits == nil {
 		return fmt.Errorf("%s resource requests/limits are unspecified", component)
+	}
+
+	if rr.Requests != nil {
+		cpuNotSet = cpuNotSet && rr.Requests.Cpu().IsZero()
+		memoryNotSet = memoryNotSet && rr.Requests.Memory().IsZero()
+	}
+
+	if rr.Limits != nil {
+		cpuNotSet = cpuNotSet && rr.Limits.Cpu().IsZero()
+		memoryNotSet = memoryNotSet && rr.Limits.Memory().IsZero()
+	}
+
+	if cpuNotSet {
+		return fmt.Errorf("%s cpu request/limit is unspecified", component)
+	}
+
+	if memoryNotSet {
+		return fmt.Errorf("%s memory request/limit is unspecified", component)
 	}
 
 	return nil
