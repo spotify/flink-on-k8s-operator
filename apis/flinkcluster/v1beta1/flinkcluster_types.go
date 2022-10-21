@@ -556,7 +556,8 @@ type JobSpec struct {
 	// the job will stay in failed state. This option is usually used together
 	// with `autoSavepointSeconds` and `savepointsDir`.
 	// +kubebuilder:default:=Never
-	RestartPolicy *JobRestartPolicy `json:"restartPolicy,omitempty"`
+	// TODO: this field should be omitempty but since it affects job revision we need to defer it to v1beta2
+	RestartPolicy *JobRestartPolicy `json:"restartPolicy"`
 
 	// The action to take after job finishes.
 	// +kubebuilder:default:={afterJobSucceeds:DeleteCluster, afterJobFails:KeepCluster, afterJobCancelled:DeleteCluster}

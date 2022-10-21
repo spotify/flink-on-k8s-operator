@@ -71,6 +71,7 @@ func TestNewRevision(t *testing.T) {
 	var jarFile = "gs://my-bucket/myjob.jar"
 	var parallelism int32 = 2
 	var savepointDir = "/savepoint_dir"
+	restartPolicy := v1beta1.JobRestartPolicyNever
 	var flinkCluster = v1beta1.FlinkCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster",
@@ -107,20 +108,26 @@ func TestNewRevision(t *testing.T) {
 				JarFile:       &jarFile,
 				Parallelism:   &parallelism,
 				SavepointsDir: &savepointDir,
+				RestartPolicy: &restartPolicy,
 			},
 		},
 	}
+
+	var patched = flinkCluster.DeepCopy()
+	// RestartPolicy is not part of the revision.
+	patched.Spec.Job.RestartPolicy = nil
+
 	var collisionCount int32 = 0
 	var controller = true
 	var blockOwnerDeletion = true
-	var raw, _ = getPatch(&flinkCluster)
+	var raw, _ = getPatch(patched)
 	var revision, _ = newRevision(&flinkCluster, 1, &collisionCount)
 	var expectedRevision = appsv1.ControllerRevision{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster-fb7687bf5",
+			Name:      "mycluster-7bc87c954f",
 			Namespace: "default",
 			Labels: map[string]string{
-				"flinkoperator.k8s.io/hash":       "fb7687bf5",
+				"flinkoperator.k8s.io/hash":       "7bc87c954f",
 				"flinkoperator.k8s.io/managed-by": "mycluster",
 			},
 			Annotations: map[string]string{},
