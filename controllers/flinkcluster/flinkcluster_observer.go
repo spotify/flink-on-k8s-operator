@@ -492,7 +492,7 @@ func (observer *ClusterStateObserver) observeTaskManagerService(
 		if client.IgnoreNotFound(err) != nil {
 			return err
 		}
-		observed.jmService = nil
+		observed.tmService = nil
 	}
 	return nil
 }
