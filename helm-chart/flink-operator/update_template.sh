@@ -17,7 +17,7 @@ function modifyManifests() {
   yqi "del($rbacProxySelector.resources)"
   yqi "$rbacProxySelector |= sort_keys(.)"
 
-  yqi "$managerSelector"'.args += "--watch-namespace={{ .Values.watchNamespace.name }}"'
+  yqi "$managerSelector"'.args += "--watch-namespace=__WATCH_NAMESPACE_"'
   yqi "$managerSelector"'.resources.limits.cpu = "__LIMITS_CPU__"'
   yqi "$managerSelector"'.resources.limits.memory = "__LIMITS_MEMORY__"'
   yqi "$managerSelector"'.resources.requests.cpu = "__REQUESTS_CPU__"'
@@ -36,12 +36,11 @@ function modifyManifests() {
   yqi '(select(.kind == "ClusterRoleBinding" or .kind == "RoleBinding").subjects[] | select(.kind == "ServiceAccount")).namespace = "__NAMESPACE__"'
   yqi 'select(.metadata.namespace != null).metadata.namespace = "__NAMESPACE__"'
   yqi 'select(.kind == "CustomResourceDefinition").spec.conversion.webhook.clientConfig.service.namespace = "__NAMESPACE__"'
-  yqi 'select(.metadata.annotations["prometheus.io/scrape"] == "true").metadata.name = "__FULL_NAME__-metrics-service"'
   yqi 'del(.metadata.annotations["cert-manager.io/inject-ca-from"])'
 }
 
 function helmTemplating() {
-  sed 's/__FULL_NAME__/{{ template "flink-operator.fullname" . }}/' |
+  sed 's/__WATCH_NAMESPACE_/{{ .Values.watchNamespace.name }}/' |
   sed 's/__SERVICE_ACCOUNT__/{{ template "flink-operator.serviceAccountName" . }}/' |
   sed 's/__NAMESPACE__/{{ .Values.flinkOperatorNamespace.name }}/g' |
   sed 's/__LIMITS_CPU__/{{ .Values.resources.limits.cpu }}/' |

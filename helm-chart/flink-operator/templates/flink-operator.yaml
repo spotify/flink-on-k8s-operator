@@ -7,7 +7,7 @@ metadata:
     prometheus.io/scrape: "true"
   labels:
     control-plane: controller-manager
-  name: {{ template "flink-operator.fullname" . }}-metrics-service
+  name: flink-operator-controller-manager-metrics-service
   namespace: {{ .Values.flinkOperatorNamespace.name }}
 spec:
   ports:
