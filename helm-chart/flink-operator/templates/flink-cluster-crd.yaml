@@ -165,6 +165,7 @@ spec:
                     configMapName:
                       type: string
                     mountPath:
+                      default: /etc/hadoop/conf
                       type: string
                   type: object
                 image:
@@ -172,6 +173,7 @@ spec:
                     name:
                       type: string
                     pullPolicy:
+                      default: Always
                       type: string
                     pullSecrets:
                       items:
@@ -186,6 +188,7 @@ spec:
                 job:
                   properties:
                     allowNonRestoredState:
+                      default: false
                       type: boolean
                     args:
                       items:
@@ -198,7 +201,15 @@ spec:
                       type: boolean
                     className:
                       type: string
+                    classPath:
+                      items:
+                        type: string
+                      type: array
                     cleanupPolicy:
+                      default:
+                        afterJobCancelled: DeleteCluster
+                        afterJobFails: KeepCluster
+                        afterJobSucceeds: DeleteCluster
                       properties:
                         afterJobCancelled:
                           type: string
@@ -209,6 +220,17 @@ spec:
                       type: object
                     fromSavepoint:
                       type: string
+                    hostAliases:
+                      items:
+                        properties:
+                          hostnames:
+                            items:
+                              type: string
+                            type: array
+                          ip:
+                            type: string
+                        type: object
+                      type: array
                     initContainers:
                       items:
                         properties:
@@ -803,14 +825,21 @@ spec:
                       minimum: 0
                       type: integer
                     mode:
+                      default: Detached
+                      enum:
+                        - Detached
+                        - Blocking
+                        - Application
                       type: string
                     noLoggingToStdout:
+                      default: false
                       type: boolean
                     nodeSelector:
                       additionalProperties:
                         type: string
                       type: object
                     parallelism:
+                      default: 1
                       format: int32
                       type: integer
                     podAnnotations:
@@ -828,6 +857,13 @@ spec:
                     pyModule:
                       type: string
                     resources:
+                      default:
+                        limits:
+                          cpu: 2
+                          memory: 2Gi
+                        requests:
+                          cpu: 200m
+                          memory: 512Mi
                       properties:
                         limits:
                           additionalProperties:
@@ -847,6 +883,7 @@ spec:
                           type: object
                       type: object
                     restartPolicy:
+                      default: Never
                       type: string
                     savepointGeneration:
                       format: int32
@@ -933,17 +970,6 @@ spec:
                             type: integer
                           value:
                             type: string
-                        type: object
-                      type: array
-                    hostAliases:
-                      items:
-                        properties:
-                          ip:
-                            type: string
-                          hostnames:
-                            items:
-                              type: string
-                            type: array
                         type: object
                       type: array
                     volumeMounts:
@@ -1667,9 +1693,9 @@ spec:
                     - restartPolicy
                   type: object
                 jobManager:
+                  default:
+                    replicas: 1
                   properties:
-                    accessScope:
-                      type: string
                     ServiceAnnotations:
                       additionalProperties:
                         type: string
@@ -1678,6 +1704,9 @@ spec:
                       additionalProperties:
                         type: string
                       type: object
+                    accessScope:
+                      default: Cluster
+                      type: string
                     extraPorts:
                       items:
                         properties:
@@ -1698,6 +1727,17 @@ spec:
                           - containerPort
                         type: object
                       type: array
+                    hostAliases:
+                      items:
+                        properties:
+                          hostnames:
+                            items:
+                              type: string
+                            type: array
+                          ip:
+                            type: string
+                        type: object
+                      type: array
                     ingress:
                       properties:
                         annotations:
@@ -1709,6 +1749,7 @@ spec:
                         tlsSecretName:
                           type: string
                         useTls:
+                          default: false
                           type: boolean
                       type: object
                     initContainers:
@@ -2401,18 +2442,35 @@ spec:
                         type: string
                       type: object
                     ports:
+                      default:
+                        blob: 6124
+                        query: 6125
+                        rpc: 6123
+                        ui: 8081
                       properties:
                         blob:
+                          default: 6124
                           format: int32
+                          maximum: 65535
+                          minimum: 1
                           type: integer
                         query:
+                          default: 6125
                           format: int32
+                          maximum: 65535
+                          minimum: 1
                           type: integer
                         rpc:
+                          default: 6123
                           format: int32
+                          maximum: 65535
+                          minimum: 1
                           type: integer
                         ui:
+                          default: 8081
                           format: int32
+                          maximum: 65535
+                          minimum: 1
                           type: integer
                       type: object
                     readinessProbe:
@@ -2494,9 +2552,17 @@ spec:
                           type: integer
                       type: object
                     replicas:
+                      default: 1
                       format: int32
                       type: integer
                     resources:
+                      default:
+                        limits:
+                          cpu: 2
+                          memory: 2Gi
+                        requests:
+                          cpu: 200m
+                          memory: 512Mi
                       properties:
                         limits:
                           additionalProperties:
@@ -3180,17 +3246,6 @@ spec:
                             type: integer
                           value:
                             type: string
-                        type: object
-                      type: array
-                    hostAliases:
-                      items:
-                        properties:
-                          ip:
-                            type: string
-                          hostnames:
-                            items:
-                              type: string
-                            type: array
                         type: object
                       type: array
                     volumeClaimTemplates:
@@ -4072,6 +4127,7 @@ spec:
                     type: string
                   type: object
                 recreateOnUpdate:
+                  default: true
                   type: boolean
                 revisionHistoryLimit:
                   format: int32
@@ -4079,9 +4135,12 @@ spec:
                 serviceAccountName:
                   type: string
                 taskManager:
+                  default:
+                    replicas: 3
                   properties:
                     deploymentType:
-                       type: string
+                      default: StatefulSet
+                      type: string
                     extraPorts:
                       items:
                         properties:
@@ -4100,6 +4159,17 @@ spec:
                             type: string
                         required:
                           - containerPort
+                        type: object
+                      type: array
+                    hostAliases:
+                      items:
+                        properties:
+                          hostnames:
+                            items:
+                              type: string
+                            type: array
+                          ip:
+                            type: string
                         type: object
                       type: array
                     initContainers:
@@ -4792,15 +4862,28 @@ spec:
                         type: string
                       type: object
                     ports:
+                      default:
+                        data: 6121
+                        query: 6125
+                        rpc: 6122
                       properties:
                         data:
+                          default: 6121
                           format: int32
+                          maximum: 65535
+                          minimum: 1
                           type: integer
                         query:
+                          default: 6125
                           format: int32
+                          maximum: 65535
+                          minimum: 1
                           type: integer
                         rpc:
+                          default: 6122
                           format: int32
+                          maximum: 65535
+                          minimum: 1
                           type: integer
                       type: object
                     readinessProbe:
@@ -4882,9 +4965,17 @@ spec:
                           type: integer
                       type: object
                     replicas:
+                      default: 3
                       format: int32
                       type: integer
                     resources:
+                      default:
+                        limits:
+                          cpu: 2
+                          memory: 2Gi
+                        requests:
+                          cpu: 200m
+                          memory: 512Mi
                       properties:
                         limits:
                           additionalProperties:
@@ -5568,17 +5659,6 @@ spec:
                             type: integer
                           value:
                             type: string
-                        type: object
-                      type: array
-                    hostAliases:
-                      items:
-                        properties:
-                          ip:
-                            type: string
-                          hostnames:
-                            items:
-                              type: string
-                            type: array
                         type: object
                       type: array
                     volumeClaimTemplates:
@@ -6506,6 +6586,9 @@ spec:
                           type: string
                         state:
                           type: string
+                        submitterExitCode:
+                          format: int32
+                          type: integer
                         submitterName:
                           type: string
                       required:
