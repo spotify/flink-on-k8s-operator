@@ -17,7 +17,7 @@ function modifyManifests() {
   yqi "del($rbacProxySelector.resources)"
   yqi "$rbacProxySelector |= sort_keys(.)"
 
-  yqi "$managerSelector"'.args += "--watch-namespace=__WATCH_NAMESPACE_"'
+  yqi "$managerSelector"'.args += "--watch-namespace=__WATCH_NAMESPACE__"'
   yqi "$managerSelector"'.resources.limits.cpu = "__LIMITS_CPU__"'
   yqi "$managerSelector"'.resources.limits.memory = "__LIMITS_MEMORY__"'
   yqi "$managerSelector"'.resources.requests.cpu = "__REQUESTS_CPU__"'
@@ -40,7 +40,7 @@ function modifyManifests() {
 }
 
 function helmTemplating() {
-  sed 's/__WATCH_NAMESPACE_/{{ .Values.watchNamespace.name }}/' |
+  sed 's/__WATCH_NAMESPACE__/{{ .Values.watchNamespace.name }}/' |
   sed 's/__SERVICE_ACCOUNT__/{{ template "flink-operator.serviceAccountName" . }}/' |
   sed 's/__NAMESPACE__/{{ .Values.flinkOperatorNamespace.name }}/g' |
   sed 's/__LIMITS_CPU__/{{ .Values.resources.limits.cpu }}/' |
