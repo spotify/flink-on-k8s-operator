@@ -85,37 +85,39 @@ func _SetJobManagerDefault(jmSpec *JobManagerSpec, flinkVersion *version.Version
 		}
 	}
 
-	var livenessProbe = corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.FromInt(int(*jmSpec.Ports.RPC)),
+	if jmSpec.Ports.RPC != nil {
+		var livenessProbe = corev1.Probe{
+			ProbeHandler: corev1.ProbeHandler{
+				TCPSocket: &corev1.TCPSocketAction{
+					Port: intstr.FromInt(int(*jmSpec.Ports.RPC)),
+				},
 			},
-		},
-		TimeoutSeconds:      10,
-		InitialDelaySeconds: 5,
-		PeriodSeconds:       60,
-		FailureThreshold:    5,
-	}
-	if jmSpec.LivenessProbe != nil {
-		mergo.Merge(&livenessProbe, jmSpec.LivenessProbe, mergo.WithOverride)
-	}
-	jmSpec.LivenessProbe = &livenessProbe
+			TimeoutSeconds:      10,
+			InitialDelaySeconds: 5,
+			PeriodSeconds:       60,
+			FailureThreshold:    5,
+		}
+		if jmSpec.LivenessProbe != nil {
+			mergo.Merge(&livenessProbe, jmSpec.LivenessProbe, mergo.WithOverride)
+		}
+		jmSpec.LivenessProbe = &livenessProbe
 
-	var readinessProbe = corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.FromInt(int(*jmSpec.Ports.RPC)),
+		var readinessProbe = corev1.Probe{
+			ProbeHandler: corev1.ProbeHandler{
+				TCPSocket: &corev1.TCPSocketAction{
+					Port: intstr.FromInt(int(*jmSpec.Ports.RPC)),
+				},
 			},
-		},
-		TimeoutSeconds:      10,
-		InitialDelaySeconds: 5,
-		PeriodSeconds:       5,
-		FailureThreshold:    60,
+			TimeoutSeconds:      10,
+			InitialDelaySeconds: 5,
+			PeriodSeconds:       5,
+			FailureThreshold:    60,
+		}
+		if jmSpec.ReadinessProbe != nil {
+			mergo.Merge(&readinessProbe, jmSpec.ReadinessProbe, mergo.WithOverride)
+		}
+		jmSpec.ReadinessProbe = &readinessProbe
 	}
-	if jmSpec.ReadinessProbe != nil {
-		mergo.Merge(&readinessProbe, jmSpec.ReadinessProbe, mergo.WithOverride)
-	}
-	jmSpec.ReadinessProbe = &readinessProbe
 }
 
 func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Version) {
@@ -137,35 +139,37 @@ func _SetTaskManagerDefault(tmSpec *TaskManagerSpec, flinkVersion *version.Versi
 		}
 	}
 
-	var livenessProbe = corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.FromInt(int(*tmSpec.Ports.RPC)),
+	if tmSpec.Ports.RPC != nil {
+		var livenessProbe = corev1.Probe{
+			ProbeHandler: corev1.ProbeHandler{
+				TCPSocket: &corev1.TCPSocketAction{
+					Port: intstr.FromInt(int(*tmSpec.Ports.RPC)),
+				},
 			},
-		},
-		TimeoutSeconds:      10,
-		InitialDelaySeconds: 5,
-		PeriodSeconds:       60,
-		FailureThreshold:    5,
-	}
-	if tmSpec.LivenessProbe != nil {
-		mergo.Merge(&livenessProbe, tmSpec.LivenessProbe, mergo.WithOverride)
-	}
-	tmSpec.LivenessProbe = &livenessProbe
+			TimeoutSeconds:      10,
+			InitialDelaySeconds: 5,
+			PeriodSeconds:       60,
+			FailureThreshold:    5,
+		}
+		if tmSpec.LivenessProbe != nil {
+			mergo.Merge(&livenessProbe, tmSpec.LivenessProbe, mergo.WithOverride)
+		}
+		tmSpec.LivenessProbe = &livenessProbe
 
-	var readinessProbe = corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.FromInt(int(*tmSpec.Ports.RPC)),
+		var readinessProbe = corev1.Probe{
+			ProbeHandler: corev1.ProbeHandler{
+				TCPSocket: &corev1.TCPSocketAction{
+					Port: intstr.FromInt(int(*tmSpec.Ports.RPC)),
+				},
 			},
-		},
-		TimeoutSeconds:      10,
-		InitialDelaySeconds: 5,
-		PeriodSeconds:       5,
-		FailureThreshold:    60,
+			TimeoutSeconds:      10,
+			InitialDelaySeconds: 5,
+			PeriodSeconds:       5,
+			FailureThreshold:    60,
+		}
+		if tmSpec.ReadinessProbe != nil {
+			mergo.Merge(&readinessProbe, tmSpec.ReadinessProbe, mergo.WithOverride)
+		}
+		tmSpec.ReadinessProbe = &readinessProbe
 	}
-	if tmSpec.ReadinessProbe != nil {
-		mergo.Merge(&readinessProbe, tmSpec.ReadinessProbe, mergo.WithOverride)
-	}
-	tmSpec.ReadinessProbe = &readinessProbe
 }
