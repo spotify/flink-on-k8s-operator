@@ -1679,8 +1679,6 @@ spec:
                           - name
                         type: object
                       type: array
-                  required:
-                    - restartPolicy
                   type: object
                 jobManager:
                   default:
