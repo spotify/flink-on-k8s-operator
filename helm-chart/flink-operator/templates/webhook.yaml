@@ -1,0 +1,77 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: flink-operator-serving-cert
+  namespace: {{ .Values.flinkOperatorNamespace.name }}
+spec:
+  dnsNames:
+    - flink-operator-webhook-service.{{ .Values.flinkOperatorNamespace.name }}.svc
+    - flink-operator-webhook-service.{{ .Values.flinkOperatorNamespace.name }}.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: flink-operator-selfsigned-issuer
+  secretName: webhook-server-cert
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: flink-operator-selfsigned-issuer
+  namespace: {{ .Values.flinkOperatorNamespace.name }}
+spec:
+  selfSigned: {}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Values.flinkOperatorNamespace.name }}/flink-operator-serving-cert
+  name: flink-operator-mutating-webhook-configuration
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: flink-operator-webhook-service
+        namespace: {{ .Values.flinkOperatorNamespace.name }}
+        path: /mutate-flinkoperator-k8s-io-v1beta1-flinkcluster
+    failurePolicy: Fail
+    name: mflinkcluster.flinkoperator.k8s.io
+    rules:
+      - apiGroups:
+          - flinkoperator.k8s.io
+        apiVersions:
+          - v1beta1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - flinkclusters
+    sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Values.flinkOperatorNamespace.name }}/flink-operator-serving-cert
+  name: flink-operator-validating-webhook-configuration
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: flink-operator-webhook-service
+        namespace: {{ .Values.flinkOperatorNamespace.name }}
+        path: /validate-flinkoperator-k8s-io-v1beta1-flinkcluster
+    failurePolicy: Fail
+    name: vflinkcluster.flinkoperator.k8s.io
+    rules:
+      - apiGroups:
+          - flinkoperator.k8s.io
+        apiVersions:
+          - v1beta1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - flinkclusters
+    sideEffects: None

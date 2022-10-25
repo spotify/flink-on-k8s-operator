@@ -3,6 +3,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     api-approved.kubernetes.io: unapproved
+    cert-manager.io/inject-ca-from: {{ .Values.flinkOperatorNamespace.name }}/flink-operator-serving-cert
     controller-gen.kubebuilder.io/version: v0.6.2
   name: flinkclusters.flinkoperator.k8s.io
 spec:

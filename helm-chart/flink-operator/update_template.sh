@@ -33,10 +33,6 @@ function modifyManifests() {
   yqi "$deploymentSelector"'.spec.replicas = "__REPLICAS__"'
   yqi "$deploymentSelector"'.spec.template.spec.serviceAccountName = "__SERVICE_ACCOUNT__"'
   yqi '(select(.kind == "ClusterRoleBinding" or .kind == "RoleBinding").subjects[] | select(.kind == "ServiceAccount")).name = "__SERVICE_ACCOUNT__"'
-  yqi '(select(.kind == "ClusterRoleBinding" or .kind == "RoleBinding").subjects[] | select(.kind == "ServiceAccount")).namespace = "__NAMESPACE__"'
-  yqi 'select(.metadata.namespace != null).metadata.namespace = "__NAMESPACE__"'
-  yqi 'select(.kind == "CustomResourceDefinition").spec.conversion.webhook.clientConfig.service.namespace = "__NAMESPACE__"'
-  yqi 'del(.metadata.annotations["cert-manager.io/inject-ca-from"])'
 }
 
 function helmTemplating() {
@@ -55,11 +51,15 @@ function helmTemplating() {
 }
 
 function separateManifests() {
-  yq 'select(.apiVersion == "apiextensions.k8s.io/v1")' "$manifests" | helmTemplating > templates/flink-cluster-crd.yaml
+  yq 'select(.apiVersion == "apiextensions.k8s.io/v1")' "$manifests" | \
+  helmTemplating > templates/flink-cluster-crd.yaml
 
   yq 'select(.apiVersion == "rbac.authorization.k8s.io/v1")' "$manifests" | \
   (echo "{{- if .Values.rbac.create }}" && cat && echo "{{- end }}") | \
   helmTemplating > templates/rbac.yaml
+
+  yq 'select(.apiVersion == "cert-manager.io/v1" or .apiVersion == "admissionregistration.k8s.io/v1")' "$manifests" | \
+  helmTemplating > templates/webhook.yaml
 
   read -r -d '' operatorSelector << EOM
 select(true
@@ -71,14 +71,18 @@ and .kind != "Namespace"
 and .kind != "ServiceAccount"
 )
 EOM
-  yq "$operatorSelector" "$manifests" | helmTemplating > templates/flink-operator.yaml
+  yq "$operatorSelector" "$manifests" | \
+  helmTemplating > templates/flink-operator.yaml
 }
 
 function main() {
-  kubectl kustomize ../../config/default > "$manifests"
+  sourceKustomization="../../config/default/kustomization.yaml"
+  yq -i '.namespace = "__NAMESPACE__"' "$sourceKustomization"
+  kubectl kustomize "$(dirname $sourceKustomization)" > "$manifests"
   modifyManifests
   separateManifests
   rm "$manifests"
+  git checkout "$sourceKustomization"
 }
 
 main
