@@ -8,19 +8,16 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/hashicorp/go-version v1.6.0
 	github.com/imdario/mergo v0.3.13
+	github.com/onsi/ginkgo/v2 v2.3.1
 	github.com/onsi/gomega v1.22.1
 	golang.org/x/net v0.0.0-20220722155237-a158d28d115b
+	gotest.tools/v3 v3.4.0
 	k8s.io/api v0.24.1
 	k8s.io/apimachinery v0.24.1
 	k8s.io/client-go v0.24.1
 	k8s.io/klog v1.0.0
 	sigs.k8s.io/controller-runtime v0.12.1
 	volcano.sh/apis v0.0.0-20210924061932-d4408f25a528
-)
-
-require (
-	github.com/onsi/ginkgo/v2 v2.3.1
-	gotest.tools/v3 v3.4.0
 )
 
 require (
