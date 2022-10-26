@@ -5,46 +5,37 @@ metadata:
   name: flink-operator-leader-election-role
   namespace: {{ .Values.flinkOperatorNamespace.name }}
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - ""
-  resources:
-  - configmaps/status
-  verbs:
-  - get
-  - update
-  - patch
-- apiGroups:
-  - coordination.k8s.io
-  resources:
-  - leases
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
-  - patch
-
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -161,7 +152,7 @@ rules:
       - update
       - watch
   - apiGroups:
-      - "policy"
+      - policy
     resources:
       - poddisruptionbudgets
     verbs:
@@ -171,7 +162,7 @@ rules:
       - list
       - watch
   - apiGroups:
-      - "policy"
+      - policy
     resources:
       - poddisruptionbudgets/status
     verbs:
@@ -262,28 +253,28 @@ kind: ClusterRole
 metadata:
   name: flink-operator-metrics-reader
 rules:
-- nonResourceURLs:
-  - /metrics
-  verbs:
-  - get
+  - nonResourceURLs:
+      - /metrics
+    verbs:
+      - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: flink-operator-proxy-role
 rules:
-- apiGroups:
-  - authentication.k8s.io
-  resources:
-  - tokenreviews
-  verbs:
-  - create
-- apiGroups:
-  - authorization.k8s.io
-  resources:
-  - subjectaccessreviews
-  verbs:
-  - create
+  - apiGroups:
+      - authentication.k8s.io
+    resources:
+      - tokenreviews
+    verbs:
+      - create
+  - apiGroups:
+      - authorization.k8s.io
+    resources:
+      - subjectaccessreviews
+    verbs:
+      - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -295,9 +286,9 @@ roleRef:
   kind: Role
   name: flink-operator-leader-election-role
 subjects:
-- kind: ServiceAccount
-  name: {{ template "flink-operator.serviceAccountName" . }}
-  namespace: {{ .Values.flinkOperatorNamespace.name }}
+  - kind: ServiceAccount
+    name: {{ template "flink-operator.serviceAccountName" . }}
+    namespace: {{ .Values.flinkOperatorNamespace.name }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -308,9 +299,9 @@ roleRef:
   kind: ClusterRole
   name: flink-operator-manager-role
 subjects:
-- kind: ServiceAccount
-  name: {{ template "flink-operator.serviceAccountName" . }}
-  namespace: {{ .Values.flinkOperatorNamespace.name }}
+  - kind: ServiceAccount
+    name: {{ template "flink-operator.serviceAccountName" . }}
+    namespace: {{ .Values.flinkOperatorNamespace.name }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -321,7 +312,7 @@ roleRef:
   kind: ClusterRole
   name: flink-operator-proxy-role
 subjects:
-- kind: ServiceAccount
-  name: {{ template "flink-operator.serviceAccountName" . }}
-  namespace: {{ .Values.flinkOperatorNamespace.name }}
+  - kind: ServiceAccount
+    name: {{ template "flink-operator.serviceAccountName" . }}
+    namespace: {{ .Values.flinkOperatorNamespace.name }}
 {{- end }}

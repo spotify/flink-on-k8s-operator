@@ -11,9 +11,9 @@ metadata:
   namespace: {{ .Values.flinkOperatorNamespace.name }}
 spec:
   ports:
-  - name: https
-    port: 8443
-    targetPort: https
+    - name: https
+      port: 8443
+      targetPort: https
   selector:
     control-plane: controller-manager
 ---
@@ -24,8 +24,8 @@ metadata:
   namespace: {{ .Values.flinkOperatorNamespace.name }}
 spec:
   ports:
-  - port: 443
-    targetPort: 9443
+    - port: 443
+      targetPort: 9443
   selector:
     control-plane: controller-manager
 ---
@@ -45,57 +45,57 @@ spec:
       control-plane: controller-manager
   template:
     metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: flink-operator
       labels:
         app: flink-operator
         control-plane: controller-manager
-      annotations:
-        kubectl.kubernetes.io/default-container: flink-operator
     spec:
       containers:
-      - name: kube-rbac-proxy
-        args:
-        - --secure-listen-address=0.0.0.0:8443
-        - --upstream=http://127.0.0.1:8080/
-        - --logtostderr=true
-        - --v=10
-        image: {{ .Values.rbacProxyImage.name }}
-        imagePullPolicy: {{ .Values.rbacProxyImage.pullPolicy }}
-        ports:
-        - containerPort: 8443
-          name: https
-      - name: flink-operator
-        args:
-        - --metrics-addr=127.0.0.1:8080
-        - --enable-leader-election
-        - --watch-namespace={{ .Values.watchNamespace.name }}
-        - --zap-devel=false
-        command:
-        - /flink-operator
-        image: {{ .Values.operatorImage.name }}
-        imagePullPolicy: {{ .Values.operatorImage.pullPolicy }}
-        ports:
-        - containerPort: 9443
-          name: webhook-server
-          protocol: TCP
-        resources:
-          requests:
-            cpu: {{ .Values.resources.requests.cpu }}
-            memory: {{ .Values.resources.requests.memory }}
-          limits:
-            cpu: {{ .Values.resources.limits.cpu }}
-            memory: {{ .Values.resources.limits.memory }}
-        securityContext:
-          allowPrivilegeEscalation: false
-        volumeMounts:
-        - mountPath: /tmp/k8s-webhook-server/serving-certs
-          name: cert
-          readOnly: true
+        - args:
+            - --secure-listen-address=0.0.0.0:8443
+            - --upstream=http://127.0.0.1:8080/
+            - --logtostderr=true
+            - --v=0
+          image: {{ .Values.rbacProxyImage.name }}
+          imagePullPolicy: {{ .Values.rbacProxyImage.pullPolicy }}
+          name: kube-rbac-proxy
+          ports:
+            - containerPort: 8443
+              name: https
+        - args:
+            - --metrics-addr=127.0.0.1:8080
+            - --enable-leader-election
+            - --zap-devel=false
+            - --watch-namespace={{ .Values.watchNamespace.name }}
+          command:
+            - /flink-operator
+          image: {{ .Values.operatorImage.name }}
+          imagePullPolicy: {{ .Values.operatorImage.pullPolicy }}
+          name: flink-operator
+          ports:
+            - containerPort: 9443
+              name: webhook-server
+              protocol: TCP
+          resources:
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+          securityContext:
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - mountPath: /tmp/k8s-webhook-server/serving-certs
+              name: cert
+              readOnly: true
       securityContext:
         runAsNonRoot: false
       serviceAccountName: {{ template "flink-operator.serviceAccountName" . }}
       terminationGracePeriodSeconds: 10
       volumes:
-      - name: cert
-        secret:
-          defaultMode: 420
-          secretName: webhook-server-cert
+        - name: cert
+          secret:
+            defaultMode: 420
+            secretName: webhook-server-cert
