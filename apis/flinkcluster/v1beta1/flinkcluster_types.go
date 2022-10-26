@@ -516,8 +516,7 @@ type JobSpec struct {
 	// cluster to trigger a new savepoint to `savepointsDir` on demand.
 	SavepointGeneration int32 `json:"savepointGeneration,omitempty"`
 
-	// Job parallelism, default: `1`.
-	// +kubebuilder:default:=1
+	// _(Optional)_ Job parallelism; if not set parallelism will be #replicas * #slots.
 	Parallelism *int32 `json:"parallelism,omitempty"`
 
 	// No logging output to STDOUT, default: `false`.
