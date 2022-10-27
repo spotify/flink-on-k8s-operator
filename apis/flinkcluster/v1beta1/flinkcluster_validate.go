@@ -18,6 +18,7 @@ package v1beta1
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -25,7 +26,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-version"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	corev1 "k8s.io/api/core/v1"
@@ -150,7 +151,7 @@ func (v *Validator) checkControlAnnotations(old *FlinkCluster, new *FlinkCluster
 			if old.Spec.Job == nil {
 				return fmt.Errorf(SessionClusterWarnMsg, ControlNameJobCancel, ControlAnnotation)
 			} else if job == nil || job.IsTerminated(old.Spec.Job) {
-				return errors.NewResourceExpired(fmt.Sprintf(InvalidJobStateForJobCancelMsg, ControlAnnotation))
+				return apierrors.NewResourceExpired(fmt.Sprintf(InvalidJobStateForJobCancelMsg, ControlAnnotation))
 			}
 		case ControlNameSavepoint:
 			var job = old.Status.Components.Job
@@ -294,9 +295,21 @@ func (v *Validator) validateMeta(meta *metav1.ObjectMeta) error {
 	if len(meta.Name) == 0 {
 		return fmt.Errorf("cluster name is unspecified")
 	}
+	// cluster name is used as the prefix of almost all resources, so it must be a valid DNS label.
+	if len(validation.NameIsDNS1035Label(meta.Name, false)) > 0 {
+		msg := fmt.Sprintf("cluster name %s is invalid: a DNS-1035 name must consist of lower case alphanumeric characters or '-', start with an alphabetic character, and end with an alphanumeric character (e.g. 'my-name',  or 'abc-123', regex used for validation is '[a-z]([-a-z0-9]*[a-z0-9])?')", meta.Name)
+		return errors.New(msg)
+	}
+
 	if len(meta.Namespace) == 0 {
 		return fmt.Errorf("cluster namesapce is unspecified")
 	}
+	nsErrors := validation.ValidateNamespaceName(meta.Namespace, false)
+	if len(nsErrors) > 0 {
+		err := strings.Join(nsErrors, ",")
+		return fmt.Errorf("cluster namespace %s is invalid: %s", meta.Namespace, err)
+	}
+
 	return nil
 }
 
