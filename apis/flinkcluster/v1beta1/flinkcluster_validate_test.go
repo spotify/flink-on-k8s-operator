@@ -1142,6 +1142,16 @@ func TestFlinkClusterValidation(t *testing.T) {
 		}
 		return &cluster
 	}
+	invalidClusterName := func() *FlinkCluster {
+		cluster := getSimpleFlinkCluster()
+		cluster.Name = "1-invalid-name"
+		return &cluster
+	}
+	invalidLongClusterName := func() *FlinkCluster {
+		cluster := getSimpleFlinkCluster()
+		cluster.Name = longName
+		return &cluster
+	}
 
 	data := []struct {
 		testName    string
@@ -1177,6 +1187,16 @@ func TestFlinkClusterValidation(t *testing.T) {
 			"invalid job labels",
 			invalidJobLabels,
 			fmt.Sprintf("spec.job.podLabels: Invalid value: \"%s\": name part must be no more than 63 characters", longName),
+		},
+		{
+			"invalid cluster name",
+			invalidClusterName,
+			fmt.Sprintf(dns1035ErrorMsg, "1-invalid-name"),
+		},
+		{
+			"invalid cluster long name",
+			invalidLongClusterName,
+			"cluster name size needs to greater than 0 and less than 50",
 		},
 	}
 
