@@ -1183,9 +1183,7 @@ func TestFlinkClusterValidation(t *testing.T) {
 	for _, tt := range data {
 		t.Run(tt.testName, func(t *testing.T) {
 			err := validator.ValidateCreate(tt.run())
-			if err != nil {
-				assert.Equal(t, err.Error(), tt.expectedErr)
-			}
+			assert.Error(t, err, tt.expectedErr)
 		})
 	}
 }
