@@ -43,6 +43,7 @@ const (
 	SessionClusterWarnMsg          = "%v is not allowed for session cluster, annotation: %v"
 	ControlChangeWarnMsg           = "change is not allowed for control in progress, annotation: %v"
 	dns1035ErrorMsg                = "cluster name %s is invalid: a DNS-1035 name must consist of lower case alphanumeric characters or '-', start with an alphabetic character, and end with an alphanumeric character (e.g. 'my-name', or 'abc-123', regex used for validation is '[a-z]([-a-z0-9]*[a-z0-9])?'"
+	maxClusterNameLength           = 49 // 63 - 14 (max suffix length)
 )
 
 // Validator validates CUD requests for the CR.
@@ -292,7 +293,7 @@ func (v *Validator) validateJobUpdate(old *FlinkCluster, new *FlinkCluster) erro
 }
 
 func (v *Validator) validateMeta(meta *metav1.ObjectMeta) error {
-	if len(meta.Name) == 0 || len(meta.Name) >= 49 {
+	if len(meta.Name) == 0 || len(meta.Name) >= maxClusterNameLength {
 		return fmt.Errorf("cluster name size needs to greater than 0 and less than 50")
 	}
 	// cluster name is used as the prefix of almost all resources, so it must be a valid DNS label.
