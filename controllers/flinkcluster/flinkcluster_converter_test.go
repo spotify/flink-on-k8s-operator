@@ -143,7 +143,7 @@ func getDummyFlinkCluster() *v1beta1.FlinkCluster {
 			APIVersion: "flinkoperator.k8s.io/v1beta1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "flinkjobcluster-sample",
+			Name:      "fjc",
 			Namespace: "default",
 		},
 		Spec: v1beta1.FlinkClusterSpec{
@@ -275,7 +275,7 @@ func getDummyFlinkCluster() *v1beta1.FlinkCluster {
 								{
 									APIVersion:         "flinkoperator.k8s.io/v1beta1",
 									Kind:               "FlinkCluster",
-									Name:               "flinkjobcluster-sample",
+									Name:               "fjc",
 									Controller:         &controller,
 									BlockOwnerDeletion: &blockOwnerDeletion,
 								},
@@ -302,7 +302,7 @@ func getDummyFlinkCluster() *v1beta1.FlinkCluster {
 			EnvVars: []corev1.EnvVar{{Name: "FOO", Value: "abc"}},
 			EnvFrom: []corev1.EnvFromSource{{ConfigMapRef: &corev1.ConfigMapEnvSource{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: "FOOMAP",
+					Name: "foomap",
 				}}}},
 			HadoopConfig: &v1beta1.HadoopConfig{
 				ConfigMapName: "hadoop-configmap",
@@ -323,7 +323,7 @@ func getDummyFlinkCluster() *v1beta1.FlinkCluster {
 			},
 		},
 		Status: v1beta1.FlinkClusterStatus{
-			Revision: v1beta1.RevisionStatus{NextRevision: "flinkjobcluster-sample-85dc8f749-1"},
+			Revision: v1beta1.RevisionStatus{NextRevision: "fjc-85dc8f749-1"},
 		},
 	}
 }
@@ -347,19 +347,19 @@ func TestGetDesiredClusterState(t *testing.T) {
 	// JmStatefulSet
 	var expectedDesiredJmStatefulSet = appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "flinkjobcluster-sample-jobmanager",
+			Name:      "fjc-jobmanager",
 			Namespace: "default",
 			Labels: map[string]string{
 				"app":             "flink",
-				"cluster":         "flinkjobcluster-sample",
+				"cluster":         "fjc",
 				"component":       "jobmanager",
-				RevisionNameLabel: "flinkjobcluster-sample-85dc8f749",
+				RevisionNameLabel: "fjc-85dc8f749",
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion:         "flinkoperator.k8s.io/v1beta1",
 					Kind:               "FlinkCluster",
-					Name:               "flinkjobcluster-sample",
+					Name:               "fjc",
 					Controller:         &controller,
 					BlockOwnerDeletion: &blockOwnerDeletion,
 				},
@@ -369,16 +369,16 @@ func TestGetDesiredClusterState(t *testing.T) {
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"app":       "flink",
-					"cluster":   "flinkjobcluster-sample",
+					"cluster":   "fjc",
 					"component": "jobmanager",
 				},
 			},
-			ServiceName: "flinkjobcluster-sample-jobmanager",
+			ServiceName: "fjc-jobmanager",
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"app":       "flink",
-						"cluster":   "flinkjobcluster-sample",
+						"cluster":   "fjc",
 						"component": "jobmanager",
 					},
 					Annotations: map[string]string{
@@ -415,7 +415,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 								{
 									ConfigMapRef: &corev1.ConfigMapEnvSource{
 										LocalObjectReference: corev1.LocalObjectReference{
-											Name: "FOOMAP",
+											Name: "foomap",
 										},
 									},
 								},
@@ -469,7 +469,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 							VolumeSource: corev1.VolumeSource{
 								ConfigMap: &corev1.ConfigMapVolumeSource{
 									LocalObjectReference: corev1.LocalObjectReference{
-										Name: "flinkjobcluster-sample-configmap",
+										Name: "fjc-configmap",
 									},
 								},
 							},
@@ -508,12 +508,12 @@ func TestGetDesiredClusterState(t *testing.T) {
 	// JmService
 	var expectedDesiredJmService = corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "flinkjobcluster-sample-jobmanager",
+			Name:      "fjc-jobmanager",
 			Namespace: "default",
 			Labels: map[string]string{
-				RevisionNameLabel: "flinkjobcluster-sample-85dc8f749",
+				RevisionNameLabel: "fjc-85dc8f749",
 				"app":             "flink",
-				"cluster":         "flinkjobcluster-sample",
+				"cluster":         "fjc",
 				"component":       "jobmanager",
 			},
 			Annotations: map[string]string{
@@ -524,7 +524,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 				{
 					APIVersion:         "flinkoperator.k8s.io/v1beta1",
 					Kind:               "FlinkCluster",
-					Name:               "flinkjobcluster-sample",
+					Name:               "fjc",
 					Controller:         &controller,
 					BlockOwnerDeletion: &blockOwnerDeletion,
 				},
@@ -534,7 +534,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 			Type: "LoadBalancer",
 			Selector: map[string]string{
 				"app":       "flink",
-				"cluster":   "flinkjobcluster-sample",
+				"cluster":   "fjc",
 				"component": "jobmanager",
 			},
 			Ports: []corev1.ServicePort{
@@ -554,13 +554,13 @@ func TestGetDesiredClusterState(t *testing.T) {
 	// JmIngress
 	var expectedDesiredJmIngress = networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "flinkjobcluster-sample-jobmanager",
+			Name:      "fjc-jobmanager",
 			Namespace: "default",
 			Labels: map[string]string{
 				"app":             "flink",
-				"cluster":         "flinkjobcluster-sample",
+				"cluster":         "fjc",
 				"component":       "jobmanager",
-				RevisionNameLabel: "flinkjobcluster-sample-85dc8f749",
+				RevisionNameLabel: "fjc-85dc8f749",
 			},
 			Annotations: map[string]string{
 				"kubernetes.io/ingress.class":                "nginx",
@@ -571,7 +571,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 				{
 					APIVersion:         "flinkoperator.k8s.io/v1beta1",
 					Kind:               "FlinkCluster",
-					Name:               "flinkjobcluster-sample",
+					Name:               "fjc",
 					Controller:         &controller,
 					BlockOwnerDeletion: &blockOwnerDeletion,
 				},
@@ -579,7 +579,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 		},
 		Spec: networkingv1.IngressSpec{
 			Rules: []networkingv1.IngressRule{{
-				Host: "flinkjobcluster-sample.example.com",
+				Host: "fjc.example.com",
 				IngressRuleValue: networkingv1.IngressRuleValue{
 					HTTP: &networkingv1.HTTPIngressRuleValue{
 						Paths: []networkingv1.HTTPIngressPath{{
@@ -587,9 +587,9 @@ func TestGetDesiredClusterState(t *testing.T) {
 							PathType: &ingressPathType,
 							Backend: networkingv1.IngressBackend{
 								Service: &networkingv1.IngressServiceBackend{
-									Name: "flinkjobcluster-sample-jobmanager",
+									Name: "fjc-jobmanager",
 									Port: networkingv1.ServiceBackendPort{
-										Name:   "flinkjobcluster-sample-jobmanager",
+										Name:   "fjc-jobmanager",
 										Number: intstr.FromString("ui").IntVal,
 									},
 								},
@@ -598,7 +598,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 				},
 			}},
 			TLS: []networkingv1.IngressTLS{{
-				Hosts: []string{"flinkjobcluster-sample.example.com"},
+				Hosts: []string{"fjc.example.com"},
 			}},
 		},
 	}
@@ -612,19 +612,19 @@ func TestGetDesiredClusterState(t *testing.T) {
 	// TmStatefulSet
 	var expectedDesiredTmStatefulSet = appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "flinkjobcluster-sample-taskmanager",
+			Name:      "fjc-taskmanager",
 			Namespace: "default",
 			Labels: map[string]string{
 				"app":             "flink",
-				"cluster":         "flinkjobcluster-sample",
+				"cluster":         "fjc",
 				"component":       "taskmanager",
-				RevisionNameLabel: "flinkjobcluster-sample-85dc8f749",
+				RevisionNameLabel: "fjc-85dc8f749",
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion:         "flinkoperator.k8s.io/v1beta1",
 					Kind:               "FlinkCluster",
-					Name:               "flinkjobcluster-sample",
+					Name:               "fjc",
 					Controller:         &controller,
 					BlockOwnerDeletion: &blockOwnerDeletion,
 				},
@@ -632,12 +632,12 @@ func TestGetDesiredClusterState(t *testing.T) {
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Replicas:            &replicas,
-			ServiceName:         "flinkjobcluster-sample-taskmanager",
+			ServiceName:         "fjc-taskmanager",
 			PodManagementPolicy: "Parallel",
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"app":       "flink",
-					"cluster":   "flinkjobcluster-sample",
+					"cluster":   "fjc",
 					"component": "taskmanager",
 				},
 			},
@@ -649,7 +649,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 							{
 								APIVersion:         "flinkoperator.k8s.io/v1beta1",
 								Kind:               "FlinkCluster",
-								Name:               "flinkjobcluster-sample",
+								Name:               "fjc",
 								Controller:         &controller,
 								BlockOwnerDeletion: &blockOwnerDeletion,
 							},
@@ -670,7 +670,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"app":       "flink",
-						"cluster":   "flinkjobcluster-sample",
+						"cluster":   "fjc",
 						"component": "taskmanager",
 					},
 					Annotations: map[string]string{
@@ -706,7 +706,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 								{
 									ConfigMapRef: &corev1.ConfigMapEnvSource{
 										LocalObjectReference: corev1.LocalObjectReference{
-											Name: "FOOMAP",
+											Name: "foomap",
 										},
 									},
 								},
@@ -757,7 +757,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 							VolumeSource: corev1.VolumeSource{
 								ConfigMap: &corev1.ConfigMapVolumeSource{
 									LocalObjectReference: corev1.LocalObjectReference{
-										Name: "flinkjobcluster-sample-configmap",
+										Name: "fjc-configmap",
 									},
 								},
 							},
@@ -804,17 +804,17 @@ func TestGetDesiredClusterState(t *testing.T) {
 	// Job
 	var expectedDesiredJob = batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "flinkjobcluster-sample-job-submitter",
+			Name:      "fjc-job-submitter",
 			Namespace: "default",
 			Labels: map[string]string{
 				"app":             "flink",
-				"cluster":         "flinkjobcluster-sample",
-				RevisionNameLabel: "flinkjobcluster-sample-85dc8f749",
+				"cluster":         "fjc",
+				RevisionNameLabel: "fjc-85dc8f749",
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{APIVersion: "flinkoperator.k8s.io/v1beta1",
 					Kind:               "FlinkCluster",
-					Name:               "flinkjobcluster-sample",
+					Name:               "fjc",
 					Controller:         &controller,
 					BlockOwnerDeletion: &blockOwnerDeletion,
 				},
@@ -825,8 +825,8 @@ func TestGetDesiredClusterState(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"app":                                "flink",
-						"cluster":                            "flinkjobcluster-sample",
-						"flinkoperator.k8s.io/revision-name": "flinkjobcluster-sample-85dc8f749",
+						"cluster":                            "fjc",
+						"flinkoperator.k8s.io/revision-name": "fjc-85dc8f749",
 					},
 					Annotations: map[string]string{
 						"example.com": "example",
@@ -853,7 +853,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 								{Name: "gcp-service-account-volume", ReadOnly: true, MountPath: "/etc/gcp_service_account/"},
 							},
 							Env: []corev1.EnvVar{
-								{Name: "FLINK_JM_ADDR", Value: "flinkjobcluster-sample-jobmanager:8081"},
+								{Name: "FLINK_JM_ADDR", Value: "fjc-jobmanager:8081"},
 								{Name: "FOO", Value: "abc"},
 								{Name: "HADOOP_CONF_DIR", Value: "/etc/hadoop/conf"},
 								{Name: "GOOGLE_APPLICATION_CREDENTIALS", Value: "/etc/gcp_service_account/gcp_service_account_key.json"},
@@ -868,7 +868,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 								"bash",
 								"/opt/flink-operator/submit-job.sh",
 								"--jobmanager",
-								"flinkjobcluster-sample-jobmanager:8081",
+								"fjc-jobmanager:8081",
 								"--class",
 								"org.apache.flink.examples.java.wordcount.WordCount",
 								"--parallelism",
@@ -879,7 +879,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 								"./README.txt",
 							},
 							Env: []corev1.EnvVar{
-								{Name: "FLINK_JM_ADDR", Value: "flinkjobcluster-sample-jobmanager:8081"},
+								{Name: "FLINK_JM_ADDR", Value: "fjc-jobmanager:8081"},
 								{Name: "FOO", Value: "abc"},
 								{Name: "HADOOP_CONF_DIR", Value: "/etc/hadoop/conf"},
 								{
@@ -891,7 +891,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 								{
 									ConfigMapRef: &corev1.ConfigMapEnvSource{
 										LocalObjectReference: corev1.LocalObjectReference{
-											Name: "FOOMAP",
+											Name: "foomap",
 										},
 									},
 								},
@@ -943,7 +943,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 							VolumeSource: corev1.VolumeSource{
 								ConfigMap: &corev1.ConfigMapVolumeSource{
 									LocalObjectReference: corev1.LocalObjectReference{
-										Name: "flinkjobcluster-sample-configmap",
+										Name: "fjc-configmap",
 									},
 								},
 							},
@@ -987,7 +987,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 
 	// ConfigMap
 	var flinkConfYaml = `blob.server.port: 6124
-jobmanager.rpc.address: flinkjobcluster-sample-jobmanager
+jobmanager.rpc.address: fjc-jobmanager
 jobmanager.rpc.port: 6123
 query.server.port: 6125
 rest.port: 8081
@@ -997,18 +997,18 @@ taskmanager.rpc.port: 6122
 `
 	var expectedConfigMap = corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "flinkjobcluster-sample-configmap",
+			Name:      "fjc-configmap",
 			Namespace: "default",
 			Labels: map[string]string{
 				"app":             "flink",
-				"cluster":         "flinkjobcluster-sample",
-				RevisionNameLabel: "flinkjobcluster-sample-85dc8f749",
+				"cluster":         "fjc",
+				RevisionNameLabel: "fjc-85dc8f749",
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion:         "flinkoperator.k8s.io/v1beta1",
 					Kind:               "FlinkCluster",
-					Name:               "flinkjobcluster-sample",
+					Name:               "fjc",
 					Controller:         &controller,
 					BlockOwnerDeletion: &blockOwnerDeletion,
 				},
@@ -1040,19 +1040,19 @@ func TestTmDeploymentTypeDeployment(t *testing.T) {
 
 	var expectedDesiredTmDeployment = appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "flinkjobcluster-sample-taskmanager",
+			Name:      "fjc-taskmanager",
 			Namespace: "default",
 			Labels: map[string]string{
 				"app":             "flink",
-				"cluster":         "flinkjobcluster-sample",
+				"cluster":         "fjc",
 				"component":       "taskmanager",
-				RevisionNameLabel: "flinkjobcluster-sample-85dc8f749",
+				RevisionNameLabel: "fjc-85dc8f749",
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion:         "flinkoperator.k8s.io/v1beta1",
 					Kind:               "FlinkCluster",
-					Name:               "flinkjobcluster-sample",
+					Name:               "fjc",
 					Controller:         &controller,
 					BlockOwnerDeletion: &blockOwnerDeletion,
 				},
@@ -1063,7 +1063,7 @@ func TestTmDeploymentTypeDeployment(t *testing.T) {
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"app":       "flink",
-					"cluster":   "flinkjobcluster-sample",
+					"cluster":   "fjc",
 					"component": "taskmanager",
 				},
 			},
@@ -1071,7 +1071,7 @@ func TestTmDeploymentTypeDeployment(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"app":       "flink",
-						"cluster":   "flinkjobcluster-sample",
+						"cluster":   "fjc",
 						"component": "taskmanager",
 					},
 					Annotations: map[string]string{
@@ -1107,7 +1107,7 @@ func TestTmDeploymentTypeDeployment(t *testing.T) {
 								{
 									ConfigMapRef: &corev1.ConfigMapEnvSource{
 										LocalObjectReference: corev1.LocalObjectReference{
-											Name: "FOOMAP",
+											Name: "foomap",
 										},
 									},
 								},
@@ -1158,7 +1158,7 @@ func TestTmDeploymentTypeDeployment(t *testing.T) {
 							VolumeSource: corev1.VolumeSource{
 								ConfigMap: &corev1.ConfigMapVolumeSource{
 									LocalObjectReference: corev1.LocalObjectReference{
-										Name: "flinkjobcluster-sample-configmap",
+										Name: "fjc-configmap",
 									},
 								},
 							},
@@ -1189,7 +1189,7 @@ func TestTmDeploymentTypeDeployment(t *testing.T) {
 										ObjectMeta: metav1.ObjectMeta{
 											Labels: map[string]string{
 												"app":       "flink",
-												"cluster":   "flinkjobcluster-sample",
+												"cluster":   "fjc",
 												"component": "taskmanager",
 											},
 										},
@@ -1249,7 +1249,7 @@ func TestSecurityContext(t *testing.T) {
 	var observed = &ObservedClusterState{
 		cluster: &v1beta1.FlinkCluster{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "flinkjobcluster-sample",
+				Name:      "fjc",
 				Namespace: "default",
 			},
 			Spec: v1beta1.FlinkClusterSpec{
@@ -1279,7 +1279,7 @@ func TestSecurityContext(t *testing.T) {
 				},
 			},
 			Status: v1beta1.FlinkClusterStatus{
-				Revision: v1beta1.RevisionStatus{NextRevision: "flinkjobcluster-sample-85dc8f749-1"},
+				Revision: v1beta1.RevisionStatus{NextRevision: "fjc-85dc8f749-1"},
 			},
 		},
 	}
@@ -1294,7 +1294,7 @@ func TestSecurityContext(t *testing.T) {
 	var observed2 = &ObservedClusterState{
 		cluster: &v1beta1.FlinkCluster{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "flinkjobcluster-sample",
+				Name:      "fjc",
 				Namespace: "default",
 			},
 			Spec: v1beta1.FlinkClusterSpec{
@@ -1319,7 +1319,7 @@ func TestSecurityContext(t *testing.T) {
 				},
 			},
 			Status: v1beta1.FlinkClusterStatus{
-				Revision: v1beta1.RevisionStatus{NextRevision: "flinkjobcluster-sample-85dc8f749-1"},
+				Revision: v1beta1.RevisionStatus{NextRevision: "fjc-85dc8f749-1"},
 			},
 		},
 	}
@@ -1573,7 +1573,7 @@ func TestClassPath(t *testing.T) {
 	var observed = &ObservedClusterState{
 		cluster: &v1beta1.FlinkCluster{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "flinkjobcluster-sample",
+				Name:      "fjc",
 				Namespace: "default",
 			},
 			Spec: v1beta1.FlinkClusterSpec{
@@ -1610,7 +1610,7 @@ func TestClassPath(t *testing.T) {
 				},
 			},
 			Status: v1beta1.FlinkClusterStatus{
-				Revision: v1beta1.RevisionStatus{NextRevision: "flinkjobcluster-sample-85dc8f749-1"},
+				Revision: v1beta1.RevisionStatus{NextRevision: "fjc-85dc8f749-1"},
 			},
 		},
 	}
@@ -1619,7 +1619,7 @@ func TestClassPath(t *testing.T) {
 
 	expectedArgs := []string{
 		"bash", "/opt/flink-operator/submit-job.sh",
-		"--jobmanager", "flinkjobcluster-sample-jobmanager:8081",
+		"--jobmanager", "fjc-jobmanager:8081",
 		"--class", className,
 		"--parallelism", strconv.FormatInt(int64(parallelism), 10),
 		"--detached",
