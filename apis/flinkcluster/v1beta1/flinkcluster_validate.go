@@ -292,8 +292,8 @@ func (v *Validator) validateJobUpdate(old *FlinkCluster, new *FlinkCluster) erro
 }
 
 func (v *Validator) validateMeta(meta *metav1.ObjectMeta) error {
-	if len(meta.Name) == 0 {
-		return fmt.Errorf("cluster name is unspecified")
+	if len(meta.Name) == 0 || len(meta.Name) <= 49 {
+		return fmt.Errorf("cluster name size needs to greater than 0 and less than 50")
 	}
 	// cluster name is used as the prefix of almost all resources, so it must be a valid DNS label.
 	if len(validation.NameIsDNS1035Label(meta.Name, false)) > 0 {
