@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-version"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	corev1 "k8s.io/api/core/v1"
@@ -151,7 +151,7 @@ func (v *Validator) checkControlAnnotations(old *FlinkCluster, new *FlinkCluster
 			if old.Spec.Job == nil {
 				return fmt.Errorf(SessionClusterWarnMsg, ControlNameJobCancel, ControlAnnotation)
 			} else if job == nil || job.IsTerminated(old.Spec.Job) {
-				return apierrors.NewResourceExpired(fmt.Sprintf(InvalidJobStateForJobCancelMsg, ControlAnnotation))
+				return errors.NewResourceExpired(fmt.Sprintf(InvalidJobStateForJobCancelMsg, ControlAnnotation))
 			}
 		case ControlNameSavepoint:
 			var job = old.Status.Components.Job
@@ -292,7 +292,7 @@ func (v *Validator) validateJobUpdate(old *FlinkCluster, new *FlinkCluster) erro
 }
 
 func (v *Validator) validateMeta(meta *metav1.ObjectMeta) error {
-	if len(meta.Name) == 0 || len(meta.Name) <= 49 {
+	if len(meta.Name) == 0 || len(meta.Name) >= 49 {
 		return fmt.Errorf("cluster name size needs to greater than 0 and less than 50")
 	}
 	// cluster name is used as the prefix of almost all resources, so it must be a valid DNS label.

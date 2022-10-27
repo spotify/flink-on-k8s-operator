@@ -1147,6 +1147,11 @@ func TestFlinkClusterValidation(t *testing.T) {
 		cluster.Name = "1-invalid-name"
 		return &cluster
 	}
+	invalidLongClusterName := func() *FlinkCluster {
+		cluster := getSimpleFlinkCluster()
+		cluster.Name = longName
+		return &cluster
+	}
 
 	data := []struct {
 		testName    string
@@ -1186,7 +1191,12 @@ func TestFlinkClusterValidation(t *testing.T) {
 		{
 			"invalid cluster name",
 			invalidClusterName,
-			"cluster name 1-invalid-name is invalid: a DNS-1035 name must consist of lower case alphanumeric characters or '-', start with an alphabetic character, and end with an alphanumeric character (e.g. 'my-name',  or 'abc-123', regex used for validation is '[a-z]([-a-z0-9]*[a-z0-9])?')",
+			fmt.Sprintf(dns1035ErrorMsg, "1-invalid-name"),
+		},
+		{
+			"invalid cluster long name",
+			invalidLongClusterName,
+			"cluster name size needs to greater than 0 and less than 50",
 		},
 	}
 
