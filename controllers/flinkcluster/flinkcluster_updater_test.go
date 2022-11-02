@@ -49,11 +49,11 @@ func TestClusterStatus(t *testing.T) {
 	t.Run("changed", func(t *testing.T) {
 		var oldStatus = v1beta1.FlinkClusterStatus{
 			Components: v1beta1.FlinkClusterComponentsStatus{
-				JobManagerStatefulSet: v1beta1.FlinkClusterComponentState{
+				JobManager: &v1beta1.JobManagerStatus{
 					Name:  "my-jobmanager",
 					State: "NotReady",
 				},
-				TaskManagerStatefulSet: v1beta1.FlinkClusterComponentState{
+				TaskManager: &v1beta1.TaskManagerStatus{
 					Name:  "my-taskmanager",
 					State: "NotReady",
 				},
@@ -73,11 +73,11 @@ func TestClusterStatus(t *testing.T) {
 			State: "Creating"}
 		var newStatus = v1beta1.FlinkClusterStatus{
 			Components: v1beta1.FlinkClusterComponentsStatus{
-				JobManagerStatefulSet: v1beta1.FlinkClusterComponentState{
+				JobManager: &v1beta1.JobManagerStatus{
 					Name:  "my-jobmanager",
 					State: "Ready",
 				},
-				TaskManagerStatefulSet: v1beta1.FlinkClusterComponentState{
+				TaskManager: &v1beta1.TaskManagerStatus{
 					Name:  "my-taskmanager",
 					State: "Ready",
 				},
@@ -105,11 +105,11 @@ func TestClusterStatus(t *testing.T) {
 		nextRevision := "1-2"
 		var oldStatus = v1beta1.FlinkClusterStatus{
 			Components: v1beta1.FlinkClusterComponentsStatus{
-				JobManagerStatefulSet: v1beta1.FlinkClusterComponentState{
+				JobManager: &v1beta1.JobManagerStatus{
 					Name:  "my-jobmanager",
 					State: v1beta1.ComponentStateReady,
 				},
-				TaskManagerStatefulSet: v1beta1.FlinkClusterComponentState{
+				TaskManager: &v1beta1.TaskManagerStatus{
 					Name:  "my-taskmanager",
 					State: v1beta1.ComponentStateReady,
 				},
@@ -177,11 +177,11 @@ func TestClusterStatus(t *testing.T) {
 				},
 				Status: v1beta1.FlinkClusterStatus{
 					Components: v1beta1.FlinkClusterComponentsStatus{
-						ConfigMap: v1beta1.FlinkClusterComponentState{
+						ConfigMap: &v1beta1.ConfigMapStatus{
 							Name:  "my-configmap",
 							State: v1beta1.ComponentStateReady,
 						},
-						JobManagerStatefulSet: v1beta1.FlinkClusterComponentState{
+						JobManager: &v1beta1.JobManagerStatus{
 							Name:  "my-jobmanager",
 							State: v1beta1.ComponentStateReady,
 						},
@@ -192,7 +192,7 @@ func TestClusterStatus(t *testing.T) {
 						JobManagerIngress: &v1beta1.JobManagerIngressStatus{
 							State: "NotReady",
 						},
-						TaskManagerStatefulSet: v1beta1.FlinkClusterComponentState{
+						TaskManager: &v1beta1.TaskManagerStatus{
 							Name:  "my-taskamanger",
 							State: v1beta1.ComponentStateReady,
 						},
