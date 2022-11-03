@@ -29,15 +29,19 @@ spec:
           type: date
         - jsonPath: .status.components.jobManager.readyReplicas
           name: jm running
+          priority: 1
           type: integer
         - jsonPath: .status.components.jobManager.replicas
           name: jm replicas
+          priority: 1
           type: integer
         - jsonPath: .status.components.taskManager.readyReplicas
           name: tm running
+          priority: 1
           type: integer
         - jsonPath: .status.components.taskManager.replicas
           name: tm replicas
+          priority: 1
           type: integer
       name: v1beta1
       schema:

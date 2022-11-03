@@ -942,10 +942,10 @@ type FlinkClusterStatus struct {
 // +kubebuilder:printcolumn:name="version",type=string,JSONPath=`.spec.flinkVersion`
 // +kubebuilder:printcolumn:name="status",type=string,JSONPath=`.status.state`
 // +kubebuilder:printcolumn:name="age",type=date,JSONPath=`.metadata.creationTimestamp`
-// +kubebuilder:printcolumn:name="jm running",type=integer,JSONPath=`.status.components.jobManager.readyReplicas`
-// +kubebuilder:printcolumn:name="jm replicas",type=integer,JSONPath=`.status.components.jobManager.replicas`
-// +kubebuilder:printcolumn:name="tm running",type=integer,JSONPath=`.status.components.taskManager.readyReplicas`
-// +kubebuilder:printcolumn:name="tm replicas",type=integer,JSONPath=`.status.components.taskManager.replicas`
+// +kubebuilder:printcolumn:name="jm running",type=integer,priority=1,JSONPath=`.status.components.jobManager.readyReplicas`
+// +kubebuilder:printcolumn:name="jm replicas",type=integer,priority=1,JSONPath=`.status.components.jobManager.replicas`
+// +kubebuilder:printcolumn:name="tm running",type=integer,priority=1,JSONPath=`.status.components.taskManager.readyReplicas`
+// +kubebuilder:printcolumn:name="tm replicas",type=integer,priority=1,JSONPath=`.status.components.taskManager.replicas`
 
 // FlinkCluster is the Schema for the flinkclusters API
 type FlinkCluster struct {
