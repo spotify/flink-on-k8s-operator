@@ -243,6 +243,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 			State:         getStatefulSetState(observedJmStatefulSet),
 			Replicas:      observedJmStatefulSet.Status.Replicas,
 			ReadyReplicas: observedJmStatefulSet.Status.ReadyReplicas,
+			Ready:         fmt.Sprintf("%d/%d", observedJmStatefulSet.Status.ReadyReplicas, observedJmStatefulSet.Status.Replicas),
 		}
 		if (*jmStatus).State == v1beta1.ComponentStateReady {
 			runningComponents++
@@ -399,6 +400,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 				State:         getStatefulSetState(observedTmStatefulSet),
 				Replicas:      observedTmStatefulSet.Status.Replicas,
 				ReadyReplicas: observedTmStatefulSet.Status.ReadyReplicas,
+				Ready:         fmt.Sprintf("%d/%d", observedTmStatefulSet.Status.ReadyReplicas, observedTmStatefulSet.Status.Replicas),
 			}
 			if (*tmStatus).State == v1beta1.ComponentStateReady {
 				runningComponents++
@@ -422,6 +424,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 				State:         getDeploymentState(observedTmDeployment),
 				Replicas:      observedTmDeployment.Status.Replicas,
 				ReadyReplicas: observedTmDeployment.Status.ReadyReplicas,
+				Ready:         fmt.Sprintf("%d/%d", observedTmDeployment.Status.ReadyReplicas, observedTmDeployment.Status.Replicas),
 			}
 			if (*tmStatus).State == v1beta1.ComponentStateReady {
 				runningComponents++

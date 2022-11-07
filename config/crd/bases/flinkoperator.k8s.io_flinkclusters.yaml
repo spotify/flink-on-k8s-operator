@@ -27,22 +27,26 @@ spec:
         - jsonPath: .metadata.creationTimestamp
           name: age
           type: date
-        - jsonPath: .status.components.jobManager.readyReplicas
-          name: jm running
-          priority: 1
-          type: integer
-        - jsonPath: .status.components.jobManager.replicas
+        - jsonPath: .status.components.jobManager.ready
           name: jm replicas
           priority: 1
-          type: integer
-        - jsonPath: .status.components.taskManager.readyReplicas
-          name: tm running
+          type: string
+        - jsonPath: .spec.jobManager.nodeSelector.topology\.kubernetes\.io\/zone
+          name: jm zone
           priority: 1
-          type: integer
-        - jsonPath: .status.components.taskManager.replicas
+          type: string
+        - jsonPath: .status.components.taskManager.ready
           name: tm replicas
           priority: 1
-          type: integer
+          type: string
+        - jsonPath: .spec.taskManager.nodeSelector.topology\.kubernetes\.io\/zone
+          name: tm zone
+          priority: 1
+          type: string
+        - jsonPath: .spec.image.name
+          name: Image
+          priority: 1
+          type: string
       name: v1beta1
       schema:
         openAPIV3Schema:
@@ -6602,6 +6606,8 @@ spec:
                       properties:
                         name:
                           type: string
+                        ready:
+                          type: string
                         readyReplicas:
                           format: int32
                           type: integer
@@ -6612,6 +6618,7 @@ spec:
                           type: string
                       required:
                         - name
+                        - ready
                         - replicas
                         - state
                       type: object
@@ -6674,6 +6681,8 @@ spec:
                       properties:
                         name:
                           type: string
+                        ready:
+                          type: string
                         readyReplicas:
                           format: int32
                           type: integer
@@ -6684,6 +6693,7 @@ spec:
                           type: string
                       required:
                         - name
+                        - ready
                         - replicas
                         - state
                       type: object
