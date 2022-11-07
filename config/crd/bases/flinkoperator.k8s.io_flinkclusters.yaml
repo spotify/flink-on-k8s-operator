@@ -13,6 +13,7 @@ spec:
     plural: flinkclusters
     shortNames:
       - fc
+      - fcs
     singular: flinkcluster
   scope: Namespaced
   versions:

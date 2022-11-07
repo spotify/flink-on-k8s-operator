@@ -915,7 +915,7 @@ type FlinkClusterStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName="fc"
+// +kubebuilder:resource:shortName={fc,fcs}
 // +kubebuilder:printcolumn:name="version",type=string,JSONPath=`.spec.flinkVersion`
 // +kubebuilder:printcolumn:name="status",type=string,JSONPath=`.status.state`
 // +kubebuilder:printcolumn:name="age",type=date,JSONPath=`.metadata.creationTimestamp`
