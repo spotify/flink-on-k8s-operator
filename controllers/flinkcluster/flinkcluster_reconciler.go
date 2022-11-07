@@ -18,10 +18,10 @@ package flinkcluster
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -707,6 +707,26 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	}
 
+	if wasJobCancelRequested(observed.cluster.Status.Control) {
+		log.Info("Force tearing down the job")
+		userControl := getNewControlRequest(observed.cluster)
+		if userControl == v1beta1.ControlNameJobCancel {
+			newControlStatus = getControlStatus(userControl, v1beta1.ControlStateInProgress)
+		}
+		// cancel all running jobs
+		if job.IsActive() {
+			if err := reconciler.cancelRunningJobs(true /* takeSavepoint */); err != nil && !errors.IsResourceExpired(err) {
+				return requeueResult, err
+			}
+		}
+		// kill job submitter pod
+		if observedSubmitter != nil {
+			if err := reconciler.deleteJob(observedSubmitter); err != nil {
+				return requeueResult, err
+			}
+		}
+	}
+
 	// Create new Flink job submitter when starting new job, updating job or restarting job in failure.
 	if desiredJob != nil && !job.IsActive() {
 		log.Info("Deploying Flink job")
@@ -720,7 +740,7 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 			// In this case user should identify the problem so that the job is not executed multiple times unintentionally
 			// cause of Flink error, Flink operator error or other unknown error.
 			// If user want to proceed, unexpected jobs should be terminated.
-			log.Error(errors.New("unexpected jobs found"), "Failed to create job submitter", "unexpected jobs", unexpectedJobs)
+			log.Error(errors.NewInternalError(fmt.Errorf("unexpected jobs found")), "Failed to create job submitter", "unexpected jobs", unexpectedJobs)
 			return ctrl.Result{}, nil
 		}
 
@@ -781,27 +801,9 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 		return requeueResult, nil
 	}
 
-	// Job cancel requested or job finished. Stop Flink job and kill job-submitter.
+	// Job finished. Stop Flink job and kill job-submitter.
 	if desiredJob == nil && !(job.IsStopped() && observedSubmitter == nil) {
-		if shouldForceTearDown(observed.cluster.Status.Control) {
-			log.Info("Force tearing down cluster")
-			userControl := getNewControlRequest(observed.cluster)
-			if userControl == v1beta1.ControlNameJobCancel {
-				newControlStatus = getControlStatus(userControl, v1beta1.ControlStateInProgress)
-			}
-			// cancel all running jobs
-			if job.IsActive() {
-				if err := reconciler.cancelRunningJobs(true /* takeSavepoint */); err != nil {
-					return requeueResult, err
-				}
-			}
-			// kill job submitter pod
-			if observedSubmitter != nil {
-				if err := reconciler.deleteJob(observedSubmitter); err != nil {
-					return requeueResult, err
-				}
-			}
-		} else if job.IsActive() {
+		if job.IsActive() {
 			userControl := getNewControlRequest(observed.cluster)
 			if userControl == v1beta1.ControlNameJobCancel {
 				newControlStatus = getControlStatus(userControl, v1beta1.ControlStateInProgress)
@@ -941,7 +943,7 @@ func (reconciler *ClusterReconciler) cancelRunningJobs(
 		runningJobs = append(runningJobs, flinkJob.Id)
 	}
 	if len(runningJobs) == 0 {
-		return fmt.Errorf("no running Flink jobs to stop")
+		return errors.NewResourceExpired("no running Flink jobs to stop")
 	}
 	return reconciler.cancelJobs(takeSavepoint, runningJobs)
 }

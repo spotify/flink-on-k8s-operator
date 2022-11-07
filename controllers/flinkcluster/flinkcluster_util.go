@@ -530,7 +530,7 @@ func IsApplicationModeCluster(cluster *v1beta1.FlinkCluster) bool {
 	return jobSpec != nil && *jobSpec.Mode == v1beta1.JobModeApplication
 }
 
-// checks if reasonable amount of time has passed since job-cancel was requested
-func shouldForceTearDown(controlStatus *v1beta1.FlinkClusterControlStatus) bool {
-	return controlStatus != nil && controlStatus.Name == v1beta1.ControlNameJobCancel && time.Since(util.GetTime(controlStatus.UpdateTime)) > v1beta1.ForceTearDownAfter
+// checks if job-cancel was requested
+func wasJobCancelRequested(controlStatus *v1beta1.FlinkClusterControlStatus) bool {
+	return controlStatus != nil && controlStatus.Name == v1beta1.ControlNameJobCancel
 }
