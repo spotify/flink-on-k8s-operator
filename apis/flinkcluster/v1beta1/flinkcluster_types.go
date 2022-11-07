@@ -727,11 +727,13 @@ type JobManagerStatus struct {
 	// The state of the component.
 	State string `json:"state"`
 
-	// replicas is the number of Pods created by the StatefulSet controller.
+	// replicas is the number of desired replicas.
 	Replicas int32 `json:"replicas"`
 
-	// readyReplicas is the number of pods created for this StatefulSet with a Ready Condition.
+	// readyReplicas is the number of ready replicas.
 	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
+
+	Ready string `json:"ready"`
 }
 
 type TaskManagerStatus struct {
@@ -746,6 +748,8 @@ type TaskManagerStatus struct {
 
 	// readyReplicas is the number of pods created for this StatefulSet with a Ready Condition.
 	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
+
+	Ready string `json:"ready"`
 }
 
 // FlinkClusterComponentsStatus defines the observed status of the
@@ -942,10 +946,11 @@ type FlinkClusterStatus struct {
 // +kubebuilder:printcolumn:name="version",type=string,JSONPath=`.spec.flinkVersion`
 // +kubebuilder:printcolumn:name="status",type=string,JSONPath=`.status.state`
 // +kubebuilder:printcolumn:name="age",type=date,JSONPath=`.metadata.creationTimestamp`
-// +kubebuilder:printcolumn:name="jm running",type=integer,priority=1,JSONPath=`.status.components.jobManager.readyReplicas`
-// +kubebuilder:printcolumn:name="jm replicas",type=integer,priority=1,JSONPath=`.status.components.jobManager.replicas`
-// +kubebuilder:printcolumn:name="tm running",type=integer,priority=1,JSONPath=`.status.components.taskManager.readyReplicas`
-// +kubebuilder:printcolumn:name="tm replicas",type=integer,priority=1,JSONPath=`.status.components.taskManager.replicas`
+// +kubebuilder:printcolumn:name="jm replicas",type=string,priority=1,JSONPath=`.status.components.jobManager.ready`
+// +kubebuilder:printcolumn:name="jm zone",type=string,priority=1,JSONPath=`.spec.jobManager.nodeSelector.topology\.kubernetes\.io\/zone`
+// +kubebuilder:printcolumn:name="tm replicas",type=string,priority=1,JSONPath=`.status.components.taskManager.ready`
+// +kubebuilder:printcolumn:name="tm zone",type=string,priority=1,JSONPath=`.spec.taskManager.nodeSelector.topology\.kubernetes\.io\/zone`
+// +kubebuilder:printcolumn:name="Image",type="string",priority=1,JSONPath=".spec.image.name"
 
 // FlinkCluster is the Schema for the flinkclusters API
 type FlinkCluster struct {
