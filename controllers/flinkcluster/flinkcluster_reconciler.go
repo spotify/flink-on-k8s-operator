@@ -19,6 +19,7 @@ package flinkcluster
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -744,6 +745,32 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 			return ctrl.Result{}, nil
 		}
 
+		// Await/delete existing job submitter
+		if observedSubmitter != nil {
+			sameJobSubmitter, err := reconciler.isSameJobSubmitter(observedSubmitter, desiredJob)
+			if err != nil {
+				log.Error(err, "Failed to compare job submitter")
+				return requeueResult, err
+			} else if sameJobSubmitter {
+				if observedSubmitter.Status.Active > 0 {
+					log.Info("Waiting for job submitter")
+					return requeueResult, err
+				}
+
+				if observedSubmitter.Status.Failed > 0 {
+					// TODO: Record event or update status to notify that deploy failed
+					log.Error(errors.NewInternalError(fmt.Errorf("job submitter failed")), "Job submitter failed")
+					return ctrl.Result{}, nil
+				}
+			}
+
+			log.Info("Found old job submitter")
+			err = reconciler.deleteJob(observedSubmitter)
+			if err != nil {
+				return requeueResult, err
+			}
+		}
+
 		// Create Flink job submitter
 		log.Info("Updating job status to proceed creating new job submitter")
 		// Job status must be updated before creating a job submitter to ensure the observed job is the job submitted by the operator.
@@ -751,13 +778,6 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 		if err != nil {
 			log.Info("Failed to update the job status for job submission")
 			return requeueResult, err
-		}
-		if observedSubmitter != nil {
-			log.Info("Found old job submitter")
-			err = reconciler.deleteJob(observedSubmitter)
-			if err != nil {
-				return requeueResult, err
-			}
 		}
 		err = reconciler.createJob(desiredJob)
 
@@ -832,6 +852,20 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func (reconciler *ClusterReconciler) isSameJobSubmitter(observedJob *batchv1.Job, desiredJob *batchv1.Job) (bool, error) {
+	// Create temporary copy of object to use for dry-run
+	job := desiredJob.DeepCopy()
+	job.Name += "-temp"
+
+	reconciler.log.Info("Comparing to existing job submitter", "resource", *job)
+	var err = reconciler.k8sClient.Create(reconciler.context, job, client.DryRunAll)
+	if err != nil {
+		return false, err
+	} else {
+		return reflect.DeepEqual(observedJob.Spec.Template.Spec, job.Spec.Template.Spec), nil
+	}
 }
 
 func (reconciler *ClusterReconciler) createJob(job *batchv1.Job) error {
