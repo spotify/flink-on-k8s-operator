@@ -778,8 +778,7 @@ func (updater *ClusterStatusUpdater) isStatusChanged(
 			newStatus.Control)
 		changed = true
 	}
-	if newStatus.Components.ConfigMap !=
-		currentStatus.Components.ConfigMap {
+	if !reflect.DeepEqual(newStatus.Components.ConfigMap, currentStatus.Components.ConfigMap) {
 		updater.log.Info(
 			"ConfigMap status changed",
 			"current",
@@ -788,8 +787,7 @@ func (updater *ClusterStatusUpdater) isStatusChanged(
 			newStatus.Components.ConfigMap)
 		changed = true
 	}
-	if newStatus.Components.JobManager !=
-		currentStatus.Components.JobManager {
+	if !reflect.DeepEqual(newStatus.Components.JobManager, currentStatus.Components.JobManager) {
 		updater.log.Info(
 			"JobManager StatefulSet status changed",
 			"current", currentStatus.Components.JobManager,
@@ -825,8 +823,7 @@ func (updater *ClusterStatusUpdater) isStatusChanged(
 			changed = true
 		}
 	}
-	if newStatus.Components.TaskManager !=
-		currentStatus.Components.TaskManager {
+	if !reflect.DeepEqual(newStatus.Components.TaskManager, currentStatus.Components.TaskManager) {
 		updater.log.Info(
 			"TaskManager StatefulSet status changed",
 			"current",
