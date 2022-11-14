@@ -712,9 +712,7 @@ type GCPServiceAccount struct {
 	MountPath string `json:"mountPath,omitempty"`
 }
 
-// FlinkClusterComponentState defines the observed state of a component
-// of a FlinkCluster.
-type FlinkClusterComponentState struct {
+type ConfigMapStatus struct {
 	// The resource name of the component.
 	Name string `json:"name"`
 
@@ -722,26 +720,55 @@ type FlinkClusterComponentState struct {
 	State string `json:"state"`
 }
 
+type JobManagerStatus struct {
+	// The resource name of the component.
+	Name string `json:"name"`
+
+	// The state of the component.
+	State string `json:"state"`
+
+	// replicas is the number of desired replicas.
+	Replicas int32 `json:"replicas"`
+
+	// readyReplicas is the number of created pods with a Ready Condition.
+	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
+
+	Ready string `json:"ready"`
+}
+
+type TaskManagerStatus struct {
+	// The resource name of the component.
+	Name string `json:"name"`
+
+	// The state of the component.
+	State string `json:"state"`
+
+	// replicas is the number of desired Pods.
+	Replicas int32 `json:"replicas"`
+
+	// readyReplicas is the number of created pods with a Ready Condition.
+	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
+
+	Ready string `json:"ready"`
+}
+
 // FlinkClusterComponentsStatus defines the observed status of the
 // components of a FlinkCluster.
 type FlinkClusterComponentsStatus struct {
 	// The state of configMap.
-	ConfigMap FlinkClusterComponentState `json:"configMap"`
+	ConfigMap *ConfigMapStatus `json:"configMap,omitempty"`
 
-	// The state of JobManager StatefulSet.
-	JobManagerStatefulSet FlinkClusterComponentState `json:"jobManagerStatefulSet"`
+	// The state of JobManager.
+	JobManager *JobManagerStatus `json:"jobManager,omitempty"`
 
 	// The state of JobManager service.
-	JobManagerService JobManagerServiceStatus `json:"jobManagerService"`
+	JobManagerService JobManagerServiceStatus `json:"jobManagerService,omitempty"`
 
 	// The state of JobManager ingress.
 	JobManagerIngress *JobManagerIngressStatus `json:"jobManagerIngress,omitempty"`
 
-	// The state of TaskManager StatefulSet.
-	TaskManagerStatefulSet FlinkClusterComponentState `json:"taskManagerStatefulSet,omitempty"`
-
-	// The state of TaskManager Deployment.
-	TaskManagerDeployment FlinkClusterComponentState `json:"taskManagerDeployment,omitempty"`
+	// The state of TaskManager.
+	TaskManager *TaskManagerStatus `json:"taskManager,omitempty"`
 
 	// The status of the job, available only when JobSpec is provided.
 	Job *JobStatus `json:"job,omitempty"`
@@ -919,6 +946,11 @@ type FlinkClusterStatus struct {
 // +kubebuilder:printcolumn:name="version",type=string,JSONPath=`.spec.flinkVersion`
 // +kubebuilder:printcolumn:name="status",type=string,JSONPath=`.status.state`
 // +kubebuilder:printcolumn:name="age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:printcolumn:name="jm replicas",type=string,priority=1,JSONPath=`.status.components.jobManager.ready`
+// +kubebuilder:printcolumn:name="jm zone",type=string,priority=1,JSONPath=`.spec.jobManager.nodeSelector.topology\.kubernetes\.io\/zone`
+// +kubebuilder:printcolumn:name="tm replicas",type=string,priority=1,JSONPath=`.status.components.taskManager.ready`
+// +kubebuilder:printcolumn:name="tm zone",type=string,priority=1,JSONPath=`.spec.taskManager.nodeSelector.topology\.kubernetes\.io\/zone`
+// +kubebuilder:printcolumn:name="Image",type="string",priority=1,JSONPath=".spec.image.name"
 
 // FlinkCluster is the Schema for the flinkclusters API
 type FlinkCluster struct {

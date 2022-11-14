@@ -93,17 +93,21 @@ func (updater *ClusterStatusUpdater) updateStatusIfChanged() (
 func (updater *ClusterStatusUpdater) createStatusChangeEvents(
 	oldStatus v1beta1.FlinkClusterStatus,
 	newStatus v1beta1.FlinkClusterStatus) {
-	if oldStatus.Components.JobManagerStatefulSet.State !=
-		newStatus.Components.JobManagerStatefulSet.State {
+
+	if oldStatus.Components.JobManager != nil &&
+		newStatus.Components.JobManager != nil &&
+		oldStatus.Components.JobManager.State != newStatus.Components.JobManager.State {
 		updater.createStatusChangeEvent(
 			"JobManager StatefulSet",
-			oldStatus.Components.JobManagerStatefulSet.State,
-			newStatus.Components.JobManagerStatefulSet.State)
+			oldStatus.Components.JobManager.State,
+			newStatus.Components.JobManager.State)
 	}
 
 	// ConfigMap.
-	if oldStatus.Components.ConfigMap.State !=
-		newStatus.Components.ConfigMap.State {
+	if oldStatus.Components.ConfigMap != nil &&
+		newStatus.Components.ConfigMap != nil &&
+		oldStatus.Components.ConfigMap.State !=
+			newStatus.Components.ConfigMap.State {
 		updater.createStatusChangeEvent(
 			"ConfigMap",
 			oldStatus.Components.ConfigMap.State,
@@ -133,22 +137,15 @@ func (updater *ClusterStatusUpdater) createStatusChangeEvents(
 			newStatus.Components.JobManagerIngress.State)
 	}
 
-	// TaskManager Statefulset.
-	if oldStatus.Components.TaskManagerStatefulSet.State !=
-		newStatus.Components.TaskManagerStatefulSet.State {
+	// TaskManager Statefulset/Deployment.
+	if oldStatus.Components.TaskManager != nil &&
+		newStatus.Components.TaskManager != nil &&
+		oldStatus.Components.TaskManager.State !=
+			newStatus.Components.TaskManager.State {
 		updater.createStatusChangeEvent(
-			"TaskManager StatefulSet",
-			oldStatus.Components.TaskManagerStatefulSet.State,
-			newStatus.Components.TaskManagerStatefulSet.State)
-	}
-
-	// TaskManager Deployment.
-	if oldStatus.Components.TaskManagerDeployment.State !=
-		newStatus.Components.TaskManagerDeployment.State {
-		updater.createStatusChangeEvent(
-			"TaskManager Deployment",
-			oldStatus.Components.TaskManagerDeployment.State,
-			newStatus.Components.TaskManagerDeployment.State)
+			"TaskManager",
+			oldStatus.Components.TaskManager.State,
+			newStatus.Components.TaskManager.State)
 	}
 
 	// Job.
@@ -218,37 +215,44 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 
 	// ConfigMap.
 	var observedConfigMap = observed.configMap
+	cmStatus := &status.Components.ConfigMap
 	if !isComponentUpdated(observedConfigMap, observed.cluster) && shouldUpdateCluster(observed) {
-		recorded.Components.ConfigMap.DeepCopyInto(&status.Components.ConfigMap)
-		status.Components.ConfigMap.State = v1beta1.ComponentStateUpdating
+		recorded.Components.ConfigMap.DeepCopyInto(*cmStatus)
+		(*cmStatus).State = v1beta1.ComponentStateUpdating
 	} else if observedConfigMap != nil {
-		status.Components.ConfigMap.Name = observedConfigMap.Name
-		status.Components.ConfigMap.State = v1beta1.ComponentStateReady
-	} else if recorded.Components.ConfigMap.Name != "" {
-		status.Components.ConfigMap =
-			v1beta1.FlinkClusterComponentState{
-				Name:  recorded.Components.ConfigMap.Name,
-				State: v1beta1.ComponentStateDeleted,
-			}
+		*cmStatus = &v1beta1.ConfigMapStatus{
+			Name:  observedConfigMap.Name,
+			State: v1beta1.ComponentStateReady,
+		}
+	} else if recorded.Components.ConfigMap != nil {
+		*cmStatus = &v1beta1.ConfigMapStatus{
+			Name:  recorded.Components.ConfigMap.Name,
+			State: v1beta1.ComponentStateDeleted,
+		}
 	}
 
 	// JobManager StatefulSet.
 	var observedJmStatefulSet = observed.jmStatefulSet
+	jmStatus := &status.Components.JobManager
 	if !isComponentUpdated(observedJmStatefulSet, observed.cluster) && shouldUpdateCluster(observed) {
-		recorded.Components.JobManagerStatefulSet.DeepCopyInto(&status.Components.JobManagerStatefulSet)
-		status.Components.JobManagerStatefulSet.State = v1beta1.ComponentStateUpdating
+		recorded.Components.JobManager.DeepCopyInto(*jmStatus)
+		(*jmStatus).State = v1beta1.ComponentStateUpdating
 	} else if observedJmStatefulSet != nil {
-		status.Components.JobManagerStatefulSet.Name = observedJmStatefulSet.Name
-		status.Components.JobManagerStatefulSet.State = getStatefulSetState(observedJmStatefulSet)
-		if status.Components.JobManagerStatefulSet.State == v1beta1.ComponentStateReady {
+		*jmStatus = &v1beta1.JobManagerStatus{
+			Name:          observedJmStatefulSet.Name,
+			State:         getStatefulSetState(observedJmStatefulSet),
+			Replicas:      observedJmStatefulSet.Status.Replicas,
+			ReadyReplicas: observedJmStatefulSet.Status.ReadyReplicas,
+			Ready:         fmt.Sprintf("%d/%d", observedJmStatefulSet.Status.ReadyReplicas, observedJmStatefulSet.Status.Replicas),
+		}
+		if (*jmStatus).State == v1beta1.ComponentStateReady {
 			runningComponents++
 		}
-	} else if recorded.Components.JobManagerStatefulSet.Name != "" {
-		status.Components.JobManagerStatefulSet =
-			v1beta1.FlinkClusterComponentState{
-				Name:  recorded.Components.JobManagerStatefulSet.Name,
-				State: v1beta1.ComponentStateDeleted,
-			}
+	} else if recorded.Components.JobManager != nil {
+		*jmStatus = &v1beta1.JobManagerStatus{
+			Name:  recorded.Components.JobManager.Name,
+			State: v1beta1.ComponentStateDeleted,
+		}
 	}
 
 	// JobManager service.
@@ -386,46 +390,50 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 	if clusterTmDeploymentType == "" || clusterTmDeploymentType == v1beta1.DeploymentTypeStatefulSet {
 		// TaskManager StatefulSet.
 		var observedTmStatefulSet = observed.tmStatefulSet
+		tmStatus := &status.Components.TaskManager
 		if !isComponentUpdated(observedTmStatefulSet, observed.cluster) && shouldUpdateCluster(observed) {
-			recorded.Components.TaskManagerStatefulSet.DeepCopyInto(&status.Components.TaskManagerStatefulSet)
-			status.Components.TaskManagerStatefulSet.State = v1beta1.ComponentStateUpdating
+			recorded.Components.TaskManager.DeepCopyInto(*tmStatus)
+			(*tmStatus).State = v1beta1.ComponentStateUpdating
 		} else if observedTmStatefulSet != nil {
-			status.Components.TaskManagerStatefulSet.Name =
-				observedTmStatefulSet.Name
-			status.Components.TaskManagerStatefulSet.State =
-				getStatefulSetState(observedTmStatefulSet)
-			if status.Components.TaskManagerStatefulSet.State ==
-				v1beta1.ComponentStateReady {
+			*tmStatus = &v1beta1.TaskManagerStatus{
+				Name:          observedTmStatefulSet.Name,
+				State:         getStatefulSetState(observedTmStatefulSet),
+				Replicas:      observedTmStatefulSet.Status.Replicas,
+				ReadyReplicas: observedTmStatefulSet.Status.ReadyReplicas,
+				Ready:         fmt.Sprintf("%d/%d", observedTmStatefulSet.Status.ReadyReplicas, observedTmStatefulSet.Status.Replicas),
+			}
+			if (*tmStatus).State == v1beta1.ComponentStateReady {
 				runningComponents++
 			}
-		} else if recorded.Components.TaskManagerStatefulSet.Name != "" {
-			status.Components.TaskManagerStatefulSet =
-				v1beta1.FlinkClusterComponentState{
-					Name:  recorded.Components.TaskManagerStatefulSet.Name,
-					State: v1beta1.ComponentStateDeleted,
-				}
+		} else if recorded.Components.TaskManager != nil {
+			*tmStatus = &v1beta1.TaskManagerStatus{
+				Name:  recorded.Components.TaskManager.Name,
+				State: v1beta1.ComponentStateDeleted,
+			}
 		}
 	} else {
 		// TaskManager Deployment.
 		var observedTmDeployment = observed.tmDeployment
+		tmStatus := &status.Components.TaskManager
 		if !isComponentUpdated(observedTmDeployment, observed.cluster) && shouldUpdateCluster(observed) {
-			recorded.Components.TaskManagerDeployment.DeepCopyInto(&status.Components.TaskManagerDeployment)
-			status.Components.TaskManagerDeployment.State = v1beta1.ComponentStateUpdating
+			recorded.Components.TaskManager.DeepCopyInto(*tmStatus)
+			(*tmStatus).State = v1beta1.ComponentStateUpdating
 		} else if observedTmDeployment != nil {
-			status.Components.TaskManagerDeployment.Name =
-				observedTmDeployment.Name
-			status.Components.TaskManagerDeployment.State =
-				getDeploymentState(observedTmDeployment)
-			if status.Components.TaskManagerDeployment.State ==
-				v1beta1.ComponentStateReady {
+			*tmStatus = &v1beta1.TaskManagerStatus{
+				Name:          observedTmDeployment.Name,
+				State:         getDeploymentState(observedTmDeployment),
+				Replicas:      observedTmDeployment.Status.Replicas,
+				ReadyReplicas: observedTmDeployment.Status.ReadyReplicas,
+				Ready:         fmt.Sprintf("%d/%d", observedTmDeployment.Status.ReadyReplicas, observedTmDeployment.Status.Replicas),
+			}
+			if (*tmStatus).State == v1beta1.ComponentStateReady {
 				runningComponents++
 			}
-		} else if recorded.Components.TaskManagerDeployment.Name != "" {
-			status.Components.TaskManagerDeployment =
-				v1beta1.FlinkClusterComponentState{
-					Name:  recorded.Components.TaskManagerDeployment.Name,
-					State: v1beta1.ComponentStateDeleted,
-				}
+		} else if recorded.Components.TaskManager != nil {
+			*tmStatus = &v1beta1.TaskManagerStatus{
+				Name:  recorded.Components.TaskManager.Name,
+				State: v1beta1.ComponentStateDeleted,
+			}
 		}
 	}
 
@@ -770,8 +778,7 @@ func (updater *ClusterStatusUpdater) isStatusChanged(
 			newStatus.Control)
 		changed = true
 	}
-	if newStatus.Components.ConfigMap !=
-		currentStatus.Components.ConfigMap {
+	if !reflect.DeepEqual(newStatus.Components.ConfigMap, currentStatus.Components.ConfigMap) {
 		updater.log.Info(
 			"ConfigMap status changed",
 			"current",
@@ -780,13 +787,12 @@ func (updater *ClusterStatusUpdater) isStatusChanged(
 			newStatus.Components.ConfigMap)
 		changed = true
 	}
-	if newStatus.Components.JobManagerStatefulSet !=
-		currentStatus.Components.JobManagerStatefulSet {
+	if !reflect.DeepEqual(newStatus.Components.JobManager, currentStatus.Components.JobManager) {
 		updater.log.Info(
 			"JobManager StatefulSet status changed",
-			"current", currentStatus.Components.JobManagerStatefulSet,
+			"current", currentStatus.Components.JobManager,
 			"new",
-			newStatus.Components.JobManagerStatefulSet)
+			newStatus.Components.JobManager)
 		changed = true
 	}
 	if !reflect.DeepEqual(newStatus.Components.JobManagerService, currentStatus.Components.JobManagerService) {
@@ -817,24 +823,13 @@ func (updater *ClusterStatusUpdater) isStatusChanged(
 			changed = true
 		}
 	}
-	if newStatus.Components.TaskManagerStatefulSet !=
-		currentStatus.Components.TaskManagerStatefulSet {
+	if !reflect.DeepEqual(newStatus.Components.TaskManager, currentStatus.Components.TaskManager) {
 		updater.log.Info(
 			"TaskManager StatefulSet status changed",
 			"current",
-			currentStatus.Components.TaskManagerStatefulSet,
+			currentStatus.Components.TaskManager,
 			"new",
-			newStatus.Components.TaskManagerStatefulSet)
-		changed = true
-	}
-	if newStatus.Components.TaskManagerDeployment !=
-		currentStatus.Components.TaskManagerDeployment {
-		updater.log.Info(
-			"TaskManager Deployment status changed",
-			"current",
-			currentStatus.Components.TaskManagerDeployment,
-			"new",
-			newStatus.Components.TaskManagerDeployment)
+			newStatus.Components.TaskManager)
 		changed = true
 	}
 	if currentStatus.Components.Job == nil {

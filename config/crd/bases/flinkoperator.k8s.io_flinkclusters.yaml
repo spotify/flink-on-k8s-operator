@@ -27,6 +27,26 @@ spec:
         - jsonPath: .metadata.creationTimestamp
           name: age
           type: date
+        - jsonPath: .status.components.jobManager.ready
+          name: jm replicas
+          priority: 1
+          type: string
+        - jsonPath: .spec.jobManager.nodeSelector.topology\.kubernetes\.io\/zone
+          name: jm zone
+          priority: 1
+          type: string
+        - jsonPath: .status.components.taskManager.ready
+          name: tm replicas
+          priority: 1
+          type: string
+        - jsonPath: .spec.taskManager.nodeSelector.topology\.kubernetes\.io\/zone
+          name: tm zone
+          priority: 1
+          type: string
+        - jsonPath: .spec.image.name
+          name: Image
+          priority: 1
+          type: string
       name: v1beta1
       schema:
         openAPIV3Schema:
@@ -6582,6 +6602,26 @@ spec:
                       required:
                         - state
                       type: object
+                    jobManager:
+                      properties:
+                        name:
+                          type: string
+                        ready:
+                          type: string
+                        readyReplicas:
+                          format: int32
+                          type: integer
+                        replicas:
+                          format: int32
+                          type: integer
+                        state:
+                          type: string
+                      required:
+                        - name
+                        - ready
+                        - replicas
+                        - state
+                      type: object
                     jobManagerIngress:
                       properties:
                         name:
@@ -6637,40 +6677,26 @@ spec:
                         - name
                         - state
                       type: object
-                    jobManagerStatefulSet:
+                    taskManager:
                       properties:
                         name:
                           type: string
+                        ready:
+                          type: string
+                        readyReplicas:
+                          format: int32
+                          type: integer
+                        replicas:
+                          format: int32
+                          type: integer
                         state:
                           type: string
                       required:
                         - name
+                        - ready
+                        - replicas
                         - state
                       type: object
-                    taskManagerDeployment:
-                      properties:
-                        name:
-                          type: string
-                        state:
-                          type: string
-                      required:
-                        - name
-                        - state
-                      type: object
-                    taskManagerStatefulSet:
-                      properties:
-                        name:
-                          type: string
-                        state:
-                          type: string
-                      required:
-                        - name
-                        - state
-                      type: object
-                  required:
-                    - configMap
-                    - jobManagerService
-                    - jobManagerStatefulSet
                   type: object
                 control:
                   properties:

@@ -35,8 +35,11 @@ var _ = Describe("FlinkCluster Controller", Ordered, func() {
 
 	It("Should create the JobManager Statefulset", func() {
 		dummyFlinkCluster := getDummyFlinkClusterWithJob()
-		expectedJobManagerName := dummyFlinkCluster.ObjectMeta.Name + "-jobmanager"
-		jobManagerLookupKey := types.NamespacedName{Name: expectedJobManagerName, Namespace: dummyFlinkCluster.ObjectMeta.Namespace}
+		expectedJobManagerName := dummyFlinkCluster.Name + "-jobmanager"
+		jobManagerLookupKey := types.NamespacedName{
+			Name:      expectedJobManagerName,
+			Namespace: dummyFlinkCluster.Namespace,
+		}
 		createdJobManagerStatefulSet := &appsv1.StatefulSet{}
 
 		Eventually(func() bool {
@@ -47,8 +50,11 @@ var _ = Describe("FlinkCluster Controller", Ordered, func() {
 
 	It("Should create the TaskManager Statefulset", func() {
 		dummyFlinkCluster := getDummyFlinkClusterWithJob()
-		expectedTaskManagerName := dummyFlinkCluster.ObjectMeta.Name + "-taskmanager"
-		taskManagerLookupKey := types.NamespacedName{Name: expectedTaskManagerName, Namespace: dummyFlinkCluster.ObjectMeta.Namespace}
+		expectedTaskManagerName := dummyFlinkCluster.Name + "-taskmanager"
+		taskManagerLookupKey := types.NamespacedName{
+			Name:      expectedTaskManagerName,
+			Namespace: dummyFlinkCluster.Namespace,
+		}
 		createdTaskManagerStatefulSet := &appsv1.StatefulSet{}
 		Eventually(func() bool {
 			err := k8sClient.Get(ctx, taskManagerLookupKey, createdTaskManagerStatefulSet)
@@ -58,8 +64,11 @@ var _ = Describe("FlinkCluster Controller", Ordered, func() {
 
 	It("Should create the JobSubmitter Job", func() {
 		dummyFlinkCluster := getDummyFlinkClusterWithJob()
-		expectedJobSubmitterName := dummyFlinkCluster.ObjectMeta.Name + "-job-submitter"
-		jobSubmitterLookupKey := types.NamespacedName{Name: expectedJobSubmitterName, Namespace: dummyFlinkCluster.ObjectMeta.Namespace}
+		expectedJobSubmitterName := dummyFlinkCluster.Name + "-job-submitter"
+		jobSubmitterLookupKey := types.NamespacedName{
+			Name:      expectedJobSubmitterName,
+			Namespace: dummyFlinkCluster.Namespace,
+		}
 		createdJobSubmitterJob := &batchv1.Job{}
 
 		Eventually(func() bool {
@@ -72,16 +81,22 @@ var _ = Describe("FlinkCluster Controller", Ordered, func() {
 	It("Setting job-cancel annotation should kill-the-cluster", func() {
 		dummyFlinkCluster := getDummyFlinkClusterWithJob()
 		fetchedFlinkCluster := &v1beta1.FlinkCluster{}
-		flinkClusterLookupKey := types.NamespacedName{Name: dummyFlinkCluster.ObjectMeta.Name, Namespace: dummyFlinkCluster.ObjectMeta.Namespace}
+		flinkClusterLookupKey := types.NamespacedName{
+			Name:      dummyFlinkCluster.Name,
+			Namespace: dummyFlinkCluster.Namespace,
+		}
 
 		Expect(k8sClient.Get(ctx, flinkClusterLookupKey, fetchedFlinkCluster)).Should(Succeed())
-		fetchedFlinkCluster.ObjectMeta.Annotations = map[string]string{
+		fetchedFlinkCluster.Annotations = map[string]string{
 			v1beta1.ControlAnnotation: v1beta1.ControlNameJobCancel,
 		}
 		Expect(k8sClient.Update(ctx, fetchedFlinkCluster)).Should(Succeed())
 
-		expectedJobSubmitterName := dummyFlinkCluster.ObjectMeta.Name + "-job-submitter"
-		jobSubmitterLookupKey := types.NamespacedName{Name: expectedJobSubmitterName, Namespace: dummyFlinkCluster.ObjectMeta.Namespace}
+		expectedJobSubmitterName := dummyFlinkCluster.Name + "-job-submitter"
+		jobSubmitterLookupKey := types.NamespacedName{
+			Name:      expectedJobSubmitterName,
+			Namespace: dummyFlinkCluster.Namespace,
+		}
 		createdJobSubmitterJob := &batchv1.Job{}
 
 		// Check if the job is killed
@@ -95,7 +110,6 @@ var _ = Describe("FlinkCluster Controller", Ordered, func() {
 
 		// check if the FlinkCluster status is updated
 		Eventually(func() bool {
-
 			err := k8sClient.Get(ctx, flinkClusterLookupKey, fetchedFlinkCluster)
 			if err != nil {
 				return false
