@@ -730,7 +730,7 @@ type JobManagerStatus struct {
 	// replicas is the number of desired replicas.
 	Replicas int32 `json:"replicas"`
 
-	// readyReplicas is the number of ready replicas.
+	// readyReplicas is the number of created pods with a Ready Condition.
 	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
 
 	Ready string `json:"ready"`
@@ -743,10 +743,10 @@ type TaskManagerStatus struct {
 	// The state of the component.
 	State string `json:"state"`
 
-	// replicas is the number of Pods created by the StatefulSet controller.
+	// replicas is the number of desired Pods.
 	Replicas int32 `json:"replicas"`
 
-	// readyReplicas is the number of pods created for this StatefulSet with a Ready Condition.
+	// readyReplicas is the number of created pods with a Ready Condition.
 	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
 
 	Ready string `json:"ready"`
