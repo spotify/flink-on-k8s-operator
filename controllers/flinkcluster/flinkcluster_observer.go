@@ -278,7 +278,7 @@ func (observer *ClusterStateObserver) observeJob(
 		if err != nil {
 			// Error occurred while pulling log stream from the job submitter pod.
 			// In this case the operator must return the error and retry in the next reconciliation iteration.
-			log.Error(err, "Failed to get log stream from the job submitter pod. Will try again in the next iteration.")
+			log.Info("Failed to get log stream from the job submitter pod. Will try again in the next iteration.")
 			submitterLog = nil
 		}
 	}
