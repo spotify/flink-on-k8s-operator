@@ -61,7 +61,8 @@ var _ = BeforeSuite(func() {
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "config", "test", "crd")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "test", "crd")},
+		ErrorIfCRDPathMissing: true,
 	}
 
 	cfg, err := testEnv.Start()
@@ -88,6 +89,7 @@ var _ = BeforeSuite(func() {
 		Client:    k8sManager.GetClient(),
 		Clientset: cs,
 		Log:       ctrl.Log.WithName("controllers").WithName("FlinkCluster"),
+		Mgr:       k8sManager,
 	}).SetupWithManager(k8sManager, 1)
 	Expect(err).ToNot(HaveOccurred())
 
