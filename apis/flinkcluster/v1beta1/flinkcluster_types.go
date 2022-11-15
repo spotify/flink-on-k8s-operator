@@ -18,6 +18,7 @@ package v1beta1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -632,6 +633,10 @@ type FlinkClusterSpec struct {
 	// _(Optional)_ BatchScheduler specifies the batch scheduler for JobManager, TaskManager.
 	// If empty, no batch scheduling is enabled.
 	BatchScheduler *BatchSchedulerSpec `json:"batchScheduler,omitempty"`
+
+	// _(Optional)_ Defines the PodDisruptionBudget for JobManager and TaskManager.
+	// If empty, no PodDisruptionBudget is created.
+	PodDisruptionBudget *policyv1.PodDisruptionBudgetSpec `json:"podDisruptionBudget,omitempty"`
 
 	// _(Optional)_ Flink JobManager spec.
 	// +kubebuilder:default:={replicas:1}

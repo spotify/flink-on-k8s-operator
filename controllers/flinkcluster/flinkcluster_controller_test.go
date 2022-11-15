@@ -8,8 +8,11 @@ import (
 	"github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 var _ = Describe("FlinkCluster Controller", Ordered, func() {
@@ -24,6 +27,12 @@ var _ = Describe("FlinkCluster Controller", Ordered, func() {
 		fc := getDummyFlinkCluster()
 		var blocking v1beta1.JobMode = v1beta1.JobModeBlocking
 		fc.Spec.Job.Mode = &blocking
+		fc.Spec.PodDisruptionBudget = &policyv1.PodDisruptionBudgetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"foo": "bar"},
+			},
+			MaxUnavailable: &intstr.IntOrString{StrVal: "0%"},
+		}
 		return fc
 	}
 
@@ -73,6 +82,22 @@ var _ = Describe("FlinkCluster Controller", Ordered, func() {
 
 		Eventually(func() bool {
 			err := k8sClient.Get(ctx, jobSubmitterLookupKey, createdJobSubmitterJob)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
+
+	})
+
+	It("Should create the PodDisruptionBudget", func() {
+		dummyFlinkCluster := getDummyFlinkClusterWithJob()
+		expectedPdbName := getPodDisruptionBudgetName(dummyFlinkCluster.Name)
+		pdbLookupKey := types.NamespacedName{
+			Name:      expectedPdbName,
+			Namespace: dummyFlinkCluster.Namespace,
+		}
+		createdPdb := &policyv1.PodDisruptionBudget{}
+
+		Eventually(func() bool {
+			err := k8sClient.Get(ctx, pdbLookupKey, createdPdb)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 

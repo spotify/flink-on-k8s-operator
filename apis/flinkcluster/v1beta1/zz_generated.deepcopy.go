@@ -23,6 +23,7 @@ package v1beta1
 
 import (
 	"k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -211,6 +212,11 @@ func (in *FlinkClusterSpec) DeepCopyInto(out *FlinkClusterSpec) {
 		in, out := &in.BatchScheduler, &out.BatchScheduler
 		*out = new(BatchSchedulerSpec)
 		**out = **in
+	}
+	if in.PodDisruptionBudget != nil {
+		in, out := &in.PodDisruptionBudget, &out.PodDisruptionBudget
+		*out = new(policyv1.PodDisruptionBudgetSpec)
+		(*in).DeepCopyInto(*out)
 	}
 	if in.JobManager != nil {
 		in, out := &in.JobManager, &out.JobManager
