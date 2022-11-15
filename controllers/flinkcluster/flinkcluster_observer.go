@@ -440,7 +440,7 @@ func (observer *ClusterStateObserver) observeConfigMap(
 func (observer *ClusterStateObserver) observeJobManager(
 	observed *ObservedClusterState) error {
 	var clusterName = observer.request.Name
-	var jmStatefulSetName = getJobManagerStatefulSetName(clusterName)
+	var jmStatefulSetName = getJobManagerName(clusterName)
 	observed.jmStatefulSet = new(appsv1.StatefulSet)
 	if err := observer.observeObject(jmStatefulSetName, observed.jmStatefulSet); err != nil {
 		if client.IgnoreNotFound(err) != nil {
@@ -459,7 +459,7 @@ func (observer *ClusterStateObserver) observeTaskManager(
 	tmDeploymentType := observed.cluster.Spec.TaskManager.DeploymentType
 	if tmDeploymentType == "" || tmDeploymentType == v1beta1.DeploymentTypeStatefulSet {
 		observed.tmStatefulSet = new(appsv1.StatefulSet)
-		tmName := getTaskManagerStatefulSetName(clusterName)
+		tmName := getTaskManagerName(clusterName)
 		if err := observer.observeObject(tmName, observed.tmStatefulSet); err != nil {
 			if client.IgnoreNotFound(err) != nil {
 				return err
@@ -471,7 +471,7 @@ func (observer *ClusterStateObserver) observeTaskManager(
 	// TaskManager Deployment
 	if tmDeploymentType == v1beta1.DeploymentTypeDeployment {
 		observed.tmDeployment = new(appsv1.Deployment)
-		tmName := getTaskManagerDeploymentName(clusterName)
+		tmName := getTaskManagerName(clusterName)
 		if err := observer.observeObject(tmName, observed.tmDeployment); err != nil {
 			if client.IgnoreNotFound(err) != nil {
 				return err
@@ -487,7 +487,7 @@ func (observer *ClusterStateObserver) observeTaskManagerService(
 	observed *ObservedClusterState) error {
 	var clusterName = observer.request.Name
 	observed.tmService = new(corev1.Service)
-	name := getTaskManagerStatefulSetName(clusterName)
+	name := getTaskManagerName(clusterName)
 	if err := observer.observeObject(name, observed.tmService); err != nil {
 		if client.IgnoreNotFound(err) != nil {
 			return err
