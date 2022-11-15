@@ -35,7 +35,7 @@ var _ = Describe("FlinkCluster Controller", Ordered, func() {
 
 	It("Should create the JobManager Statefulset", func() {
 		dummyFlinkCluster := getDummyFlinkClusterWithJob()
-		expectedJobManagerName := dummyFlinkCluster.Name + "-jobmanager"
+		expectedJobManagerName := getJobManagerName(dummyFlinkCluster.Name)
 		jobManagerLookupKey := types.NamespacedName{
 			Name:      expectedJobManagerName,
 			Namespace: dummyFlinkCluster.Namespace,
@@ -50,7 +50,7 @@ var _ = Describe("FlinkCluster Controller", Ordered, func() {
 
 	It("Should create the TaskManager Statefulset", func() {
 		dummyFlinkCluster := getDummyFlinkClusterWithJob()
-		expectedTaskManagerName := dummyFlinkCluster.Name + "-taskmanager"
+		expectedTaskManagerName := getTaskManagerName(dummyFlinkCluster.Name)
 		taskManagerLookupKey := types.NamespacedName{
 			Name:      expectedTaskManagerName,
 			Namespace: dummyFlinkCluster.Namespace,

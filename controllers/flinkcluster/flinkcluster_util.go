@@ -103,7 +103,7 @@ func getPodDisruptionBudgetName(clusterName string) string {
 }
 
 // Gets JobManager StatefulSet name
-func getJobManagerStatefulSetName(clusterName string) string {
+func getJobManagerName(clusterName string) string {
 	return clusterName + "-jobmanager"
 }
 
@@ -118,17 +118,12 @@ func getJobManagerIngressName(clusterName string) string {
 }
 
 // Gets TaskManager StatefulSet name
-func getTaskManagerStatefulSetName(clusterName string) string {
-	return clusterName + "-taskmanager"
-}
-
-// Gets TaskManager Deployment name
-func getTaskManagerDeploymentName(clusterName string) string {
+func getTaskManagerName(clusterName string) string {
 	return clusterName + "-taskmanager"
 }
 
 func getJobManagerJobName(clusterName string) string {
-	return clusterName + "-jobmanager"
+	return getJobManagerName(clusterName)
 }
 
 func getSubmitterJobName(clusterName string) string {

@@ -228,7 +228,7 @@ func newJobManagerPodSpec(mainContainer *corev1.Container, flinkCluster *v1beta1
 // Gets the desired JobManager StatefulSet spec from the FlinkCluster spec.
 func newJobManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1.StatefulSet {
 	var jobManagerSpec = flinkCluster.Spec.JobManager
-	var jobManagerStatefulSetName = getJobManagerStatefulSetName(flinkCluster.Name)
+	var jobManagerStatefulSetName = getJobManagerName(flinkCluster.Name)
 	var podLabels = getComponentLabels(flinkCluster, "jobmanager")
 	podLabels = mergeLabels(podLabels, jobManagerSpec.PodLabels)
 	var statefulSetLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
@@ -477,7 +477,7 @@ func newTaskManagerPodSpec(mainContainer *corev1.Container, flinkCluster *v1beta
 // Gets the desired TaskManager StatefulSet spec from a cluster spec.
 func newTaskManagerStatefulSet(flinkCluster *v1beta1.FlinkCluster) *appsv1.StatefulSet {
 	var taskManagerSpec = flinkCluster.Spec.TaskManager
-	var taskManagerStatefulSetName = getTaskManagerStatefulSetName(flinkCluster.Name)
+	var taskManagerStatefulSetName = getTaskManagerName(flinkCluster.Name)
 	var podLabels = getComponentLabels(flinkCluster, "taskmanager")
 	podLabels = mergeLabels(podLabels, taskManagerSpec.PodLabels)
 	var statefulSetLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
@@ -543,7 +543,7 @@ func getEphemeralVolumesFromTaskManagerSpec(flinkCluster *v1beta1.FlinkCluster, 
 // Gets the desired TaskManager Deployment spec from a cluster spec.
 func newTaskManagerDeployment(flinkCluster *v1beta1.FlinkCluster) *appsv1.Deployment {
 	var taskManagerSpec = flinkCluster.Spec.TaskManager
-	var taskManagerDeploymentName = getTaskManagerDeploymentName(flinkCluster.Name)
+	var taskManagerDeploymentName = getTaskManagerName(flinkCluster.Name)
 	var podLabels = getComponentLabels(flinkCluster, "taskmanager")
 	podLabels = mergeLabels(podLabels, taskManagerSpec.PodLabels)
 	var deploymentLabels = mergeLabels(podLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
@@ -611,7 +611,7 @@ func newTaskManagerService(flinkCluster *v1beta1.FlinkCluster) *corev1.Service {
 	var clusterNamespace = flinkCluster.Namespace
 	var clusterName = flinkCluster.Name
 	// Service name matches the service name defined in the TM StatefulSet spec
-	var tmSvcName = getTaskManagerStatefulSetName(clusterName)
+	var tmSvcName = getTaskManagerName(clusterName)
 	selectorLabels := getComponentLabels(flinkCluster, "taskmanager")
 	serviceLabels := mergeLabels(selectorLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
 
