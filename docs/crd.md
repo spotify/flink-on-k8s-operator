@@ -45,6 +45,21 @@ _Appears in:_
 | `afterJobCancelled` _CleanupAction_ | Action to take after job is cancelled, default: `DeleteCluster`. |
 
 
+#### ConfigMapStatus
+
+
+
+
+
+_Appears in:_
+- [FlinkClusterComponentsStatus](#flinkclustercomponentsstatus)
+
+| Field | Description |
+| --- | --- |
+| `name` _string_ | The resource name of the component. |
+| `state` _string_ | The state of the component. |
+
+
 #### FlinkCluster
 
 
@@ -61,21 +76,6 @@ FlinkCluster is the Schema for the flinkclusters API
 | `spec` _[FlinkClusterSpec](#flinkclusterspec)_ |  |
 
 
-#### FlinkClusterComponentState
-
-
-
-FlinkClusterComponentState defines the observed state of a component of a FlinkCluster.
-
-_Appears in:_
-- [FlinkClusterComponentsStatus](#flinkclustercomponentsstatus)
-
-| Field | Description |
-| --- | --- |
-| `name` _string_ | The resource name of the component. |
-| `state` _string_ | The state of the component. |
-
-
 #### FlinkClusterComponentsStatus
 
 
@@ -87,12 +87,11 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `configMap` _[FlinkClusterComponentState](#flinkclustercomponentstate)_ | The state of configMap. |
-| `jobManagerStatefulSet` _[FlinkClusterComponentState](#flinkclustercomponentstate)_ | The state of JobManager StatefulSet. |
+| `configMap` _[ConfigMapStatus](#configmapstatus)_ | The state of configMap. |
+| `jobManager` _[JobManagerStatus](#jobmanagerstatus)_ | The state of JobManager. |
 | `jobManagerService` _[JobManagerServiceStatus](#jobmanagerservicestatus)_ | The state of JobManager service. |
 | `jobManagerIngress` _[JobManagerIngressStatus](#jobmanageringressstatus)_ | The state of JobManager ingress. |
-| `taskManagerStatefulSet` _[FlinkClusterComponentState](#flinkclustercomponentstate)_ | The state of TaskManager StatefulSet. |
-| `taskManagerDeployment` _[FlinkClusterComponentState](#flinkclustercomponentstate)_ | The state of TaskManager Deployment. |
+| `taskManager` _[TaskManagerStatus](#taskmanagerstatus)_ | The state of TaskManager. |
 | `job` _[JobStatus](#jobstatus)_ | The status of the job, available only when JobSpec is provided. |
 
 
@@ -310,6 +309,24 @@ _Appears in:_
 | `hostAliases` _[HostAlias](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#hostalias-v1-core) array_ | _(Optional)_ Adding entries to JobManager pod /etc/hosts with HostAliases [More info](https://kubernetes.io/docs/tasks/network/customize-hosts-file-for-pods/) |
 
 
+#### JobManagerStatus
+
+
+
+
+
+_Appears in:_
+- [FlinkClusterComponentsStatus](#flinkclustercomponentsstatus)
+
+| Field | Description |
+| --- | --- |
+| `name` _string_ | The resource name of the component. |
+| `state` _string_ | The state of the component. |
+| `replicas` _integer_ | replicas is the number of desired replicas. |
+| `readyReplicas` _integer_ | readyReplicas is the number of created pods with a Ready Condition. |
+| `ready` _string_ |  |
+
+
 #### JobSpec
 
 
@@ -482,6 +499,24 @@ _Appears in:_
 | `livenessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core)_ | Container liveness probe If omitted, a [default value](https://github.com/spotify/flink-on-k8s-operator/blob/a88ed2b/api/v1beta1/flinkcluster_default.go#L177-L187) will be used. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) |
 | `readinessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core)_ | Container readiness probe If omitted, a [default value](https://github.com/spotify/flink-on-k8s-operator/blob/a88ed2b/api/v1beta1/flinkcluster_default.go#L193-L203) will be used. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) |
 | `hostAliases` _[HostAlias](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#hostalias-v1-core) array_ | _(Optional)_ Adding entries to TaskManager pod /etc/hosts with HostAliases [More info](https://kubernetes.io/docs/tasks/network/customize-hosts-file-for-pods/) |
+
+
+#### TaskManagerStatus
+
+
+
+
+
+_Appears in:_
+- [FlinkClusterComponentsStatus](#flinkclustercomponentsstatus)
+
+| Field | Description |
+| --- | --- |
+| `name` _string_ | The resource name of the component. |
+| `state` _string_ | The state of the component. |
+| `replicas` _integer_ | replicas is the number of desired Pods. |
+| `readyReplicas` _integer_ | readyReplicas is the number of created pods with a Ready Condition. |
+| `ready` _string_ |  |
 
 
 
