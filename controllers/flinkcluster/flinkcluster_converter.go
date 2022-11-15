@@ -58,7 +58,6 @@ const (
 	jobPyFilesUriEnvVar     = "FLINK_JOB_PY_FILES_URI"
 	hadoopConfDirEnvVar     = "HADOOP_CONF_DIR"
 	gacEnvVar               = "GOOGLE_APPLICATION_CREDENTIALS"
-	maxUnavailableDefault   = "0%"
 )
 
 var (
@@ -575,30 +574,26 @@ func newTaskManagerDeployment(flinkCluster *v1beta1.FlinkCluster) *appsv1.Deploy
 
 // Gets the desired PodDisruptionBudget.
 func newPodDisruptionBudget(flinkCluster *v1beta1.FlinkCluster) *policyv1.PodDisruptionBudget {
-	var jobSpec = flinkCluster.Spec.Job
-	if jobSpec == nil {
+	pdbSpec := flinkCluster.Spec.PodDisruptionBudget
+	if pdbSpec == nil {
 		return nil
 	}
-	var clusterNamespace = flinkCluster.Namespace
-	var clusterName = flinkCluster.Name
-	var pdbName = getPodDisruptionBudgetName(clusterName)
-	var labels = getClusterLabels(flinkCluster)
 
-	var maxUnavailablePods = intstr.FromString(maxUnavailableDefault)
+	labels := getClusterLabels(flinkCluster)
+	for k, v := range labels {
+		pdbSpec.Selector.MatchLabels[k] = v
+	}
 
 	return &policyv1.PodDisruptionBudget{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       clusterNamespace,
-			Name:            pdbName,
-			OwnerReferences: []metav1.OwnerReference{ToOwnerReference(flinkCluster)},
-			Labels:          labels,
-		},
-		Spec: policyv1.PodDisruptionBudgetSpec{
-			MaxUnavailable: &maxUnavailablePods,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: labels,
+			Namespace: flinkCluster.Namespace,
+			Name:      getPodDisruptionBudgetName(flinkCluster.Name),
+			OwnerReferences: []metav1.OwnerReference{
+				ToOwnerReference(flinkCluster),
 			},
+			Labels: labels,
 		},
+		Spec: *pdbSpec,
 	}
 }
 
