@@ -24,7 +24,7 @@ var _ = Describe("FlinkCluster Controller", Ordered, func() {
 		fc := getDummyFlinkCluster()
 		var blocking v1beta1.JobMode = v1beta1.JobModeBlocking
 		fc.Spec.Job.Mode = &blocking
-		return getDummyFlinkCluster()
+		return fc
 	}
 
 	BeforeAll(func() {
