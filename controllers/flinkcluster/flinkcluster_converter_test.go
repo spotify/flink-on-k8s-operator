@@ -589,8 +589,7 @@ func TestGetDesiredClusterState(t *testing.T) {
 								Service: &networkingv1.IngressServiceBackend{
 									Name: "fjc-jobmanager",
 									Port: networkingv1.ServiceBackendPort{
-										Name:   "fjc-jobmanager",
-										Number: intstr.FromString("ui").IntVal,
+										Name: "ui",
 									},
 								},
 							}},

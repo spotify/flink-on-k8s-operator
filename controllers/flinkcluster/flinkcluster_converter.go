@@ -348,7 +348,6 @@ func newJobManagerIngress(
 	var clusterNamespace = flinkCluster.Namespace
 	var clusterName = flinkCluster.Name
 	var jobManagerServiceName = getJobManagerServiceName(clusterName)
-	var jobManagerServiceUIPort = intstr.FromString("ui")
 	var ingressName = getJobManagerIngressName(clusterName)
 	var ingressAnnotations = jobManagerIngressSpec.Annotations
 	var ingressHost string
@@ -398,8 +397,7 @@ func newJobManagerIngress(
 								Service: &networkingv1.IngressServiceBackend{
 									Name: jobManagerServiceName,
 									Port: networkingv1.ServiceBackendPort{
-										Name:   jobManagerServiceName,
-										Number: jobManagerServiceUIPort.IntVal,
+										Name: "ui",
 									},
 								},
 							},
