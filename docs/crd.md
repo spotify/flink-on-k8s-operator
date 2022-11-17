@@ -129,6 +129,7 @@ _Appears in:_
 | `serviceAccountName` _string_ | _(Optional)_ The service account assigned to JobManager, TaskManager and Job submitter Pods. If empty, the default service account in the namespace will be used. |
 | `batchSchedulerName` _string_ | Deprecated: BatchSchedulerName specifies the batch scheduler name for JobManager, TaskManager. If empty, no batch scheduling is enabled. |
 | `batchScheduler` _[BatchSchedulerSpec](#batchschedulerspec)_ | _(Optional)_ BatchScheduler specifies the batch scheduler for JobManager, TaskManager. If empty, no batch scheduling is enabled. |
+| `podDisruptionBudget` _[PodDisruptionBudgetSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#poddisruptionbudgetspec-v1-policy)_ | _(Optional)_ Defines the PodDisruptionBudget for JobManager and TaskManager. If empty, no PodDisruptionBudget is created. |
 | `jobManager` _[JobManagerSpec](#jobmanagerspec)_ | _(Optional)_ Flink JobManager spec. |
 | `taskManager` _[TaskManagerSpec](#taskmanagerspec)_ | _(Optional)_ Flink TaskManager spec. |
 | `job` _[JobSpec](#jobspec)_ | _(Optional)_ Job spec. If specified, this cluster is an ephemeral Job Cluster, which will be automatically terminated after the job finishes; otherwise, it is a long-running Session Cluster. |
