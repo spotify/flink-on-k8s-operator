@@ -1,6 +1,6 @@
 #!/bin/bash
 
-manifests=$(mktemp /tmp/flink-operator-manifests.yaml)
+manifests=$(mktemp /tmp/flink-operator-manifests.XXXXXXX.yaml)
 
 function yqi() {
   yq -i "$1" "$manifests"
