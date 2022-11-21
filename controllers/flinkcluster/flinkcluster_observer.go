@@ -257,14 +257,18 @@ func (observer *ClusterStateObserver) observeJob(
 	// Job resource.
 	job := new(batchv1.Job)
 	if err := observer.observeObject(jobName, job); err != nil {
-		log.Error(err, "Failed to get the job submitter")
+		if client.IgnoreNotFound(err) != nil {
+			log.Error(err, "job submitter batchv1.Job")
+		}
 		job = nil
 	}
 
 	// Get job submitter pod resource.
 	jobPod := new(corev1.Pod)
 	if err := observer.observeJobSubmitterPod(jobName, jobPod); err != nil {
-		log.Error(err, "Failed to get the submitter pod")
+		if client.IgnoreNotFound(err) != nil {
+			log.Error(err, "job submitter corev1.Pod")
+		}
 		jobPod = nil
 	}
 
