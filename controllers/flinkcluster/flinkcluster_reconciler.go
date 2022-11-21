@@ -816,7 +816,7 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 		} else if job.IsStopped() && observedSubmitter != nil {
 			if observed.cluster.Status.Components.Job.SubmitterExitCode == -1 {
 				log.Info("Job submitter has not finished yet")
-				return requeueResult, fmt.Errorf("wait for jobSubmitter to exit")
+				return requeueResult, err
 			}
 			if err := reconciler.deleteJob(observedSubmitter); err != nil {
 				return requeueResult, err
