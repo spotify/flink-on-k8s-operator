@@ -886,7 +886,7 @@ func (updater *ClusterStatusUpdater) isStatusChanged(
 
 func (updater *ClusterStatusUpdater) updateClusterStatus(
 	status v1beta1.FlinkClusterStatus) error {
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		cluster := &v1beta1.FlinkCluster{}
 		updater.observed.cluster.DeepCopyInto(cluster)
 		lookupKey := types.NamespacedName{
