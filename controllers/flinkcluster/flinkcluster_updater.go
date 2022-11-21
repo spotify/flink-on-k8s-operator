@@ -35,6 +35,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -885,14 +886,27 @@ func (updater *ClusterStatusUpdater) isStatusChanged(
 
 func (updater *ClusterStatusUpdater) updateClusterStatus(
 	status v1beta1.FlinkClusterStatus) error {
-	var cluster = v1beta1.FlinkCluster{}
-	updater.observed.cluster.DeepCopyInto(&cluster)
-	cluster.Status = status
-	updater.log.Info("(ClusterStatusUpdater) Updating cluster status", "clusterClone", cluster, "cluster.Status", cluster.Status)
-	err := updater.k8sClient.Status().Update(updater.context, &cluster)
-	// Clear control annotation after status update is complete.
-	updater.clearControlAnnotation(status.Control)
-	return err
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		cluster := &v1beta1.FlinkCluster{}
+		updater.observed.cluster.DeepCopyInto(cluster)
+		lookupKey := types.NamespacedName{
+			Name:      cluster.Name,
+			Namespace: cluster.Namespace,
+		}
+		err := updater.k8sClient.Get(updater.context, lookupKey, cluster)
+		if err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				return nil
+			}
+			return err
+		}
+		cluster.Status = status
+
+		err = updater.k8sClient.Status().Update(updater.context, cluster)
+		// Clear control annotation after status update is complete.
+		updater.clearControlAnnotation(status.Control)
+		return err
+	})
 }
 
 // Clear finished or improper user control in annotations
