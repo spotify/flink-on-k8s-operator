@@ -29,19 +29,7 @@ const (
 	DefaultTaskManagerReplicas = 3
 )
 
-var (
-	v10, _           = version.NewVersion("1.10")
-	DefaultResources = corev1.ResourceRequirements{
-		Requests: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse("200m"),
-			corev1.ResourceMemory: resource.MustParse("512Mi"),
-		},
-		Limits: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse("2"),
-			corev1.ResourceMemory: resource.MustParse("2Gi"),
-		},
-	}
-)
+var v10, _ = version.NewVersion("1.10")
 
 // Sets default values for unspecified FlinkCluster properties.
 func _SetDefault(cluster *FlinkCluster) {

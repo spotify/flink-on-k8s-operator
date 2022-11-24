@@ -32,6 +32,17 @@ import (
 
 const MaxStateAgeToRestore = int32(60)
 
+var DefaultResources = corev1.ResourceRequirements{
+	Requests: corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse("200m"),
+		corev1.ResourceMemory: resource.MustParse("512Mi"),
+	},
+	Limits: corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse("2"),
+		corev1.ResourceMemory: resource.MustParse("2Gi"),
+	},
+}
+
 func TestValidateCreate(t *testing.T) {
 	var jmReplicas int32 = DefaultJobManagerReplicas
 	var tmReplicas int32 = DefaultTaskManagerReplicas
