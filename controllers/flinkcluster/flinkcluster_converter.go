@@ -578,8 +578,16 @@ func newPodDisruptionBudget(flinkCluster *v1beta1.FlinkCluster) *policyv1.PodDis
 	}
 
 	labels := getClusterLabels(flinkCluster)
-	for k, v := range labels {
-		pdbSpec.Selector.MatchLabels[k] = v
+	if pdbSpec.Selector == nil {
+		pdbSpec.Selector = new(metav1.LabelSelector)
+	}
+
+	if pdbSpec.Selector.MatchLabels == nil {
+		pdbSpec.Selector.MatchLabels = labels
+	} else {
+		for k, v := range labels {
+			pdbSpec.Selector.MatchLabels[k] = v
+		}
 	}
 
 	return &policyv1.PodDisruptionBudget{
