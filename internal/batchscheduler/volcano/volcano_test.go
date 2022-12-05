@@ -21,6 +21,7 @@ import (
 
 	"gotest.tools/v3/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -302,11 +303,11 @@ func TestGetClusterResource(t *testing.T) {
 		},
 	}
 
-	res, size := getClusterResource(desiredState)
+	res, size := getClusterResourceList(desiredState)
 	assert.Assert(t, size == 5)
-	assert.Assert(t, res.Requests.Memory().String() == "2304Mi")
-	assert.Assert(t, res.Requests.Cpu().MilliValue() == 900)
-	assert.Assert(t, res.Requests.Storage().String() == "400Gi")
+	assert.Equal(t, res.Memory().String(), "4608Mi")
+	assert.Equal(t, res.Cpu().MilliValue(), int64(2200))
+	assert.Equal(t, res.Storage().String(), "400Gi")
 }
 
 func TestGetClusterResourceForDeployment(t *testing.T) {
@@ -467,9 +468,32 @@ func TestGetClusterResourceForDeployment(t *testing.T) {
 			},
 		},
 	}
-	res, size := getClusterResource(desiredState)
+	res, size := getClusterResourceList(desiredState)
 	assert.Assert(t, size == 5)
-	assert.Assert(t, res.Requests.Memory().String() == "2304Mi")
-	assert.Assert(t, res.Requests.Cpu().MilliValue() == 900)
-	assert.Assert(t, res.Requests.Storage().String() == "400Gi")
+	assert.Equal(t, res.Memory().String(), "4608Mi")
+	assert.Equal(t, res.Cpu().MilliValue(), int64(2200))
+	assert.Equal(t, res.Storage().String(), "400Gi")
+}
+
+func TestPogGroupsMinResources(t *testing.T) {
+	desiredState := getDesiredState()
+	res, size := getClusterResourceList(desiredState)
+
+	assert.Equal(t, size, int32(1))
+	assert.Equal(t, res.Memory().String(), "512Mi")
+	assert.Equal(t, res.Cpu().MilliValue(), int64(200))
+	assert.Equal(t, res.Storage().String(), "0")
+
+	rl := *buildMinResource(res)
+
+	assert.Equal(t, rl.Cpu().String(), "200m", "CPU should be 200m")
+	assert.Equal(t, rl.Name(corev1.ResourceRequestsCPU, resource.DecimalSI).String(), "200m", "CPU request should be 200m")
+	assert.Equal(t, rl.Name(corev1.ResourceLimitsCPU, resource.DecimalSI).String(), "200m", "CPU limit should be 200m")
+
+	assert.Equal(t, rl.Memory().String(), "512Mi", "Memory should be 512Mi")
+	assert.Equal(t, rl.Name(corev1.ResourceRequestsMemory, resource.DecimalSI).String(), "512Mi", "Memory request should be 512Mi")
+	assert.Equal(t, rl.Name(corev1.ResourceLimitsMemory, resource.DecimalSI).String(), "512Mi", "Memory limit should be 512Mi")
+
+	assert.Equal(t, rl.Storage().String(), "0", "Storage should be 0")
+	assert.Equal(t, rl.Name(corev1.ResourceRequestsStorage, resource.DecimalSI).String(), "0", "Storage request should be 0")
 }

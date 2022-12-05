@@ -8,7 +8,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -63,22 +62,27 @@ func GetNonLiveHistory(revisions []*appsv1.ControllerRevision, historyLimit int)
 }
 
 func UpperBoundedResourceList(resources corev1.ResourceRequirements) *corev1.ResourceList {
-	var cpu resource.Quantity
-	var mem resource.Quantity
+	rl := corev1.ResourceList{}
+
 	if !resources.Limits.Cpu().IsZero() {
-		cpu = *resources.Limits.Cpu()
+		rl[corev1.ResourceCPU] = *resources.Limits.Cpu()
 	} else {
-		cpu = *resources.Requests.Cpu()
+		rl[corev1.ResourceCPU] = *resources.Requests.Cpu()
 	}
 
 	if !resources.Limits.Memory().IsZero() {
-		mem = *resources.Limits.Memory()
+		rl[corev1.ResourceMemory] = *resources.Limits.Memory()
 	} else {
-		mem = *resources.Requests.Memory()
+		rl[corev1.ResourceMemory] = *resources.Requests.Memory()
 	}
 
-	return &corev1.ResourceList{
-		corev1.ResourceCPU:    cpu,
-		corev1.ResourceMemory: mem,
+	if !resources.Requests.Storage().IsZero() {
+		rl[corev1.ResourceStorage] = *resources.Requests.Storage()
 	}
+
+	if !resources.Requests.StorageEphemeral().IsZero() {
+		rl[corev1.ResourceEphemeralStorage] = *resources.Requests.StorageEphemeral()
+	}
+
+	return &rl
 }
