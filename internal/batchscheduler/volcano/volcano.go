@@ -23,7 +23,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	scheduling "volcano.sh/apis/pkg/apis/scheduling/v1beta1"
@@ -31,6 +30,7 @@ import (
 
 	schedulerinterface "github.com/spotify/flink-on-k8s-operator/internal/batchscheduler/types"
 	"github.com/spotify/flink-on-k8s-operator/internal/model"
+	"github.com/spotify/flink-on-k8s-operator/internal/util"
 )
 
 const (
@@ -149,7 +149,7 @@ func (v *VolcanoBatchScheduler) syncPodGroup(
 		return nil, nil
 	}
 
-	resourceRequirements, size := getClusterResource(state)
+	resourceList, size := getClusterResourceList(state)
 	pg, err := v.getPodGroup(podGroupName, namespace)
 	if err != nil {
 		if !errors.IsNotFound(err) {
@@ -163,7 +163,7 @@ func (v *VolcanoBatchScheduler) syncPodGroup(
 			},
 			Spec: scheduling.PodGroupSpec{
 				MinMember:         size,
-				MinResources:      buildMinResource(resourceRequirements),
+				MinResources:      buildMinResource(resourceList),
 				Queue:             options.Queue,
 				PriorityClassName: options.PriorityClassName,
 			},
@@ -179,11 +179,8 @@ func (v *VolcanoBatchScheduler) syncPodGroup(
 	return pg, nil
 }
 
-func getClusterResource(state *model.DesiredClusterState) (*corev1.ResourceRequirements, int32) {
-	reqs := &corev1.ResourceRequirements{
-		Limits:   map[corev1.ResourceName]resource.Quantity{},
-		Requests: map[corev1.ResourceName]resource.Quantity{},
-	}
+func getClusterResourceList(state *model.DesiredClusterState) (*corev1.ResourceList, int32) {
+	reqs := corev1.ResourceList{}
 	var size int32
 
 	if state.JmStatefulSet != nil {
@@ -211,88 +208,79 @@ func getClusterResource(state *model.DesiredClusterState) (*corev1.ResourceRequi
 		addResourceRequirements(reqs, jobResource)
 	}
 
-	return reqs, size
+	return &reqs, size
 }
 
-func getStatefulSetResources(spec *appsv1.StatefulSetSpec) *corev1.ResourceRequirements {
-	reqs := &corev1.ResourceRequirements{
-		Limits:   map[corev1.ResourceName]resource.Quantity{},
-		Requests: map[corev1.ResourceName]resource.Quantity{},
-	}
+func getStatefulSetResources(spec *appsv1.StatefulSetSpec) *corev1.ResourceList {
+	reqs := corev1.ResourceList{}
 
 	for i := int32(0); i < *spec.Replicas; i++ {
 		tmResource := getPodResource(&spec.Template.Spec)
 		addResourceRequirements(reqs, tmResource)
 
 		for _, pvc := range spec.VolumeClaimTemplates {
-			addResourceRequirements(reqs, &pvc.Spec.Resources)
+			addResourceRequirements(reqs, &pvc.Spec.Resources.Requests)
 		}
 	}
 
-	return reqs
+	return &reqs
 }
 
-func getDeploymentResources(spec *appsv1.DeploymentSpec) *corev1.ResourceRequirements {
-	reqs := &corev1.ResourceRequirements{
-		Limits:   map[corev1.ResourceName]resource.Quantity{},
-		Requests: map[corev1.ResourceName]resource.Quantity{},
-	}
+func getDeploymentResources(spec *appsv1.DeploymentSpec) *corev1.ResourceList {
+	reqs := corev1.ResourceList{}
 
 	for i := int32(0); i < *spec.Replicas; i++ {
 		tmResource := getPodResource(&spec.Template.Spec)
 		addResourceRequirements(reqs, tmResource)
 
 		for _, volume := range spec.Template.Spec.Volumes {
-			if volume.Ephemeral != nil && volume.Ephemeral.VolumeClaimTemplate != nil {
-				addResourceRequirements(reqs, &volume.Ephemeral.VolumeClaimTemplate.Spec.Resources)
+			ephemeral := volume.Ephemeral
+			if ephemeral != nil && ephemeral.VolumeClaimTemplate != nil {
+				claimResources := ephemeral.VolumeClaimTemplate.Spec.Resources
+				addResourceRequirements(reqs, &claimResources.Requests)
 			}
 		}
 	}
-	return reqs
+
+	return &reqs
 }
 
-func getPodResource(spec *corev1.PodSpec) *corev1.ResourceRequirements {
-	reqs := &corev1.ResourceRequirements{
-		Limits:   map[corev1.ResourceName]resource.Quantity{},
-		Requests: map[corev1.ResourceName]resource.Quantity{},
-	}
+func getPodResource(spec *corev1.PodSpec) *corev1.ResourceList {
+	reqs := corev1.ResourceList{}
+
 	for _, container := range spec.Containers {
-		addResourceRequirements(reqs, &container.Resources)
+		rl := util.UpperBoundedResourceList(container.Resources)
+		addResourceRequirements(reqs, rl)
 	}
-	return reqs
+
+	for _, container := range spec.InitContainers {
+		rl := util.UpperBoundedResourceList(container.Resources)
+		addResourceRequirements(reqs, rl)
+	}
+
+	return &reqs
 }
 
-func addResourceRequirements(acc, req *corev1.ResourceRequirements) {
-	for name, quantity := range req.Requests {
-		if value, ok := acc.Requests[name]; !ok {
-			acc.Requests[name] = quantity.DeepCopy()
+func addResourceRequirements(acc corev1.ResourceList, rl *corev1.ResourceList) {
+	for name, quantity := range *rl {
+		if value, ok := acc[name]; !ok {
+			acc[name] = quantity.DeepCopy()
 		} else {
 			value.Add(quantity)
-			acc.Requests[name] = value
-		}
-	}
-
-	for name, quantity := range req.Limits {
-		if value, ok := acc.Limits[name]; !ok {
-			acc.Limits[name] = quantity.DeepCopy()
-		} else {
-			value.Add(quantity)
-			acc.Limits[name] = value
+			acc[name] = value
 		}
 	}
 }
 
-func buildMinResource(req *corev1.ResourceRequirements) *corev1.ResourceList {
+func buildMinResource(req *corev1.ResourceList) *corev1.ResourceList {
 	minResource := corev1.ResourceList{}
-	for name, quantity := range req.Requests {
-		minResource[name] = quantity.DeepCopy()
-		n := corev1.ResourceName(fmt.Sprintf("requests.%s", name))
-		minResource[n] = quantity.DeepCopy()
-	}
 
-	for name, quantity := range req.Limits {
+	for name, quantity := range *req {
+		minResource[name] = quantity
+		req := corev1.ResourceName(fmt.Sprintf("requests.%s", name))
+		minResource[req] = quantity
 		n := corev1.ResourceName(fmt.Sprintf("limits.%s", name))
-		minResource[n] = quantity.DeepCopy()
+		minResource[n] = quantity
 	}
 
 	return &minResource
