@@ -22,7 +22,6 @@ import (
 	"gotest.tools/v3/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -56,7 +55,7 @@ func getDesiredState() *model.DesiredClusterState {
 						"component": "jobmanager",
 					},
 				},
-				Template: v1.PodTemplateSpec{
+				Template: corev1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
 							"app":       "flink",
@@ -67,13 +66,13 @@ func getDesiredState() *model.DesiredClusterState {
 							"example.com": "example",
 						},
 					},
-					Spec: v1.PodSpec{
-						Containers: []v1.Container{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
 							{
 								Name:  "jobmanager",
 								Image: "flink:1.8.1",
 								Args:  []string{"jobmanager"},
-								Env: []v1.EnvVar{
+								Env: []corev1.EnvVar{
 									{Name: "HADOOP_CONF_DIR", Value: "/etc/hadoop/conf"},
 									{
 										Name:  "GOOGLE_APPLICATION_CREDENTIALS",
@@ -84,17 +83,17 @@ func getDesiredState() *model.DesiredClusterState {
 										Value: "abc",
 									},
 								},
-								Resources: v1.ResourceRequirements{
-									Requests: map[v1.ResourceName]resource.Quantity{
-										v1.ResourceCPU:    resource.MustParse("100m"),
-										v1.ResourceMemory: resource.MustParse("256Mi"),
+								Resources: corev1.ResourceRequirements{
+									Requests: map[corev1.ResourceName]resource.Quantity{
+										corev1.ResourceCPU:    resource.MustParse("100m"),
+										corev1.ResourceMemory: resource.MustParse("256Mi"),
 									},
-									Limits: map[v1.ResourceName]resource.Quantity{
-										v1.ResourceCPU:    resource.MustParse("200m"),
-										v1.ResourceMemory: resource.MustParse("512Mi"),
+									Limits: map[corev1.ResourceName]resource.Quantity{
+										corev1.ResourceCPU:    resource.MustParse("200m"),
+										corev1.ResourceMemory: resource.MustParse("512Mi"),
 									},
 								},
-								VolumeMounts: []v1.VolumeMount{
+								VolumeMounts: []corev1.VolumeMount{
 									{
 										Name:      "flink-config-volume",
 										MountPath: "/opt/flink/conf",
@@ -112,12 +111,12 @@ func getDesiredState() *model.DesiredClusterState {
 								},
 							},
 						},
-						Volumes: []v1.Volume{
+						Volumes: []corev1.Volume{
 							{
 								Name: "flink-config-volume",
-								VolumeSource: v1.VolumeSource{
-									ConfigMap: &v1.ConfigMapVolumeSource{
-										LocalObjectReference: v1.LocalObjectReference{
+								VolumeSource: corev1.VolumeSource{
+									ConfigMap: &corev1.ConfigMapVolumeSource{
+										LocalObjectReference: corev1.LocalObjectReference{
 											Name: "flinkjobcluster-sample-configmap",
 										},
 									},
@@ -125,9 +124,9 @@ func getDesiredState() *model.DesiredClusterState {
 							},
 							{
 								Name: "hadoop-config-volume",
-								VolumeSource: v1.VolumeSource{
-									ConfigMap: &v1.ConfigMapVolumeSource{
-										LocalObjectReference: v1.LocalObjectReference{
+								VolumeSource: corev1.VolumeSource{
+									ConfigMap: &corev1.ConfigMapVolumeSource{
+										LocalObjectReference: corev1.LocalObjectReference{
 											Name: "hadoop-configmap",
 										},
 									},
@@ -135,8 +134,8 @@ func getDesiredState() *model.DesiredClusterState {
 							},
 							{
 								Name: "gcp-service-account-volume",
-								VolumeSource: v1.VolumeSource{
-									Secret: &v1.SecretVolumeSource{
+								VolumeSource: corev1.VolumeSource{
+									Secret: &corev1.SecretVolumeSource{
 										SecretName: "gcp-service-account-secret",
 									},
 								},
@@ -172,17 +171,17 @@ func TestGetClusterResource(t *testing.T) {
 					"component": "taskmanager",
 				},
 			},
-			VolumeClaimTemplates: []v1.PersistentVolumeClaim{{
-				Spec: v1.PersistentVolumeClaimSpec{
+			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{{
+				Spec: corev1.PersistentVolumeClaimSpec{
 					VolumeName: "tm-claim",
-					Resources: v1.ResourceRequirements{
-						Requests: map[v1.ResourceName]resource.Quantity{
-							v1.ResourceStorage: resource.MustParse("100Gi"),
+					Resources: corev1.ResourceRequirements{
+						Requests: map[corev1.ResourceName]resource.Quantity{
+							corev1.ResourceStorage: resource.MustParse("100Gi"),
 						},
 					},
 				},
 			}},
-			Template: v1.PodTemplateSpec{
+			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"app":       "flink",
@@ -193,22 +192,22 @@ func TestGetClusterResource(t *testing.T) {
 						"example.com": "example",
 					},
 				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
-						v1.Container{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						corev1.Container{
 							Name:  "taskmanager",
 							Image: "flink:1.8.1",
 							Args:  []string{"taskmanager"},
-							Ports: []v1.ContainerPort{
+							Ports: []corev1.ContainerPort{
 								{Name: "data", ContainerPort: 6121},
 								{Name: "rpc", ContainerPort: 6122},
 								{Name: "query", ContainerPort: 6125},
 							},
-							Env: []v1.EnvVar{
+							Env: []corev1.EnvVar{
 								{
 									Name: "TASK_MANAGER_CPU_LIMIT",
-									ValueFrom: &v1.EnvVarSource{
-										ResourceFieldRef: &v1.ResourceFieldSelector{
+									ValueFrom: &corev1.EnvVarSource{
+										ResourceFieldRef: &corev1.ResourceFieldSelector{
 											ContainerName: "taskmanager",
 											Resource:      "limits.cpu",
 											Divisor:       resource.MustParse("1m"),
@@ -217,8 +216,8 @@ func TestGetClusterResource(t *testing.T) {
 								},
 								{
 									Name: "TASK_MANAGER_MEMORY_LIMIT",
-									ValueFrom: &v1.EnvVarSource{
-										ResourceFieldRef: &v1.ResourceFieldSelector{
+									ValueFrom: &corev1.EnvVarSource{
+										ResourceFieldRef: &corev1.ResourceFieldSelector{
 											ContainerName: "taskmanager",
 											Resource:      "limits.memory",
 											Divisor:       resource.MustParse("1Mi"),
@@ -235,17 +234,17 @@ func TestGetClusterResource(t *testing.T) {
 									Value: "abc",
 								},
 							},
-							Resources: v1.ResourceRequirements{
-								Requests: map[v1.ResourceName]resource.Quantity{
-									v1.ResourceCPU:    resource.MustParse("200m"),
-									v1.ResourceMemory: resource.MustParse("512Mi"),
+							Resources: corev1.ResourceRequirements{
+								Requests: map[corev1.ResourceName]resource.Quantity{
+									corev1.ResourceCPU:    resource.MustParse("200m"),
+									corev1.ResourceMemory: resource.MustParse("512Mi"),
 								},
-								Limits: map[v1.ResourceName]resource.Quantity{
-									v1.ResourceCPU:    resource.MustParse("500m"),
-									v1.ResourceMemory: resource.MustParse("1Gi"),
+								Limits: map[corev1.ResourceName]resource.Quantity{
+									corev1.ResourceCPU:    resource.MustParse("500m"),
+									corev1.ResourceMemory: resource.MustParse("1Gi"),
 								},
 							},
-							VolumeMounts: []v1.VolumeMount{
+							VolumeMounts: []corev1.VolumeMount{
 								{Name: "cache-volume", MountPath: "/cache"},
 								{Name: "flink-config-volume", MountPath: "/opt/flink/conf"},
 								{
@@ -260,20 +259,20 @@ func TestGetClusterResource(t *testing.T) {
 								},
 							},
 						},
-						v1.Container{Name: "sidecar", Image: "alpine"},
+						corev1.Container{Name: "sidecar", Image: "alpine"},
 					},
-					Volumes: []v1.Volume{
+					Volumes: []corev1.Volume{
 						{
 							Name: "cache-volume",
-							VolumeSource: v1.VolumeSource{
-								EmptyDir: &v1.EmptyDirVolumeSource{},
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
 							},
 						},
 						{
 							Name: "flink-config-volume",
-							VolumeSource: v1.VolumeSource{
-								ConfigMap: &v1.ConfigMapVolumeSource{
-									LocalObjectReference: v1.LocalObjectReference{
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
 										Name: "flinkjobcluster-sample-configmap",
 									},
 								},
@@ -281,9 +280,9 @@ func TestGetClusterResource(t *testing.T) {
 						},
 						{
 							Name: "hadoop-config-volume",
-							VolumeSource: v1.VolumeSource{
-								ConfigMap: &v1.ConfigMapVolumeSource{
-									LocalObjectReference: v1.LocalObjectReference{
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
 										Name: "hadoop-configmap",
 									},
 								},
@@ -291,8 +290,8 @@ func TestGetClusterResource(t *testing.T) {
 						},
 						{
 							Name: "gcp-service-account-volume",
-							VolumeSource: v1.VolumeSource{
-								Secret: &v1.SecretVolumeSource{
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
 									SecretName: "gcp-service-account-secret",
 								},
 							},
@@ -331,7 +330,7 @@ func TestGetClusterResourceForDeployment(t *testing.T) {
 					"component": "taskmanager",
 				},
 			},
-			Template: v1.PodTemplateSpec{
+			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"app":       "flink",
@@ -342,22 +341,22 @@ func TestGetClusterResourceForDeployment(t *testing.T) {
 						"example.com": "example",
 					},
 				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
-						v1.Container{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						corev1.Container{
 							Name:  "taskmanager",
 							Image: "flink:1.8.1",
 							Args:  []string{"taskmanager"},
-							Ports: []v1.ContainerPort{
+							Ports: []corev1.ContainerPort{
 								{Name: "data", ContainerPort: 6121},
 								{Name: "rpc", ContainerPort: 6122},
 								{Name: "query", ContainerPort: 6125},
 							},
-							Env: []v1.EnvVar{
+							Env: []corev1.EnvVar{
 								{
 									Name: "TASK_MANAGER_CPU_LIMIT",
-									ValueFrom: &v1.EnvVarSource{
-										ResourceFieldRef: &v1.ResourceFieldSelector{
+									ValueFrom: &corev1.EnvVarSource{
+										ResourceFieldRef: &corev1.ResourceFieldSelector{
 											ContainerName: "taskmanager",
 											Resource:      "limits.cpu",
 											Divisor:       resource.MustParse("1m"),
@@ -366,8 +365,8 @@ func TestGetClusterResourceForDeployment(t *testing.T) {
 								},
 								{
 									Name: "TASK_MANAGER_MEMORY_LIMIT",
-									ValueFrom: &v1.EnvVarSource{
-										ResourceFieldRef: &v1.ResourceFieldSelector{
+									ValueFrom: &corev1.EnvVarSource{
+										ResourceFieldRef: &corev1.ResourceFieldSelector{
 											ContainerName: "taskmanager",
 											Resource:      "limits.memory",
 											Divisor:       resource.MustParse("1Mi"),
@@ -384,17 +383,17 @@ func TestGetClusterResourceForDeployment(t *testing.T) {
 									Value: "abc",
 								},
 							},
-							Resources: v1.ResourceRequirements{
-								Requests: map[v1.ResourceName]resource.Quantity{
-									v1.ResourceCPU:    resource.MustParse("200m"),
-									v1.ResourceMemory: resource.MustParse("512Mi"),
+							Resources: corev1.ResourceRequirements{
+								Requests: map[corev1.ResourceName]resource.Quantity{
+									corev1.ResourceCPU:    resource.MustParse("200m"),
+									corev1.ResourceMemory: resource.MustParse("512Mi"),
 								},
-								Limits: map[v1.ResourceName]resource.Quantity{
-									v1.ResourceCPU:    resource.MustParse("500m"),
-									v1.ResourceMemory: resource.MustParse("1Gi"),
+								Limits: map[corev1.ResourceName]resource.Quantity{
+									corev1.ResourceCPU:    resource.MustParse("500m"),
+									corev1.ResourceMemory: resource.MustParse("1Gi"),
 								},
 							},
-							VolumeMounts: []v1.VolumeMount{
+							VolumeMounts: []corev1.VolumeMount{
 								{Name: "cache-volume", MountPath: "/cache"},
 								{Name: "flink-config-volume", MountPath: "/opt/flink/conf"},
 								{
@@ -409,20 +408,20 @@ func TestGetClusterResourceForDeployment(t *testing.T) {
 								},
 							},
 						},
-						v1.Container{Name: "sidecar", Image: "alpine"},
+						corev1.Container{Name: "sidecar", Image: "alpine"},
 					},
-					Volumes: []v1.Volume{
+					Volumes: []corev1.Volume{
 						{
 							Name: "cache-volume",
-							VolumeSource: v1.VolumeSource{
-								EmptyDir: &v1.EmptyDirVolumeSource{},
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
 							},
 						},
 						{
 							Name: "flink-config-volume",
-							VolumeSource: v1.VolumeSource{
-								ConfigMap: &v1.ConfigMapVolumeSource{
-									LocalObjectReference: v1.LocalObjectReference{
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
 										Name: "flinkjobcluster-sample-configmap",
 									},
 								},
@@ -430,9 +429,9 @@ func TestGetClusterResourceForDeployment(t *testing.T) {
 						},
 						{
 							Name: "hadoop-config-volume",
-							VolumeSource: v1.VolumeSource{
-								ConfigMap: &v1.ConfigMapVolumeSource{
-									LocalObjectReference: v1.LocalObjectReference{
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
 										Name: "hadoop-configmap",
 									},
 								},
@@ -440,22 +439,22 @@ func TestGetClusterResourceForDeployment(t *testing.T) {
 						},
 						{
 							Name: "gcp-service-account-volume",
-							VolumeSource: v1.VolumeSource{
-								Secret: &v1.SecretVolumeSource{
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
 									SecretName: "gcp-service-account-secret",
 								},
 							},
 						},
 						{
 							Name: "tm-claim",
-							VolumeSource: v1.VolumeSource{
-								Ephemeral: &v1.EphemeralVolumeSource{
-									VolumeClaimTemplate: &v1.PersistentVolumeClaimTemplate{
-										Spec: v1.PersistentVolumeClaimSpec{
-											AccessModes: []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
-											Resources: v1.ResourceRequirements{
-												Requests: map[v1.ResourceName]resource.Quantity{
-													v1.ResourceStorage: resource.MustParse("100Gi"),
+							VolumeSource: corev1.VolumeSource{
+								Ephemeral: &corev1.EphemeralVolumeSource{
+									VolumeClaimTemplate: &corev1.PersistentVolumeClaimTemplate{
+										Spec: corev1.PersistentVolumeClaimSpec{
+											AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+											Resources: corev1.ResourceRequirements{
+												Requests: map[corev1.ResourceName]resource.Quantity{
+													corev1.ResourceStorage: resource.MustParse("100Gi"),
 												},
 											},
 										},
