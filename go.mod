@@ -10,7 +10,7 @@ require (
 	github.com/imdario/mergo v0.3.13
 	github.com/onsi/ginkgo/v2 v2.5.1
 	github.com/onsi/gomega v1.24.1
-	golang.org/x/net v0.3.0
+	golang.org/x/net v0.4.0
 	gotest.tools/v3 v3.4.0
 	k8s.io/api v0.24.1
 	k8s.io/apimachinery v0.24.1
