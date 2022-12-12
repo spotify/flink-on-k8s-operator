@@ -218,6 +218,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 	var observedConfigMap = observed.configMap
 	cmStatus := &status.Components.ConfigMap
 	if !isComponentUpdated(observedConfigMap, observed.cluster) && shouldUpdateCluster(observed) {
+		*cmStatus = new(v1beta1.ConfigMapStatus)
 		recorded.Components.ConfigMap.DeepCopyInto(*cmStatus)
 		(*cmStatus).State = v1beta1.ComponentStateUpdating
 	} else if observedConfigMap != nil {
@@ -236,6 +237,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 	var observedJmStatefulSet = observed.jmStatefulSet
 	jmStatus := &status.Components.JobManager
 	if !isComponentUpdated(observedJmStatefulSet, observed.cluster) && shouldUpdateCluster(observed) {
+		*jmStatus = new(v1beta1.JobManagerStatus)
 		recorded.Components.JobManager.DeepCopyInto(*jmStatus)
 		(*jmStatus).State = v1beta1.ComponentStateUpdating
 	} else if observedJmStatefulSet != nil {
@@ -393,6 +395,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 		var observedTmStatefulSet = observed.tmStatefulSet
 		tmStatus := &status.Components.TaskManager
 		if !isComponentUpdated(observedTmStatefulSet, observed.cluster) && shouldUpdateCluster(observed) {
+			*tmStatus = new(v1beta1.TaskManagerStatus)
 			recorded.Components.TaskManager.DeepCopyInto(*tmStatus)
 			(*tmStatus).State = v1beta1.ComponentStateUpdating
 		} else if observedTmStatefulSet != nil {
@@ -417,6 +420,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 		var observedTmDeployment = observed.tmDeployment
 		tmStatus := &status.Components.TaskManager
 		if !isComponentUpdated(observedTmDeployment, observed.cluster) && shouldUpdateCluster(observed) {
+			*tmStatus = new(v1beta1.TaskManagerStatus)
 			recorded.Components.TaskManager.DeepCopyInto(*tmStatus)
 			(*tmStatus).State = v1beta1.ComponentStateUpdating
 		} else if observedTmDeployment != nil {
