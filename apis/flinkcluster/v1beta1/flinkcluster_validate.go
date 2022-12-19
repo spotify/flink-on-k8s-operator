@@ -259,9 +259,9 @@ func (v *Validator) validateJobUpdate(old *FlinkCluster, new *FlinkCluster) erro
 		newJobSpec, _ := json.Marshal(new.Spec.Job)
 		return fmt.Errorf("you cannot change cluster type between session cluster and job cluster, old spec.job: %q, new spec.job: %q", oldJobSpec, newJobSpec)
 	case old.Spec.Job.SavepointsDir == nil || *old.Spec.Job.SavepointsDir == "":
-		oldJobSpec, _ := json.Marshal(old.Spec.Job)
-		newJobSpec, _ := json.Marshal(new.Spec.Job)
-		if reflect.DeepEqual(oldJobSpec, newJobSpec) {
+		oldSpec, _ := json.Marshal(old.Spec)
+		newSpec, _ := json.Marshal(new.Spec)
+		if reflect.DeepEqual(oldSpec, newSpec) {
 			return nil
 		}
 		return fmt.Errorf("updating job is not allowed when spec.job.savepointsDir was not provided")
