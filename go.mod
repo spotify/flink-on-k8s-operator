@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/go-version v1.6.0
 	github.com/imdario/mergo v0.3.13
 	github.com/onsi/ginkgo/v2 v2.6.1
-	github.com/onsi/gomega v1.24.1
+	github.com/onsi/gomega v1.24.2
 	golang.org/x/net v0.4.0
 	gotest.tools/v3 v3.4.0
 	k8s.io/api v0.24.1
