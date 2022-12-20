@@ -95,7 +95,7 @@ func (v *Validator) ValidateCreate(cluster *FlinkCluster) error {
 // ValidateUpdate validates update request.
 func (v *Validator) ValidateUpdate(old *FlinkCluster, new *FlinkCluster) error {
 	var err error
-	err = v.checkControlAnnotations(old, new)
+	controlName, err := v.checkControlAnnotations(old, new)
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func (v *Validator) ValidateUpdate(old *FlinkCluster, new *FlinkCluster) error {
 	if err != nil {
 		return err
 	}
-	if cancelRequested {
+	if cancelRequested || controlName == ControlNameJobCancel {
 		return nil
 	}
 
@@ -139,35 +139,39 @@ func (v *Validator) ValidateUpdate(old *FlinkCluster, new *FlinkCluster) error {
 	return nil
 }
 
-func (v *Validator) checkControlAnnotations(old *FlinkCluster, new *FlinkCluster) error {
+func (v *Validator) checkControlAnnotations(old *FlinkCluster, new *FlinkCluster) (string, error) {
 	oldUserControl := old.Annotations[ControlAnnotation]
 	newUserControl, ok := new.Annotations[ControlAnnotation]
 	if ok {
 		if oldUserControl != newUserControl && old.Status.Control != nil && old.Status.Control.State == ControlStateInProgress {
-			return fmt.Errorf(ControlChangeWarnMsg, ControlAnnotation)
+			return "", fmt.Errorf(ControlChangeWarnMsg, ControlAnnotation)
 		}
 		switch newUserControl {
 		case ControlNameJobCancel:
 			var job = old.Status.Components.Job
 			if old.Spec.Job == nil {
-				return fmt.Errorf(SessionClusterWarnMsg, ControlNameJobCancel, ControlAnnotation)
+				return "", fmt.Errorf(SessionClusterWarnMsg, ControlNameJobCancel, ControlAnnotation)
 			} else if job == nil || job.IsTerminated(old.Spec.Job) {
-				return errors.NewResourceExpired(fmt.Sprintf(InvalidJobStateForJobCancelMsg, ControlAnnotation))
+				return "", errors.NewResourceExpired(fmt.Sprintf(InvalidJobStateForJobCancelMsg, ControlAnnotation))
+			} else {
+				return ControlNameJobCancel, nil
 			}
 		case ControlNameSavepoint:
 			var job = old.Status.Components.Job
 			if old.Spec.Job == nil {
-				return fmt.Errorf(SessionClusterWarnMsg, ControlNameSavepoint, ControlAnnotation)
+				return "", fmt.Errorf(SessionClusterWarnMsg, ControlNameSavepoint, ControlAnnotation)
 			} else if old.Spec.Job.SavepointsDir == nil || *old.Spec.Job.SavepointsDir == "" {
-				return fmt.Errorf(InvalidSavepointDirMsg, ControlAnnotation)
+				return "", fmt.Errorf(InvalidSavepointDirMsg, ControlAnnotation)
 			} else if job == nil || job.IsStopped() {
-				return fmt.Errorf(InvalidJobStateForSavepointMsg, ControlAnnotation)
+				return "", fmt.Errorf(InvalidJobStateForSavepointMsg, ControlAnnotation)
+			} else {
+				return ControlNameSavepoint, nil
 			}
 		default:
-			return fmt.Errorf(InvalidControlAnnMsg, ControlAnnotation, newUserControl)
+			return "", fmt.Errorf(InvalidControlAnnMsg, ControlAnnotation, newUserControl)
 		}
 	}
-	return nil
+	return "", nil
 }
 
 func (v *Validator) checkCancelRequested(
