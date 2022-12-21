@@ -966,15 +966,18 @@ func (updater *ClusterStatusUpdater) deriveSavepointStatus(
 			s.State = v1beta1.SavepointStateFailed
 			errMsg = fmt.Sprintf("Failed to get savepoint status: %v", observedSavepoint.error)
 		}
+
 		// Derive the failure state from Flink job status.
 		// Append additional error message if it already exists.
-		switch {
-		case newJobStatus.IsStopped():
-			errMsg = "Flink job is stopped: " + errMsg
-			s.State = v1beta1.SavepointStateFailed
-		case flinkJobID == nil || *flinkJobID != recordedSavepointStatus.JobID:
-			errMsg = "Savepoint triggered Flink job is lost: " + errMsg
-			s.State = v1beta1.SavepointStateFailed
+		if s.State == v1beta1.SavepointStateFailed {
+			switch {
+			case newJobStatus.IsStopped():
+				errMsg = "Flink job is stopped: " + errMsg
+				s.State = v1beta1.SavepointStateFailed
+			case flinkJobID == nil || *flinkJobID != recordedSavepointStatus.JobID:
+				errMsg = "Savepoint triggered Flink job is lost: " + errMsg
+				s.State = v1beta1.SavepointStateFailed
+			}
 		}
 	}
 	// TODO: Record event or introduce Condition in CRD status to notify update state pended.
