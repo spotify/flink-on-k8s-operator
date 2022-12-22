@@ -324,7 +324,7 @@ func (observer *ClusterStateObserver) observeJob(
 func (observer *ClusterStateObserver) observeFlinkJobStatus(observed *ObservedClusterState, flinkJobID string, flinkJob *FlinkJob) {
 	var log = observer.log
 	// Observe following
-	var flinkJobStatus *flink.Job
+	var flinkJobStatus flink.Job
 	var flinkJobList *flink.JobsOverview
 	var flinkJobsUnexpected []string
 
@@ -341,12 +341,13 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(observed *ObservedCl
 	// Extract the current job status and unexpected jobs.
 	for _, job := range flinkJobList.Jobs {
 		if flinkJobID == job.Id {
-			flinkJobStatus = &job
+			flinkJobStatus = job
 		} else if getFlinkJobDeploymentState(job.State) == v1beta1.JobStateRunning {
 			flinkJobsUnexpected = append(flinkJobsUnexpected, job.Id)
 		}
 	}
-	flinkJob.status = flinkJobStatus
+
+	flinkJob.status = &flinkJobStatus
 	flinkJob.unexpected = flinkJobsUnexpected
 
 	log.Info("Observed Flink job",
