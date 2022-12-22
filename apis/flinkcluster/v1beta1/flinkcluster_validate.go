@@ -89,6 +89,13 @@ func (v *Validator) ValidateCreate(cluster *FlinkCluster) error {
 	if err != nil {
 		return err
 	}
+	if cluster.IsHighAvailabilityEnabled() {
+		yes, err := saHasConfigMapUpdatePermissions("default", cluster.ObjectMeta.Namespace)
+		// ignore if the check errors out
+		if err == nil && !yes {
+			return fmt.Errorf("HA props set but no permissions to create/edit configmaps in namespace %s\n(HA Props: https://nightlies.apache.org/flink/flink-docs-release-1.16/docs/deployment/ha/kubernetes_ha/)", cluster.ObjectMeta.Namespace)
+		}
+	}
 	return nil
 }
 

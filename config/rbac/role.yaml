@@ -209,3 +209,9 @@ rules:
       - create
       - update
       - delete
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts
+    verbs:
+      - impersonate
