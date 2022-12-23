@@ -429,11 +429,15 @@ func isClusterUpdateToDate(observed *ObservedClusterState) bool {
 	tmDeploymentType := observed.cluster.Spec.TaskManager.DeploymentType
 	components := []runtime.Object{
 		observed.configMap,
-		observed.podDisruptionBudget,
 		observed.tmService,
 		observed.jmStatefulSet,
 		observed.jmService,
 	}
+
+	if observed.cluster.Spec.PodDisruptionBudget != nil {
+		components = append(components, observed.podDisruptionBudget)
+	}
+
 	if tmDeploymentType == v1beta1.DeploymentTypeDeployment {
 		components = append(components, observed.tmDeployment)
 	} else {
