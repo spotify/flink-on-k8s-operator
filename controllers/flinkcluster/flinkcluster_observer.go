@@ -453,14 +453,15 @@ func (observer *ClusterStateObserver) observeHAConfigMap(
 	var fc = observed.cluster
 	observed.haConfigMap = nil
 	haConfigMapName := fc.GetHAConfigMapName()
-	if haConfigMapName != "" {
-		observed.haConfigMap = new(corev1.ConfigMap)
-		if err := observer.observeObject(haConfigMapName, observed.haConfigMap); err != nil {
-			if client.IgnoreNotFound(err) != nil {
-				return err
-			}
-			observed.haConfigMap = nil
+	if haConfigMapName == "" {
+		return nil
+	}
+	observed.haConfigMap = new(corev1.ConfigMap)
+	if err := observer.observeObject(haConfigMapName, observed.haConfigMap); err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			return err
 		}
+		observed.haConfigMap = nil
 	}
 	return nil
 }

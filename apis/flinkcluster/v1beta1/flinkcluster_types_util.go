@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	HA_CONFIG_HA_TYPE        = "high-availability"
-	HA_CONFIG_HA_STORAGE_DIR = "high-availability.storageDir"
-	HA_CONFIG_K8S_CLUSTER_ID = "kubernetes.cluster-id"
+	haConfigType       = "high-availability"
+	haConfigStorageDir = "high-availability.storageDir"
+	haConfigClusterId  = "kubernetes.cluster-id"
 )
 
 func (j *JobStatus) IsActive() bool {
@@ -160,27 +160,27 @@ func (tm *TaskManagerSpec) GetResources() *corev1.ResourceList {
 }
 
 func (fc *FlinkCluster) IsHighAvailabilityEnabled() bool {
-	if fc.Spec.FlinkProperties != nil {
-		v, ok := fc.Spec.FlinkProperties[HA_CONFIG_HA_TYPE]
-		if !ok || strings.ToLower(v) == "none" {
-			return false
-		}
-		v, ok = fc.Spec.FlinkProperties[HA_CONFIG_K8S_CLUSTER_ID]
-		if !ok || strings.TrimSpace(v) == "" {
-			return false
-		}
-		v, ok = fc.Spec.FlinkProperties[HA_CONFIG_HA_STORAGE_DIR]
-		if !ok || strings.TrimSpace(v) == "" {
-			return false
-		}
-		return true
+	if fc.Spec.FlinkProperties == nil {
+		return false
 	}
-	return false
+	v, ok := fc.Spec.FlinkProperties[haConfigType]
+	if !ok || strings.ToLower(v) == "none" {
+		return false
+	}
+	v, ok = fc.Spec.FlinkProperties[haConfigClusterId]
+	if !ok || strings.TrimSpace(v) == "" {
+		return false
+	}
+	v, ok = fc.Spec.FlinkProperties[haConfigStorageDir]
+	if !ok || strings.TrimSpace(v) == "" {
+		return false
+	}
+	return true
 }
 
 func (fc *FlinkCluster) GetHAConfigMapName() string {
 	if !fc.IsHighAvailabilityEnabled() {
 		return ""
 	}
-	return fmt.Sprintf("%s-cluster-config-map", fc.Spec.FlinkProperties[HA_CONFIG_K8S_CLUSTER_ID])
+	return fmt.Sprintf("%s-cluster-config-map", fc.Spec.FlinkProperties[haConfigClusterId])
 }

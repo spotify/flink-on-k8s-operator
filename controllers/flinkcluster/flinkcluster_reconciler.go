@@ -566,13 +566,14 @@ func (reconciler *ClusterReconciler) reconcileConfigMap() error {
 // Set the owner reference of the cluster to the HA ConfigMap (if it doesn't already have one)
 func (reconciler *ClusterReconciler) reconcileHAConfigMap() error {
 	var observedHAConfigMap = reconciler.observed.haConfigMap
-	if observedHAConfigMap != nil {
-		if observedHAConfigMap.OwnerReferences == nil || len(observedHAConfigMap.OwnerReferences) == 0 {
-			observedHAConfigMap.OwnerReferences = []metav1.OwnerReference{ToOwnerReference(reconciler.observed.cluster)}
-			err := reconciler.updateComponent(observedHAConfigMap, "HA ConfigMap")
-			if err != nil {
-				return err
-			}
+	if observedHAConfigMap == nil {
+		return nil
+	}
+	if observedHAConfigMap.OwnerReferences == nil || len(observedHAConfigMap.OwnerReferences) == 0 {
+		observedHAConfigMap.OwnerReferences = []metav1.OwnerReference{ToOwnerReference(reconciler.observed.cluster)}
+		err := reconciler.updateComponent(observedHAConfigMap, "HA ConfigMap")
+		if err != nil {
+			return err
 		}
 	}
 	return nil
