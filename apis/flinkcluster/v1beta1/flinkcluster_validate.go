@@ -267,6 +267,8 @@ func (v *Validator) validateJobUpdate(old *FlinkCluster, new *FlinkCluster) erro
 	case old.Spec.Job.SavepointsDir != nil && *old.Spec.Job.SavepointsDir != "" &&
 		(new.Spec.Job.SavepointsDir == nil || *new.Spec.Job.SavepointsDir == ""):
 		return fmt.Errorf("removing savepointsDir is not allowed")
+	case old.IsHighAvailabilityEnabled() != new.IsHighAvailabilityEnabled():
+		return fmt.Errorf("updating highAvailability settings is not allowed")
 	case !isBlank(new.Spec.Job.FromSavepoint):
 		return nil
 	default:

@@ -60,6 +60,7 @@ type ObservedClusterState struct {
 	cluster                *v1beta1.FlinkCluster
 	revisions              []*appsv1.ControllerRevision
 	configMap              *corev1.ConfigMap
+	haConfigMap            *corev1.ConfigMap
 	jmStatefulSet          *appsv1.StatefulSet
 	jmService              *corev1.Service
 	jmIngress              *networkingv1.Ingress
@@ -155,6 +156,12 @@ func (observer *ClusterStateObserver) observe(observed *ObservedClusterState) er
 		// ConfigMap.
 		if err := observer.observeConfigMap(observed); err != nil {
 			log.Error(err, "Failed to get configMap")
+			return err
+		}
+
+		// HA ConfigMap.
+		if err := observer.observeHAConfigMap(observed); err != nil {
+			log.Error(err, "Failed to get HA configMap")
 			return err
 		}
 
@@ -439,6 +446,24 @@ func (observer *ClusterStateObserver) observeConfigMap(
 		observed.configMap = nil
 	}
 
+	return nil
+}
+
+func (observer *ClusterStateObserver) observeHAConfigMap(
+	observed *ObservedClusterState) error {
+	var fc = observed.cluster
+	observed.haConfigMap = nil
+	haConfigMapName := fc.GetHAConfigMapName()
+	if haConfigMapName == "" {
+		return nil
+	}
+	observed.haConfigMap = new(corev1.ConfigMap)
+	if err := observer.observeObject(haConfigMapName, observed.haConfigMap); err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			return err
+		}
+		observed.haConfigMap = nil
+	}
 	return nil
 }
 

@@ -86,6 +86,11 @@ func (reconciler *ClusterReconciler) reconcile() (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
+	err = reconciler.reconcileHAConfigMap()
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	err = reconciler.reconcilePodDisruptionBudget()
 	if err != nil {
 		return ctrl.Result{}, err
@@ -555,6 +560,22 @@ func (reconciler *ClusterReconciler) reconcileConfigMap() error {
 		return reconciler.deleteConfigMap(observedConfigMap, "ConfigMap")
 	}
 
+	return nil
+}
+
+// Set the owner reference of the cluster to the HA ConfigMap (if it doesn't already have one)
+func (reconciler *ClusterReconciler) reconcileHAConfigMap() error {
+	var observedHAConfigMap = reconciler.observed.haConfigMap
+	if observedHAConfigMap == nil {
+		return nil
+	}
+	if observedHAConfigMap.OwnerReferences == nil || len(observedHAConfigMap.OwnerReferences) == 0 {
+		observedHAConfigMap.OwnerReferences = []metav1.OwnerReference{ToOwnerReference(reconciler.observed.cluster)}
+		err := reconciler.updateComponent(observedHAConfigMap, "HA ConfigMap")
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
