@@ -823,7 +823,7 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 	}
 
 	// Job finished. Stop Flink job and kill job-submitter.
-	if desiredJob == nil && !(job.IsStopped() && observedSubmitter == nil) {
+	if desiredJob == nil && (!job.IsStopped() || observedSubmitter != nil) {
 		if job.IsActive() {
 			userControl := getNewControlRequest(observed.cluster)
 			if userControl == v1beta1.ControlNameJobCancel {
