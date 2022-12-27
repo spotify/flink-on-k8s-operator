@@ -1,3 +1,5 @@
+
+---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -174,6 +176,7 @@ spec:
                 hadoopConfig:
                   properties:
                     configMapName:
+                      minLength: 1
                       type: string
                     mountPath:
                       default: /etc/hadoop/conf
@@ -182,9 +185,14 @@ spec:
                 image:
                   properties:
                     name:
+                      minLength: 1
                       type: string
                     pullPolicy:
                       default: Always
+                      enum:
+                        - Always
+                        - Never
+                        - IfNotPresent
                       type: string
                     pullSecrets:
                       items:
@@ -223,10 +231,25 @@ spec:
                         afterJobSucceeds: DeleteCluster
                       properties:
                         afterJobCancelled:
+                          default: DeleteCluster
+                          enum:
+                            - KeepCluster
+                            - DeleteCluster
+                            - DeleteTaskManager
                           type: string
                         afterJobFails:
+                          default: KeepCluster
+                          enum:
+                            - KeepCluster
+                            - DeleteCluster
+                            - DeleteTaskManager
                           type: string
                         afterJobSucceeds:
+                          default: DeleteCluster
+                          enum:
+                            - KeepCluster
+                            - DeleteCluster
+                            - DeleteTaskManager
                           type: string
                       type: object
                     fromSavepoint:
@@ -894,6 +917,9 @@ spec:
                       type: object
                     restartPolicy:
                       default: Never
+                      enum:
+                        - Never
+                        - FromSavepointOnFailure
                       type: string
                     savepointGeneration:
                       format: int32
@@ -1714,6 +1740,12 @@ spec:
                       type: object
                     accessScope:
                       default: Cluster
+                      enum:
+                        - Cluster
+                        - VPC
+                        - External
+                        - NodePort
+                        - Headless
                       type: string
                     extraPorts:
                       items:
@@ -2562,6 +2594,8 @@ spec:
                     replicas:
                       default: 1
                       format: int32
+                      maximum: 1
+                      minimum: 1
                       type: integer
                     resources:
                       default:
@@ -5011,6 +5045,7 @@ spec:
                     replicas:
                       default: 3
                       format: int32
+                      minimum: 1
                       type: integer
                     resources:
                       default:
