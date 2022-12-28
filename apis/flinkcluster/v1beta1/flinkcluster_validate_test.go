@@ -120,46 +120,14 @@ func TestValidateCreate(t *testing.T) {
 	assert.NilError(t, err, "create validation failed unexpectedly")
 }
 
-func TestInvalidImageSpec(t *testing.T) {
-	var validator = &Validator{}
-
-	var cluster = FlinkCluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster",
-			Namespace: "default",
-		},
-		Spec: FlinkClusterSpec{},
-	}
-	var err = validator.ValidateCreate(&cluster)
-	var expectedErr = "image name is unspecified"
-	assert.Equal(t, err.Error(), expectedErr)
-
-	cluster = FlinkCluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster",
-			Namespace: "default",
-		},
-		Spec: FlinkClusterSpec{
-			Image: ImageSpec{
-				Name:       "flink:1.8.1",
-				PullPolicy: corev1.PullPolicy("XXX"),
-			},
-		},
-	}
-	err = validator.ValidateCreate(&cluster)
-	expectedErr = "invalid image pullPolicy: XXX"
-	assert.Equal(t, err.Error(), expectedErr)
-}
-
 func TestInvalidJobManagerSpec(t *testing.T) {
-	var jmReplicas1 int32 = 1
-	var jmReplicas2 int32 = 2
+	var jmReplicas int32 = 1
 	var rpcPort int32 = 8001
 	var blobPort int32 = 8002
 	var queryPort int32 = 8003
 	var uiPort int32 = 8004
 
-	var cluster = FlinkCluster{
+	cluster := FlinkCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster",
 			Namespace: "default",
@@ -171,34 +139,7 @@ func TestInvalidJobManagerSpec(t *testing.T) {
 				PullPolicy: corev1.PullPolicy("Always"),
 			},
 			JobManager: &JobManagerSpec{
-				Replicas:    &jmReplicas2,
-				AccessScope: AccessScopeVPC,
-				Ports: JobManagerPorts{
-					RPC:   &rpcPort,
-					Blob:  &blobPort,
-					Query: &queryPort,
-					UI:    &uiPort,
-				},
-			},
-		},
-	}
-	var err = validator.ValidateCreate(&cluster)
-	var expectedErr = "invalid JobManager replicas, it must be 1"
-	assert.Equal(t, err.Error(), expectedErr)
-
-	cluster = FlinkCluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster",
-			Namespace: "default",
-		},
-		Spec: FlinkClusterSpec{
-			FlinkVersion: "1.8",
-			Image: ImageSpec{
-				Name:       "flink:1.8.1",
-				PullPolicy: corev1.PullPolicy("Always"),
-			},
-			JobManager: &JobManagerSpec{
-				Replicas:    &jmReplicas1,
+				Replicas:    &jmReplicas,
 				AccessScope: "XXX",
 				Ports: JobManagerPorts{
 					RPC:   &rpcPort,
@@ -209,35 +150,8 @@ func TestInvalidJobManagerSpec(t *testing.T) {
 			},
 		},
 	}
-	err = validator.ValidateCreate(&cluster)
-	expectedErr = "invalid JobManager access scope: XXX"
-	assert.Equal(t, err.Error(), expectedErr)
-
-	cluster = FlinkCluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster",
-			Namespace: "default",
-		},
-		Spec: FlinkClusterSpec{
-			FlinkVersion: "1.8",
-			Image: ImageSpec{
-				Name:       "flink:1.8.1",
-				PullPolicy: corev1.PullPolicy("Always"),
-			},
-			JobManager: &JobManagerSpec{
-				Replicas:    &jmReplicas1,
-				AccessScope: AccessScopeVPC,
-				Ports: JobManagerPorts{
-					RPC:   nil,
-					Blob:  &blobPort,
-					Query: &queryPort,
-					UI:    &uiPort,
-				},
-			},
-		},
-	}
-	err = validator.ValidateCreate(&cluster)
-	expectedErr = "jobmanager rpc port is unspecified"
+	err := validator.ValidateCreate(&cluster)
+	expectedErr := "jobmanager resource requests/limits are unspecified"
 	assert.Equal(t, err.Error(), expectedErr)
 }
 
@@ -253,88 +167,7 @@ func TestInvalidTaskManagerSpec(t *testing.T) {
 	var memoryOffHeapMin = resource.MustParse("600M")
 	resources := DefaultResources
 
-	var cluster = FlinkCluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster",
-			Namespace: "default",
-		},
-		Spec: FlinkClusterSpec{
-			FlinkVersion: "1.8",
-			Image: ImageSpec{
-				Name:       "flink:1.8.1",
-				PullPolicy: corev1.PullPolicy("Always"),
-			},
-			JobManager: &JobManagerSpec{
-				Replicas:    &jmReplicas,
-				AccessScope: AccessScopeVPC,
-				Ports: JobManagerPorts{
-					RPC:   &rpcPort,
-					Blob:  &blobPort,
-					Query: &queryPort,
-					UI:    &uiPort,
-				},
-				MemoryOffHeapRatio: &memoryOffHeapRatio,
-				MemoryOffHeapMin:   memoryOffHeapMin,
-				Resources:          resources,
-			},
-			TaskManager: &TaskManagerSpec{
-				Ports: TaskManagerPorts{
-					RPC:   &rpcPort,
-					Data:  &dataPort,
-					Query: &queryPort,
-				},
-				MemoryOffHeapRatio: &memoryOffHeapRatio,
-				MemoryOffHeapMin:   memoryOffHeapMin,
-				Resources:          resources,
-			},
-		},
-	}
-	var err = validator.ValidateCreate(&cluster)
-	var expectedErr = "invalid TaskManager replicas, it must >= 1"
-	assert.Equal(t, err.Error(), expectedErr)
-
-	cluster = FlinkCluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster",
-			Namespace: "default",
-		},
-		Spec: FlinkClusterSpec{
-			FlinkVersion: "1.8",
-			Image: ImageSpec{
-				Name:       "flink:1.8.1",
-				PullPolicy: corev1.PullPolicy("Always"),
-			},
-			JobManager: &JobManagerSpec{
-				Replicas:    &jmReplicas,
-				AccessScope: AccessScopeVPC,
-				Ports: JobManagerPorts{
-					RPC:   &rpcPort,
-					Blob:  &blobPort,
-					Query: &queryPort,
-					UI:    &uiPort,
-				},
-				MemoryOffHeapRatio: &memoryOffHeapRatio,
-				MemoryOffHeapMin:   memoryOffHeapMin,
-				Resources:          resources,
-			},
-			TaskManager: &TaskManagerSpec{
-				Replicas: &tmReplicas,
-				Ports: TaskManagerPorts{
-					RPC:   &rpcPort,
-					Data:  &dataPort,
-					Query: nil,
-				},
-				MemoryOffHeapRatio: &memoryOffHeapRatio,
-				MemoryOffHeapMin:   memoryOffHeapMin,
-				Resources:          resources,
-			},
-		},
-	}
-	err = validator.ValidateCreate(&cluster)
-	expectedErr = "taskmanager query port is unspecified"
-	assert.Equal(t, err.Error(), expectedErr)
-
-	cluster = FlinkCluster{
+	cluster := FlinkCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster",
 			Namespace: "default",
@@ -376,8 +209,8 @@ func TestInvalidTaskManagerSpec(t *testing.T) {
 			},
 		},
 	}
-	err = validator.ValidateCreate(&cluster)
-	expectedErr = "invalid taskmanager memory configuration, memory limit must be larger than MemoryOffHeapMin, memory limit: 500000000 bytes, memoryOffHeapMin: 600000000 bytes"
+	err := validator.ValidateCreate(&cluster)
+	expectedErr := "invalid taskmanager memory configuration, memory limit must be larger than MemoryOffHeapMin, memory limit: 500000000 bytes, memoryOffHeapMin: 600000000 bytes"
 	assert.Equal(t, err.Error(), expectedErr)
 }
 
@@ -390,11 +223,8 @@ func TestInvalidJobSpec(t *testing.T) {
 	var uiPort int32 = 8004
 	var dataPort int32 = 8005
 	var maxStateAgeToRestoreSeconds int32 = 300
-	var jarFile = "gs://my-bucket/myjob.jar"
 	var restartPolicy = JobRestartPolicyFromSavepointOnFailure
-	var invalidRestartPolicy JobRestartPolicy = "XXX"
 	var validator = &Validator{}
-	var parallelism int32 = 2
 	var memoryOffHeapRatio int32 = 25
 	var memoryOffHeapMin = resource.MustParse("600M")
 	resources := DefaultResources
@@ -444,103 +274,6 @@ func TestInvalidJobSpec(t *testing.T) {
 	var expectedErr = "job jarFile or pythonFile or pythonModule is unspecified"
 	assert.Equal(t, err.Error(), expectedErr)
 
-	cluster = FlinkCluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster",
-			Namespace: "default",
-		},
-		Spec: FlinkClusterSpec{
-			FlinkVersion: "1.8",
-			Image: ImageSpec{
-				Name:       "flink:1.8.1",
-				PullPolicy: corev1.PullPolicy("Always"),
-			},
-			JobManager: &JobManagerSpec{
-				Replicas:    &jmReplicas,
-				AccessScope: AccessScopeVPC,
-				Ports: JobManagerPorts{
-					RPC:   &rpcPort,
-					Blob:  &blobPort,
-					Query: &queryPort,
-					UI:    &uiPort,
-				},
-				MemoryOffHeapRatio: &memoryOffHeapRatio,
-				MemoryOffHeapMin:   memoryOffHeapMin,
-				Resources:          resources,
-			},
-			TaskManager: &TaskManagerSpec{
-				Replicas: &tmReplicas,
-				Ports: TaskManagerPorts{
-					RPC:   &rpcPort,
-					Data:  &dataPort,
-					Query: &queryPort,
-				},
-				MemoryOffHeapRatio: &memoryOffHeapRatio,
-				MemoryOffHeapMin:   memoryOffHeapMin,
-				Resources:          resources,
-			},
-			Job: &JobSpec{
-				JarFile:                     &jarFile,
-				Parallelism:                 &parallelism,
-				RestartPolicy:               &invalidRestartPolicy,
-				MaxStateAgeToRestoreSeconds: &maxStateAgeToRestoreSeconds,
-			},
-		},
-	}
-	err = validator.ValidateCreate(&cluster)
-	expectedErr = "invalid job restartPolicy: XXX"
-	assert.Equal(t, err.Error(), expectedErr)
-
-	cluster = FlinkCluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster",
-			Namespace: "default",
-		},
-		Spec: FlinkClusterSpec{
-			FlinkVersion: "1.8",
-			Image: ImageSpec{
-				Name:       "flink:1.8.1",
-				PullPolicy: corev1.PullPolicy("Always"),
-			},
-			JobManager: &JobManagerSpec{
-				Replicas:    &jmReplicas,
-				AccessScope: AccessScopeVPC,
-				Ports: JobManagerPorts{
-					RPC:   &rpcPort,
-					Blob:  &blobPort,
-					Query: &queryPort,
-					UI:    &uiPort,
-				},
-				MemoryOffHeapRatio: &memoryOffHeapRatio,
-				MemoryOffHeapMin:   memoryOffHeapMin,
-				Resources:          resources,
-			},
-			TaskManager: &TaskManagerSpec{
-				Replicas: &tmReplicas,
-				Ports: TaskManagerPorts{
-					RPC:   &rpcPort,
-					Data:  &dataPort,
-					Query: &queryPort,
-				},
-				MemoryOffHeapRatio: &memoryOffHeapRatio,
-				MemoryOffHeapMin:   memoryOffHeapMin,
-				Resources:          resources,
-			},
-			Job: &JobSpec{
-				JarFile:                     &jarFile,
-				Parallelism:                 &parallelism,
-				RestartPolicy:               &restartPolicy,
-				MaxStateAgeToRestoreSeconds: &maxStateAgeToRestoreSeconds,
-				CleanupPolicy: &CleanupPolicy{
-					AfterJobSucceeds: "XXX",
-					AfterJobFails:    CleanupActionDeleteCluster,
-				},
-			},
-		},
-	}
-	err = validator.ValidateCreate(&cluster)
-	expectedErr = "invalid cleanupPolicy.afterJobSucceeds: XXX"
-	assert.Equal(t, err.Error(), expectedErr)
 }
 
 func TestUpdateStatusAllowed(t *testing.T) {
@@ -854,28 +587,6 @@ func TestInvalidGCPConfig(t *testing.T) {
 	var expectedErr = "invalid GCP service account volume mount path"
 	assert.Assert(t, err != nil, "err is not expected to be nil")
 	assert.Equal(t, err.Error(), expectedErr)
-}
-
-func TestInvalidHadoopConfig(t *testing.T) {
-	var validator = &Validator{}
-
-	var hadoopConfig1 = HadoopConfig{
-		ConfigMapName: "",
-		MountPath:     "/etc/hadoop/conf",
-	}
-	var err1 = validator.validateHadoopConfig(&hadoopConfig1)
-	var expectedErr1 = "hadoop ConfigMap name is unspecified"
-	assert.Assert(t, err1 != nil, "err is not expected to be nil")
-	assert.Equal(t, err1.Error(), expectedErr1)
-
-	var hadoopConfig2 = HadoopConfig{
-		ConfigMapName: "hadoop-configmap",
-		MountPath:     "",
-	}
-	var err2 = validator.validateHadoopConfig(&hadoopConfig2)
-	var expectedErr2 = "hadoop config volume mount path is unspecified"
-	assert.Assert(t, err2 != nil, "err is not expected to be nil")
-	assert.Equal(t, err2.Error(), expectedErr2)
 }
 
 func TestUserControlSavepoint(t *testing.T) {

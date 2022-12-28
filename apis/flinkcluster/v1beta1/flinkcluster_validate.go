@@ -65,15 +65,7 @@ func (v *Validator) ValidateCreate(cluster *FlinkCluster) error {
 		}
 	}
 
-	err = v.validateHadoopConfig(cluster.Spec.HadoopConfig)
-	if err != nil {
-		return err
-	}
 	err = v.validateGCPConfig(cluster.Spec.GCPConfig)
-	if err != nil {
-		return err
-	}
-	err = v.validateImage(&cluster.Spec.Image)
 	if err != nil {
 		return err
 	}
@@ -319,19 +311,6 @@ func (v *Validator) validateMeta(meta *metav1.ObjectMeta) error {
 	return nil
 }
 
-func (v *Validator) validateHadoopConfig(hadoopConfig *HadoopConfig) error {
-	if hadoopConfig == nil {
-		return nil
-	}
-	if len(hadoopConfig.ConfigMapName) == 0 {
-		return fmt.Errorf("hadoop ConfigMap name is unspecified")
-	}
-	if len(hadoopConfig.MountPath) == 0 {
-		return fmt.Errorf("hadoop config volume mount path is unspecified")
-	}
-	return nil
-}
-
 func (v *Validator) validateGCPConfig(gcpConfig *GCPConfig) error {
 	if gcpConfig == nil {
 		return nil
@@ -354,20 +333,6 @@ func (v *Validator) validateGCPConfig(gcpConfig *GCPConfig) error {
 	return nil
 }
 
-func (v *Validator) validateImage(imageSpec *ImageSpec) error {
-	if len(imageSpec.Name) == 0 {
-		return fmt.Errorf("image name is unspecified")
-	}
-	switch imageSpec.PullPolicy {
-	case corev1.PullAlways:
-	case corev1.PullIfNotPresent:
-	case corev1.PullNever:
-	default:
-		return fmt.Errorf("invalid image pullPolicy: %v", imageSpec.PullPolicy)
-	}
-	return nil
-}
-
 func (v *Validator) validateJobManager(flinkVersion *version.Version, jmSpec *JobManagerSpec) error {
 	var err error
 	if jmSpec == nil {
@@ -382,39 +347,7 @@ func (v *Validator) validateJobManager(flinkVersion *version.Version, jmSpec *Jo
 		return fmt.Errorf(errors.ToAggregate().Error())
 	}
 
-	// Replicas.
-	if jmSpec.Replicas == nil || *jmSpec.Replicas != 1 {
-		return fmt.Errorf("invalid JobManager replicas, it must be 1")
-	}
-
-	// AccessScope.
-	switch jmSpec.AccessScope {
-	case AccessScopeCluster:
-	case AccessScopeVPC:
-	case AccessScopeExternal:
-	case AccessScopeNodePort:
-	case AccessScopeHeadless:
-	default:
-		return fmt.Errorf("invalid JobManager access scope: %v", jmSpec.AccessScope)
-	}
-
 	// Ports.
-	err = v.validatePort(jmSpec.Ports.RPC, "rpc", "jobmanager")
-	if err != nil {
-		return err
-	}
-	err = v.validatePort(jmSpec.Ports.Blob, "blob", "jobmanager")
-	if err != nil {
-		return err
-	}
-	err = v.validatePort(jmSpec.Ports.Query, "query", "jobmanager")
-	if err != nil {
-		return err
-	}
-	err = v.validatePort(jmSpec.Ports.UI, "ui", "jobmanager")
-	if err != nil {
-		return err
-	}
 	var ports = []NamedPort{
 		{Name: "rpc", ContainerPort: *jmSpec.Ports.RPC},
 		{Name: "blob", ContainerPort: *jmSpec.Ports.Blob},
@@ -476,25 +409,8 @@ func (v *Validator) validateTaskManager(flinkVersion *version.Version, tmSpec *T
 		return fmt.Errorf(errors.ToAggregate().Error())
 	}
 
-	// Replicas.
-	if tmSpec.Replicas == nil || *tmSpec.Replicas < 1 {
-		return fmt.Errorf("invalid TaskManager replicas, it must >= 1")
-	}
-
 	// Ports.
 	var err error
-	err = v.validatePort(tmSpec.Ports.RPC, "rpc", "taskmanager")
-	if err != nil {
-		return err
-	}
-	err = v.validatePort(tmSpec.Ports.Data, "data", "taskmanager")
-	if err != nil {
-		return err
-	}
-	err = v.validatePort(tmSpec.Ports.Query, "query", "taskmanager")
-	if err != nil {
-		return err
-	}
 	var ports = []NamedPort{
 		{Name: "rpc", ContainerPort: *tmSpec.Ports.RPC},
 		{Name: "data", ContainerPort: *tmSpec.Ports.Data},
@@ -564,9 +480,6 @@ func (v *Validator) validateJob(jobSpec *JobSpec) error {
 		return fmt.Errorf("job parallelism must be >= 1")
 	}
 
-	if jobSpec.RestartPolicy == nil {
-		return fmt.Errorf("job restartPolicy is unspecified")
-	}
 	switch *jobSpec.RestartPolicy {
 	case JobRestartPolicyNever:
 	case JobRestartPolicyFromSavepointOnFailure:
@@ -582,30 +495,9 @@ func (v *Validator) validateJob(jobSpec *JobSpec) error {
 		return fmt.Errorf("maxStateAgeToRestoreSeconds must be specified when takeSavepointOnUpdate is set as false")
 	}
 
-	if jobSpec.CleanupPolicy == nil {
-		return fmt.Errorf("job cleanupPolicy is unspecified")
-	}
-	var err = v.validateCleanupAction(
-		"cleanupPolicy.afterJobSucceeds", jobSpec.CleanupPolicy.AfterJobSucceeds)
-	if err != nil {
-		return err
-	}
-	err = v.validateCleanupAction(
-		"cleanupPolicy.afterJobFails", jobSpec.CleanupPolicy.AfterJobFails)
-	if err != nil {
-		return err
-	}
-
 	if jobSpec.CancelRequested != nil && *jobSpec.CancelRequested {
 		return fmt.Errorf(
 			"property `cancelRequested` cannot be set to true for a new job")
-	}
-
-	if jobSpec.Mode == nil {
-		return fmt.Errorf("job mode is unspecified")
-	}
-	if err := v.validateJobMode("mode", *jobSpec.Mode); err != nil {
-		return err
 	}
 
 	return nil
@@ -637,18 +529,6 @@ func (v *Validator) validateResourceRequirements(rr corev1.ResourceRequirements,
 		return fmt.Errorf("%s memory request/limit is unspecified", component)
 	}
 
-	return nil
-}
-
-func (v *Validator) validatePort(
-	port *int32, name string, component string) error {
-	if port == nil {
-		return fmt.Errorf("%v %v port is unspecified", component, name)
-	}
-	if *port <= 1024 {
-		return fmt.Errorf(
-			"invalid %v %v port: %v, must be > 1024", component, name, *port)
-	}
 	return nil
 }
 
