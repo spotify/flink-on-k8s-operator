@@ -121,12 +121,14 @@ const (
 // ImageSpec defines Flink image of JobManager and TaskManager containers.
 type ImageSpec struct {
 	// Flink image name.
+	// +kubebuilder:validation:MinLength=1
 	Name string `json:"name"`
 
 	// Image pull policy. One of `Always, Never, IfNotPresent`, default: `Always`.
 	// if :latest tag is specified, or IfNotPresent otherwise.
 	// [More info](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy)
 	// +kubebuilder:default:=Always
+	// +kubebuilder:validation:Enum=Always;Never;IfNotPresent
 	PullPolicy corev1.PullPolicy `json:"pullPolicy,omitempty"`
 
 	// _(Optional)_ Secrets for image pull.
@@ -200,6 +202,8 @@ type JobManagerIngressSpec struct {
 type JobManagerSpec struct {
 	// The number of JobManager replicas, default: `1`
 	// +kubebuilder:default:=1
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=1
 	Replicas *int32 `json:"replicas,omitempty"`
 
 	// Access scope, default: `Cluster`.
@@ -210,6 +214,7 @@ type JobManagerSpec struct {
 	// `Headless`: pod IPs assumed to be routable and advertised directly with `clusterIP: None``.
 	// Currently `VPC, External` are only available for GKE.
 	// +kubebuilder:default:=Cluster
+	// +kubebuilder:validation:Enum=Cluster;VPC;External;NodePort;Headless
 	AccessScope string `json:"accessScope,omitempty"`
 
 	// _(Optional)_ Define JobManager Service annotations for configuration.
@@ -346,6 +351,7 @@ type TaskManagerSpec struct {
 
 	// The number of replicas. default: `3`
 	// +kubebuilder:default:=3
+	// +kubebuilder:validation:Minimum=1
 	Replicas *int32 `json:"replicas,omitempty"`
 
 	// Ports that TaskManager listening on.
@@ -452,10 +458,16 @@ const (
 // Use one of `KeepCluster, DeleteCluster, DeleteTaskManager` for the below fields.
 type CleanupPolicy struct {
 	// Action to take after job succeeds, default: `DeleteCluster`.
+	// +kubebuilder:default=DeleteCluster
+	// +kubebuilder:validation:Enum=KeepCluster;DeleteCluster;DeleteTaskManager
 	AfterJobSucceeds CleanupAction `json:"afterJobSucceeds,omitempty"`
 	// Action to take after job fails, default: `KeepCluster`.
+	// +kubebuilder:default=KeepCluster
+	// +kubebuilder:validation:Enum=KeepCluster;DeleteCluster;DeleteTaskManager
 	AfterJobFails CleanupAction `json:"afterJobFails,omitempty"`
 	// Action to take after job is cancelled, default: `DeleteCluster`.
+	// +kubebuilder:default=DeleteCluster
+	// +kubebuilder:validation:Enum=KeepCluster;DeleteCluster;DeleteTaskManager
 	AfterJobCancelled CleanupAction `json:"afterJobCancelled,omitempty"`
 }
 
@@ -556,6 +568,7 @@ type JobSpec struct {
 	// the job will stay in failed state. This option is usually used together
 	// with `autoSavepointSeconds` and `savepointsDir`.
 	// +kubebuilder:default:=Never
+	// +kubebuilder:validation:Enum=Never;FromSavepointOnFailure
 	RestartPolicy *JobRestartPolicy `json:"restartPolicy,omitempty"`
 
 	// The action to take after job finishes.
@@ -690,6 +703,7 @@ type FlinkClusterSpec struct {
 type HadoopConfig struct {
 	// The name of the ConfigMap which contains the Hadoop config files.
 	// The ConfigMap must be in the same namespace as the FlinkCluster.
+	// +kubebuilder:validation:MinLength=1
 	ConfigMapName string `json:"configMapName,omitempty"`
 
 	// The path where to mount the Volume of the ConfigMap.
