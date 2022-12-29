@@ -120,7 +120,7 @@ func TestNewRevision(t *testing.T) {
 	var collisionCount int32 = 0
 	var controller = true
 	var blockOwnerDeletion = true
-	var raw, _ = getPatch(patched)
+	var raw, _ = newRevisionDataPatch(patched)
 	var revision, _ = newRevision(&flinkCluster, 1, &collisionCount)
 	var expectedRevision = appsv1.ControllerRevision{
 		ObjectMeta: metav1.ObjectMeta{
@@ -281,7 +281,7 @@ func TestGetUpdateState(t *testing.T) {
 		jmService:           &corev1.Service{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "cluster-85dc8f749"}}},
 	}
 	var state = getUpdateState(&observed)
-	assert.Equal(t, state, UpdateStatePreparing)
+	assert.Equal(t, state, UpdateStateInProgress)
 
 	observed = ObservedClusterState{
 		cluster: &v1beta1.FlinkCluster{

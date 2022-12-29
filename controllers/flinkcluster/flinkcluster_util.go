@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -160,7 +161,7 @@ func getFromSavepoint(jobSpec batchv1.JobSpec) string {
 
 // newRevision generates FlinkClusterSpec patch and makes new child ControllerRevision resource with it.
 func newRevision(cluster *v1beta1.FlinkCluster, revision int64, collisionCount *int32) (*appsv1.ControllerRevision, error) {
-	patch, err := getPatch(cluster)
+	patch, err := newRevisionDataPatch(cluster)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +185,7 @@ func newRevision(cluster *v1beta1.FlinkCluster, revision int64, collisionCount *
 	return cr, nil
 }
 
-func getPatch(cluster *v1beta1.FlinkCluster) ([]byte, error) {
+func newRevisionDataPatch(cluster *v1beta1.FlinkCluster) ([]byte, error) {
 	// Ignore fields not related to rendering job resource.
 	var c *v1beta1.FlinkCluster
 	if cluster.Spec.Job != nil {
@@ -447,15 +448,15 @@ func getUpdateState(observed *ObservedClusterState) UpdateState {
 		return ""
 	}
 	var recorded = observed.cluster.Status
-	var revision = recorded.Revision
 	var job = recorded.Components.Job
-	var jobSpec = observed.cluster.Spec.Job
 
-	if !revision.IsUpdateTriggered() {
+	if !recorded.Revision.IsUpdateTriggered() {
 		return ""
 	}
+
 	switch {
-	case jobSpec != nil && !job.UpdateReady(jobSpec, observed.observeTime):
+	case isJobUpdate(observed.revisions, observed.cluster) &&
+		!job.UpdateReady(observed.cluster.Spec.Job, observed.observeTime):
 		return UpdateStatePreparing
 	case !isClusterUpdateToDate(observed):
 		return UpdateStateInProgress
@@ -463,13 +464,43 @@ func getUpdateState(observed *ObservedClusterState) UpdateState {
 	return UpdateStateFinished
 }
 
+func isJobUpdate(revisions []*appsv1.ControllerRevision, cluster *v1beta1.FlinkCluster) bool {
+	if len(revisions) < 2 || (cluster != nil && cluster.Spec.Job == nil) {
+		return false
+	}
+
+	lr := new(appsv1.ControllerRevision)
+	history.SortControllerRevisions(revisions)
+	revisions[len(revisions)-2].DeepCopyInto(lr)
+
+	patchJobSpec := func(bytes []byte) map[string]interface{} {
+		var raw map[string]interface{}
+		json.Unmarshal(bytes, &raw)
+		spec := raw["spec"].(map[string]interface{})
+
+		return spec["job"].(map[string]interface{})
+	}
+
+	patch, _ := newRevisionDataPatch(cluster)
+	job := patchJobSpec(patch)
+	lastRevisionJob := patchJobSpec(lr.Data.Raw)
+
+	jobUpdated := !reflect.DeepEqual(job, lastRevisionJob)
+
+	return jobUpdated
+}
+
 func shouldUpdateJob(observed *ObservedClusterState) bool {
-	return observed.updateState == UpdateStateInProgress
+	return observed.updateState == UpdateStateInProgress && isJobUpdate(observed.revisions, observed.cluster)
 }
 
 func shouldUpdateCluster(observed *ObservedClusterState) bool {
-	var job = observed.cluster.Status.Components.Job
-	return !job.IsActive() && observed.updateState == UpdateStateInProgress
+	if isJobUpdate(observed.revisions, observed.cluster) {
+		var job = observed.cluster.Status.Components.Job
+		return !job.IsActive() && observed.updateState == UpdateStateInProgress
+	}
+
+	return observed.updateState == UpdateStateInProgress
 }
 
 func getFlinkJobDeploymentState(flinkJobState string) string {
