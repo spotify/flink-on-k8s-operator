@@ -472,7 +472,7 @@ func shouldUpdateCluster(observed *ObservedClusterState) bool {
 	return !job.IsActive() && observed.updateState == UpdateStateInProgress
 }
 
-func getFlinkJobDeploymentState(flinkJobState string) string {
+func getFlinkJobDeploymentState(flinkJobState string) v1beta1.JobState {
 	switch flinkJobState {
 	case "INITIALIZING", "CREATED", "RUNNING", "FAILING", "CANCELLING", "RESTARTING", "RECONCILING", "SUSPENDED":
 		return v1beta1.JobStateRunning
