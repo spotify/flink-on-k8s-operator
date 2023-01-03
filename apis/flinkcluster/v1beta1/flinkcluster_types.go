@@ -23,41 +23,53 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type ClusterState string
+
+func (cs ClusterState) String() string {
+	return string(cs)
+}
+
 // ClusterState defines states for a cluster.
 const (
-	ClusterStateCreating         = "Creating"
-	ClusterStateRunning          = "Running"
-	ClusterStateReconciling      = "Reconciling"
-	ClusterStateUpdating         = "Updating"
-	ClusterStateStopping         = "Stopping"
-	ClusterStatePartiallyStopped = "PartiallyStopped"
-	ClusterStateStopped          = "Stopped"
+	ClusterStateCreating         ClusterState = "Creating"
+	ClusterStateRunning          ClusterState = "Running"
+	ClusterStateReconciling      ClusterState = "Reconciling"
+	ClusterStateUpdating         ClusterState = "Updating"
+	ClusterStateStopping         ClusterState = "Stopping"
+	ClusterStatePartiallyStopped ClusterState = "PartiallyStopped"
+	ClusterStateStopped          ClusterState = "Stopped"
 )
+
+type ComponentState string
+
+func (cs ComponentState) String() string {
+	return string(cs)
+}
 
 // ComponentState defines states for a cluster component.
 const (
-	ComponentStateNotReady = "NotReady"
-	ComponentStateReady    = "Ready"
-	ComponentStateUpdating = "Updating"
-	ComponentStateDeleted  = "Deleted"
+	ComponentStateNotReady ComponentState = "NotReady"
+	ComponentStateReady    ComponentState = "Ready"
+	ComponentStateUpdating ComponentState = "Updating"
+	ComponentStateDeleted  ComponentState = "Deleted"
 )
 
 // JobMode defines the running mode for the job.
-const (
-	JobModeBlocking    = "Blocking"
-	JobModeApplication = "Application"
-	JobModeDetached    = "Detached"
-)
-
 type JobMode string
 
+const (
+	JobModeBlocking    JobMode = "Blocking"
+	JobModeApplication JobMode = "Application"
+	JobModeDetached    JobMode = "Detached"
+)
+
+// JobState defines states for a Flink job deployment.
 type JobState string
 
 func (js JobState) String() string {
 	return string(js)
 }
 
-// JobState defines states for a Flink job deployment.
 const (
 	JobStatePending      JobState = "Pending"
 	JobStateUpdating     JobState = "Updating"
@@ -742,7 +754,7 @@ type ConfigMapStatus struct {
 	Name string `json:"name"`
 
 	// The state of the component.
-	State string `json:"state"`
+	State ComponentState `json:"state"`
 }
 
 type JobManagerStatus struct {
@@ -750,7 +762,7 @@ type JobManagerStatus struct {
 	Name string `json:"name"`
 
 	// The state of the component.
-	State string `json:"state"`
+	State ComponentState `json:"state"`
 
 	// replicas is the number of desired replicas.
 	Replicas int32 `json:"replicas"`
@@ -766,7 +778,7 @@ type TaskManagerStatus struct {
 	Name string `json:"name"`
 
 	// The state of the component.
-	State string `json:"state"`
+	State ComponentState `json:"state"`
 
 	// replicas is the number of desired Pods.
 	Replicas int32 `json:"replicas"`
@@ -922,7 +934,7 @@ type JobManagerIngressStatus struct {
 	Name string `json:"name"`
 
 	// The state of the component.
-	State string `json:"state"`
+	State ComponentState `json:"state"`
 
 	// The URLs of ingress.
 	URLs []string `json:"urls,omitempty"`
@@ -934,7 +946,7 @@ type JobManagerServiceStatus struct {
 	Name string `json:"name"`
 
 	// The state of the component.
-	State string `json:"state"`
+	State ComponentState `json:"state"`
 
 	// (Optional) The node port, present when `accessScope` is `NodePort`.
 	NodePort int32 `json:"nodePort,omitempty"`
@@ -949,7 +961,7 @@ type FlinkClusterStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// The overall state of the Flink cluster.
-	State string `json:"state"`
+	State ClusterState `json:"state"`
 
 	// The status of the components.
 	Components FlinkClusterComponentsStatus `json:"components"`
