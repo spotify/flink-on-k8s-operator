@@ -792,7 +792,7 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 		}
 
 		// Suspend or stop job to proceed update.
-		if recorded.Revision.IsUpdateTriggered() {
+		if recorded.Revision.IsUpdateTriggered() && isJobUpdate(observed.revisions, observed.cluster) {
 			log.Info("Preparing job update")
 			var takeSavepoint = jobSpec.TakeSavepointOnUpdate == nil || *jobSpec.TakeSavepointOnUpdate
 			var shouldSuspend = takeSavepoint && util.IsBlank(jobSpec.FromSavepoint)
