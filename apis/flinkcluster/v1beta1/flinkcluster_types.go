@@ -51,19 +51,25 @@ const (
 
 type JobMode string
 
+type JobState string
+
+func (js JobState) String() string {
+	return string(js)
+}
+
 // JobState defines states for a Flink job deployment.
 const (
-	JobStatePending      = "Pending"
-	JobStateUpdating     = "Updating"
-	JobStateRestarting   = "Restarting"
-	JobStateDeploying    = "Deploying"
-	JobStateDeployFailed = "DeployFailed"
-	JobStateRunning      = "Running"
-	JobStateSucceeded    = "Succeeded"
-	JobStateCancelled    = "Cancelled"
-	JobStateFailed       = "Failed"
-	JobStateLost         = "Lost"
-	JobStateUnknown      = "Unknown"
+	JobStatePending      JobState = "Pending"
+	JobStateUpdating     JobState = "Updating"
+	JobStateRestarting   JobState = "Restarting"
+	JobStateDeploying    JobState = "Deploying"
+	JobStateDeployFailed JobState = "DeployFailed"
+	JobStateRunning      JobState = "Running"
+	JobStateSucceeded    JobState = "Succeeded"
+	JobStateCancelled    JobState = "Cancelled"
+	JobStateFailed       JobState = "Failed"
+	JobStateLost         JobState = "Lost"
+	JobStateUnknown      JobState = "Unknown"
 )
 
 // AccessScope defines the access scope of JobManager service.
@@ -826,7 +832,7 @@ type JobStatus struct {
 	SubmitterExitCode int32 `json:"submitterExitCode,omitempty"`
 
 	// The state of the Flink job deployment.
-	State string `json:"state"`
+	State JobState `json:"state"`
 
 	// The actual savepoint from which this job started.
 	// In case of restart, it might be different from the savepoint in the job

@@ -152,14 +152,14 @@ func (updater *ClusterStatusUpdater) createStatusChangeEvents(
 	// Job.
 	if oldStatus.Components.Job == nil && newStatus.Components.Job != nil {
 		updater.createStatusChangeEvent(
-			"Job", "", newStatus.Components.Job.State)
+			"Job", "", newStatus.Components.Job.State.String())
 	}
 	if oldStatus.Components.Job != nil && newStatus.Components.Job != nil &&
 		oldStatus.Components.Job.State != newStatus.Components.Job.State {
 		updater.createStatusChangeEvent(
 			"Job",
-			oldStatus.Components.Job.State,
-			newStatus.Components.Job.State)
+			oldStatus.Components.Job.State.String(),
+			newStatus.Components.Job.State.String())
 	}
 
 	// Cluster.
@@ -633,7 +633,7 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 		}
 	}
 
-	var newJobState string
+	var newJobState v1beta1.JobState
 	switch {
 	case oldJob == nil:
 		newJobState = v1beta1.JobStatePending
