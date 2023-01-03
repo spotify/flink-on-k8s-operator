@@ -6760,12 +6760,15 @@ spec:
                         replicas:
                           format: int32
                           type: integer
+                        selector:
+                          type: string
                         state:
                           type: string
                       required:
                         - name
                         - ready
                         - replicas
+                        - selector
                         - state
                       type: object
                   type: object
@@ -6831,4 +6834,8 @@ spec:
       served: true
       storage: true
       subresources:
+        scale:
+          labelSelectorPath: .status.components.taskManager.selector
+          specReplicasPath: .spec.taskManager.replicas
+          statusReplicasPath: .status.components.taskManager.replicas
         status: {}

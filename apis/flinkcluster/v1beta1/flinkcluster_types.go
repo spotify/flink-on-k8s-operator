@@ -775,6 +775,8 @@ type TaskManagerStatus struct {
 	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
 
 	Ready string `json:"ready"`
+
+	Selector string `json:"selector"`
 }
 
 // FlinkClusterComponentsStatus defines the observed status of the
@@ -965,9 +967,11 @@ type FlinkClusterStatus struct {
 	LastUpdateTime string `json:"lastUpdateTime,omitempty"`
 }
 
+// FlinkCluster is the Schema for the flinkclusters API
 // +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName={fc,fcs}
+// +kubebuilder:subresource:status
+// +kubebuilder:subresource:scale:specpath=.spec.taskManager.replicas,statuspath=.status.components.taskManager.replicas,selectorpath=.status.components.taskManager.selector
 // +kubebuilder:printcolumn:name="version",type=string,JSONPath=`.spec.flinkVersion`
 // +kubebuilder:printcolumn:name="status",type=string,JSONPath=`.status.state`
 // +kubebuilder:printcolumn:name="age",type=date,JSONPath=`.metadata.creationTimestamp`
@@ -976,8 +980,6 @@ type FlinkClusterStatus struct {
 // +kubebuilder:printcolumn:name="tm replicas",type=string,priority=1,JSONPath=`.status.components.taskManager.ready`
 // +kubebuilder:printcolumn:name="tm zone",type=string,priority=1,JSONPath=`.spec.taskManager.nodeSelector.topology\.kubernetes\.io\/zone`
 // +kubebuilder:printcolumn:name="Image",type="string",priority=1,JSONPath=".spec.image.name"
-
-// FlinkCluster is the Schema for the flinkclusters API
 type FlinkCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
