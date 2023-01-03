@@ -514,7 +514,7 @@ func getFlinkJobDeploymentState(flinkJobState string) v1beta1.JobState {
 	case "FAILED":
 		return v1beta1.JobStateFailed
 	default:
-		return ""
+		return v1beta1.JobStateUnknown
 	}
 }
 
