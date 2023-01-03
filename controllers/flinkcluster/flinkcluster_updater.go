@@ -52,6 +52,10 @@ type ClusterStatusUpdater struct {
 	observed  ObservedClusterState
 }
 
+type Status interface {
+	String() string
+}
+
 // Compares the current status recorded in the cluster's status field and the
 // new status derived from the status of the components, updates the cluster
 // status if it is changed, returns the new status.
@@ -126,8 +130,8 @@ func (updater *ClusterStatusUpdater) createStatusChangeEvents(
 
 	// JobManager ingress.
 	if oldStatus.Components.JobManagerIngress == nil && newStatus.Components.JobManagerIngress != nil {
-		updater.createStatusChangeEvent(
-			"JobManager ingress", "",
+		updater.createStatusEvent(
+			"JobManager ingress",
 			newStatus.Components.JobManagerIngress.State)
 	}
 	if oldStatus.Components.JobManagerIngress != nil && newStatus.Components.JobManagerIngress != nil &&
@@ -151,15 +155,14 @@ func (updater *ClusterStatusUpdater) createStatusChangeEvents(
 
 	// Job.
 	if oldStatus.Components.Job == nil && newStatus.Components.Job != nil {
-		updater.createStatusChangeEvent(
-			"Job", "", newStatus.Components.Job.State.String())
+		updater.createStatusEvent("Job", newStatus.Components.Job.State)
 	}
 	if oldStatus.Components.Job != nil && newStatus.Components.Job != nil &&
 		oldStatus.Components.Job.State != newStatus.Components.Job.State {
 		updater.createStatusChangeEvent(
 			"Job",
-			oldStatus.Components.Job.State.String(),
-			newStatus.Components.Job.State.String())
+			oldStatus.Components.Job.State,
+			newStatus.Components.Job.State)
 	}
 
 	// Cluster.
@@ -180,22 +183,21 @@ func (updater *ClusterStatusUpdater) createStatusChangeEvents(
 	}
 }
 
+func (updater *ClusterStatusUpdater) createStatusEvent(name string, status Status) {
+	updater.recorder.Event(
+		updater.observed.cluster,
+		"Normal",
+		"StatusUpdate",
+		fmt.Sprintf("%v status: %v", name, status))
+}
+
 func (updater *ClusterStatusUpdater) createStatusChangeEvent(
-	name string, oldStatus string, newStatus string) {
-	if len(oldStatus) == 0 {
-		updater.recorder.Event(
-			updater.observed.cluster,
-			"Normal",
-			"StatusUpdate",
-			fmt.Sprintf("%v status: %v", name, newStatus))
-	} else {
-		updater.recorder.Event(
-			updater.observed.cluster,
-			"Normal",
-			"StatusUpdate",
-			fmt.Sprintf(
-				"%v status changed: %v -> %v", name, oldStatus, newStatus))
-	}
+	name string, oldStatus Status, newStatus Status) {
+	updater.recorder.Event(
+		updater.observed.cluster,
+		"Normal",
+		"StatusUpdate",
+		fmt.Sprintf("%v status changed: %v -> %v", name, oldStatus, newStatus))
 }
 
 func (updater *ClusterStatusUpdater) deriveClusterStatus(
@@ -314,7 +316,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 		recorded.Components.JobManagerIngress.DeepCopyInto(status.Components.JobManagerIngress)
 		status.Components.JobManagerIngress.State = v1beta1.ComponentStateUpdating
 	} else if observedJmIngress != nil {
-		var state string
+		var state v1beta1.ComponentState
 		var urls []string
 		var useTLS bool
 		var useHost bool
@@ -1090,14 +1092,14 @@ func deriveRevisionStatus(
 	return r
 }
 
-func getStatefulSetState(statefulSet *appsv1.StatefulSet) string {
+func getStatefulSetState(statefulSet *appsv1.StatefulSet) v1beta1.ComponentState {
 	if statefulSet.Status.ReadyReplicas >= *statefulSet.Spec.Replicas {
 		return v1beta1.ComponentStateReady
 	}
 	return v1beta1.ComponentStateNotReady
 }
 
-func getDeploymentState(deployment *appsv1.Deployment) string {
+func getDeploymentState(deployment *appsv1.Deployment) v1beta1.ComponentState {
 	if deployment.Status.ReadyReplicas >= *deployment.Spec.Replicas {
 		return v1beta1.ComponentStateReady
 	}
