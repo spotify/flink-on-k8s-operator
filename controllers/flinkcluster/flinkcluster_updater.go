@@ -27,6 +27,7 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/go-logr/logr"
@@ -391,6 +392,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 				State: v1beta1.ComponentStateDeleted,
 			}
 	}
+	labelSelector := labels.SelectorFromSet(getComponentLabels(cluster, "taskmanager"))
 	var clusterTmDeploymentType = cluster.Spec.TaskManager.DeploymentType
 	if clusterTmDeploymentType == "" || clusterTmDeploymentType == v1beta1.DeploymentTypeStatefulSet {
 		// TaskManager StatefulSet.
@@ -407,6 +409,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 				Replicas:      observedTmStatefulSet.Status.Replicas,
 				ReadyReplicas: observedTmStatefulSet.Status.ReadyReplicas,
 				Ready:         fmt.Sprintf("%d/%d", observedTmStatefulSet.Status.ReadyReplicas, observedTmStatefulSet.Status.Replicas),
+				Selector:      labelSelector.String(),
 			}
 			if (*tmStatus).State == v1beta1.ComponentStateReady {
 				runningComponents++
@@ -432,6 +435,7 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 				Replicas:      observedTmDeployment.Status.Replicas,
 				ReadyReplicas: observedTmDeployment.Status.ReadyReplicas,
 				Ready:         fmt.Sprintf("%d/%d", observedTmDeployment.Status.ReadyReplicas, observedTmDeployment.Status.Replicas),
+				Selector:      labelSelector.String(),
 			}
 			if (*tmStatus).State == v1beta1.ComponentStateReady {
 				runningComponents++
