@@ -19,6 +19,7 @@ package flinkcluster
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -39,8 +40,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
-	policyv1 "k8s.io/api/policy/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -167,93 +166,58 @@ func (reconciler *ClusterReconciler) reconcileBatchScheduler() error {
 }
 
 func (reconciler *ClusterReconciler) reconcileJobManagerStatefulSet() error {
-	return reconciler.reconcileStatefulSet(
+	return reconciler.reconcileComponent(
 		"JobManager",
 		reconciler.desired.JmStatefulSet,
 		reconciler.observed.jmStatefulSet)
 }
 
 func (reconciler *ClusterReconciler) reconcileTaskManagerStatefulSet() error {
-	return reconciler.reconcileStatefulSet(
+	return reconciler.reconcileComponent(
 		"TaskManager",
 		reconciler.desired.TmStatefulSet,
 		reconciler.observed.tmStatefulSet)
 }
 
 func (reconciler *ClusterReconciler) reconcileTaskManagerDeployment() error {
-	return reconciler.reconcileDeployment(
+	return reconciler.reconcileComponent(
 		"TaskManager",
 		reconciler.desired.TmDeployment,
 		reconciler.observed.tmDeployment)
 }
 
-func (reconciler *ClusterReconciler) reconcileStatefulSet(
+func (reconciler *ClusterReconciler) reconcileComponent(
 	component string,
-	desiredStatefulSet *appsv1.StatefulSet,
-	observedStatefulSet *appsv1.StatefulSet) error {
+	desiredObj client.Object,
+	observedObj client.Object) error {
 	var log = reconciler.log.WithValues("component", component)
+	desiredObjIsNil := reflect.ValueOf(desiredObj).IsNil()
+	observedObjIsNil := reflect.ValueOf(observedObj).IsNil()
 
-	if desiredStatefulSet != nil && observedStatefulSet == nil {
-		return reconciler.createStatefulSet(desiredStatefulSet, component)
+	if !desiredObjIsNil && observedObjIsNil {
+		return reconciler.createComponent(desiredObj, component)
 	}
 
-	if desiredStatefulSet != nil && observedStatefulSet != nil {
+	if !desiredObjIsNil && !observedObjIsNil {
 		var cluster = reconciler.observed.cluster
-		if shouldUpdateCluster(&reconciler.observed) && !isComponentUpdated(observedStatefulSet, cluster) {
-			updateComponent := fmt.Sprintf("%v StatefulSet", component)
+		if shouldUpdateCluster(&reconciler.observed) && !isComponentUpdated(observedObj, cluster) {
 			var err error
 			if *reconciler.observed.cluster.Spec.RecreateOnUpdate {
-				err = reconciler.deleteOldComponent(desiredStatefulSet, observedStatefulSet, updateComponent)
+				err = reconciler.deleteOldComponent(desiredObj, observedObj, component)
 			} else {
-				err = reconciler.updateComponent(desiredStatefulSet, updateComponent)
+				err = reconciler.updateComponent(desiredObj, component)
 			}
 			if err != nil {
 				return err
 			}
 			return nil
 		}
-		log.Info("StatefulSet already exists, no action")
+		log.Info("Component already exists, no action", "component", component)
 		return nil
 	}
 
-	if desiredStatefulSet == nil && observedStatefulSet != nil {
-		return reconciler.deleteStatefulSet(observedStatefulSet, component)
-	}
-
-	return nil
-}
-
-func (reconciler *ClusterReconciler) reconcileDeployment(
-	component string,
-	desiredDeployment *appsv1.Deployment,
-	observedDeployment *appsv1.Deployment) error {
-	var log = reconciler.log.WithValues("component", component)
-
-	if desiredDeployment != nil && observedDeployment == nil {
-		return reconciler.createDeployment(desiredDeployment, component)
-	}
-
-	if desiredDeployment != nil && observedDeployment != nil {
-		var cluster = reconciler.observed.cluster
-		if shouldUpdateCluster(&reconciler.observed) && !isComponentUpdated(observedDeployment, cluster) {
-			updateComponent := fmt.Sprintf("%v Deployment", component)
-			var err error
-			if *reconciler.observed.cluster.Spec.RecreateOnUpdate {
-				err = reconciler.deleteOldComponent(desiredDeployment, observedDeployment, updateComponent)
-			} else {
-				err = reconciler.updateComponent(desiredDeployment, updateComponent)
-			}
-			if err != nil {
-				return err
-			}
-			return nil
-		}
-		log.Info("Deployment already exists, no action")
-		return nil
-	}
-
-	if desiredDeployment == nil && observedDeployment != nil {
-		return reconciler.deleteDeployment(observedDeployment, component)
+	if desiredObjIsNil && !observedObjIsNil {
+		return reconciler.deleteComponent(observedObj, component)
 	}
 
 	return nil
@@ -263,304 +227,110 @@ func (reconciler *ClusterReconciler) reconcileTaskManagerService() error {
 	var desiredTmService = reconciler.desired.TmService
 	var observedTmService = reconciler.observed.tmService
 
-	if desiredTmService != nil && observedTmService == nil {
-		return reconciler.createService(desiredTmService, "TaskManagere")
-	}
-
 	if desiredTmService != nil && observedTmService != nil {
-		var cluster = reconciler.observed.cluster
-		if shouldUpdateCluster(&reconciler.observed) && !isComponentUpdated(observedTmService, cluster) {
-			// v1.Service API does not handle update correctly when below values are empty.
-			desiredTmService.SetResourceVersion(observedTmService.GetResourceVersion())
-			desiredTmService.Spec.ClusterIP = observedTmService.Spec.ClusterIP
-			var err error
-			if *reconciler.observed.cluster.Spec.RecreateOnUpdate {
-				err = reconciler.deleteOldComponent(desiredTmService, observedTmService, "TaskManager")
-			} else {
-				err = reconciler.updateComponent(desiredTmService, "TaskManager")
-			}
-			if err != nil {
-				return err
-			}
-			return nil
-		}
-		reconciler.log.Info("TaskManager service already exists, no action")
-		return nil
+		// v1.Service API does not handle update correctly when below values are empty.
+		desiredTmService.SetResourceVersion(observedTmService.GetResourceVersion())
+		desiredTmService.Spec.ClusterIP = observedTmService.Spec.ClusterIP
+	}
+	return reconciler.reconcileComponent("JobManagerService", desiredTmService, observedTmService)
+}
+
+func (reconciler *ClusterReconciler) createComponent(
+	obj client.Object, component string) error {
+	var context = reconciler.context
+	var log = reconciler.log.
+		WithValues("component", component).
+		WithValues("object", obj)
+
+	if err := reconciler.k8sClient.Create(context, obj); err != nil {
+		log.Error(err, "Failed to create")
+		return err
 	}
 
-	if desiredTmService == nil && observedTmService != nil {
-		return reconciler.deleteService(observedTmService, "TaskManager")
-	}
-
+	log.Info("Created")
 	return nil
 }
 
-func (reconciler *ClusterReconciler) createStatefulSet(
-	statefulSet *appsv1.StatefulSet, component string) error {
-	var context = reconciler.context
-	var log = reconciler.log.WithValues("component", component)
-	var k8sClient = reconciler.k8sClient
-
-	log.Info("Creating StatefulSet", "StatefulSet", *statefulSet)
-	var err = k8sClient.Create(context, statefulSet)
-	if err != nil {
-		log.Error(err, "Failed to create StatefulSet")
-	} else {
-		log.Info("StatefulSet created")
-	}
-	return err
-}
-
-func (reconciler *ClusterReconciler) createDeployment(
-	deployment *appsv1.Deployment, component string) error {
-	var context = reconciler.context
-	var log = reconciler.log.WithValues("component", component)
-	var k8sClient = reconciler.k8sClient
-
-	log.Info("Creating Deployment", "Deployment", *deployment)
-	var err = k8sClient.Create(context, deployment)
-	if err != nil {
-		log.Error(err, "Failed to create Deployment")
-	} else {
-		log.Info("Deployment created")
-	}
-	return err
-}
-
 func (reconciler *ClusterReconciler) deleteOldComponent(desired client.Object, observed runtime.Object, component string) error {
-	var log = reconciler.log.WithValues("component", component)
+	var log = reconciler.log.
+		WithValues("component", component).
+		WithValues("desired", desired).
+		WithValues("observed", desired)
 	if isComponentUpdated(observed, reconciler.observed.cluster) {
-		reconciler.log.Info(fmt.Sprintf("%v is already updated, no action", component))
+		reconciler.log.Info("Already updated, no action")
 		return nil
 	}
 
 	var context = reconciler.context
 	var k8sClient = reconciler.k8sClient
-	log.Info("Deleting component for update", "component", desired)
 	err := k8sClient.Delete(context, desired)
 	if err != nil {
 		log.Error(err, "Failed to delete component for update")
 		return err
 	}
-	log.Info("Component deleted for update successfully")
+
+	log.Info("Deleted")
 	return nil
 }
 
 func (reconciler *ClusterReconciler) updateComponent(desired client.Object, component string) error {
-	var log = reconciler.log.WithValues("component", component)
+	var log = reconciler.log.
+		WithValues("component", component).
+		WithValues("object", desired)
 	var context = reconciler.context
 	var k8sClient = reconciler.k8sClient
 
-	log.Info("Update component", "component", desired)
-	err := k8sClient.Update(context, desired)
-	if err != nil {
+	if err := k8sClient.Update(context, desired); err != nil {
 		log.Error(err, "Failed to update component for update")
 		return err
 	}
-	log.Info("Component update successfully")
+
+	log.Info("Updated")
 	return nil
 }
 
-func (reconciler *ClusterReconciler) deleteStatefulSet(
-	statefulSet *appsv1.StatefulSet, component string) error {
+func (reconciler *ClusterReconciler) deleteComponent(
+	obj client.Object, component string) error {
 	var context = reconciler.context
-	var log = reconciler.log.WithValues("component", component)
+	var log = reconciler.log.
+		WithValues("component", component).
+		WithValues("object", obj)
 	var k8sClient = reconciler.k8sClient
 
-	log.Info("Deleting StatefulSet", "StatefulSet", statefulSet)
-	var err = k8sClient.Delete(context, statefulSet)
-	err = client.IgnoreNotFound(err)
-	if err != nil {
-		log.Error(err, "Failed to delete StatefulSet")
-	} else {
-		log.Info("StatefulSet deleted")
+	var err = k8sClient.Delete(context, obj)
+	if client.IgnoreNotFound(err) != nil {
+		log.Error(err, "Failed to delete", component, obj)
 	}
-	return err
-}
 
-func (reconciler *ClusterReconciler) deleteDeployment(
-	deployment *appsv1.Deployment, component string) error {
-	var context = reconciler.context
-	var log = reconciler.log.WithValues("component", component)
-	var k8sClient = reconciler.k8sClient
-
-	log.Info("Deleting Deployment", "Deployment", deployment)
-	var err = k8sClient.Delete(context, deployment)
-	err = client.IgnoreNotFound(err)
-	if err != nil {
-		log.Error(err, "Failed to delete Deployment")
-	} else {
-		log.Info("Deployment deleted")
-	}
-	return err
+	log.Info("Deleted")
+	return nil
 }
 
 func (reconciler *ClusterReconciler) reconcileJobManagerService() error {
 	var desiredJmService = reconciler.desired.JmService
 	var observedJmService = reconciler.observed.jmService
 
-	if desiredJmService != nil && observedJmService == nil {
-		return reconciler.createService(desiredJmService, "JobManager")
-	}
-
 	if desiredJmService != nil && observedJmService != nil {
-		var cluster = reconciler.observed.cluster
-		if shouldUpdateCluster(&reconciler.observed) && !isComponentUpdated(observedJmService, cluster) {
-			// v1.Service API does not handle update correctly when below values are empty.
-			desiredJmService.SetResourceVersion(observedJmService.GetResourceVersion())
-			desiredJmService.Spec.ClusterIP = observedJmService.Spec.ClusterIP
-			var err error
-			if *reconciler.observed.cluster.Spec.RecreateOnUpdate {
-				err = reconciler.deleteOldComponent(desiredJmService, observedJmService, "JobManager service")
-			} else {
-				err = reconciler.updateComponent(desiredJmService, "JobManager service")
-			}
-			if err != nil {
-				return err
-			}
-			return nil
-		}
-		reconciler.log.Info("JobManager service already exists, no action")
-		return nil
+		// v1.Service API does not handle update correctly when below values are empty.
+		desiredJmService.SetResourceVersion(observedJmService.GetResourceVersion())
+		desiredJmService.Spec.ClusterIP = observedJmService.Spec.ClusterIP
 	}
 
-	if desiredJmService == nil && observedJmService != nil {
-		return reconciler.deleteService(observedJmService, "JobManager")
-	}
-
-	return nil
-}
-
-func (reconciler *ClusterReconciler) createService(
-	service *corev1.Service, component string) error {
-	var context = reconciler.context
-	var log = reconciler.log.WithValues("component", component)
-	var k8sClient = reconciler.k8sClient
-
-	log.Info("Creating service", "resource", *service)
-	var err = k8sClient.Create(context, service)
-	if err != nil {
-		log.Info("Failed to create service", "error", err)
-	} else {
-		log.Info("Service created")
-	}
-	return err
-}
-
-func (reconciler *ClusterReconciler) deleteService(
-	service *corev1.Service, component string) error {
-	var context = reconciler.context
-	var log = reconciler.log.WithValues("component", component)
-	var k8sClient = reconciler.k8sClient
-
-	log.Info("Deleting service", "service", service)
-	var err = k8sClient.Delete(context, service)
-	err = client.IgnoreNotFound(err)
-	if err != nil {
-		log.Error(err, "Failed to delete service")
-	} else {
-		log.Info("service deleted")
-	}
-	return err
+	return reconciler.reconcileComponent("JobManagerService", desiredJmService, observedJmService)
 }
 
 func (reconciler *ClusterReconciler) reconcileJobManagerIngress() error {
 	var desiredJmIngress = reconciler.desired.JmIngress
 	var observedJmIngress = reconciler.observed.jmIngress
 
-	if desiredJmIngress != nil && observedJmIngress == nil {
-		return reconciler.createIngress(desiredJmIngress, "JobManager")
-	}
-
-	if desiredJmIngress != nil && observedJmIngress != nil {
-		var cluster = reconciler.observed.cluster
-		if shouldUpdateCluster(&reconciler.observed) && !isComponentUpdated(observedJmIngress, cluster) {
-			var err error
-			if *reconciler.observed.cluster.Spec.RecreateOnUpdate {
-				err = reconciler.deleteOldComponent(desiredJmIngress, observedJmIngress, "JobManager ingress")
-			} else {
-				err = reconciler.updateComponent(desiredJmIngress, "JobManager ingress")
-			}
-			if err != nil {
-				return err
-			}
-			return nil
-		}
-		reconciler.log.Info("JobManager ingress already exists, no action")
-		return nil
-	}
-
-	if desiredJmIngress == nil && observedJmIngress != nil {
-		return reconciler.deleteIngress(observedJmIngress, "JobManager")
-	}
-
-	return nil
-}
-
-func (reconciler *ClusterReconciler) createIngress(
-	ingress *networkingv1.Ingress, component string) error {
-	var context = reconciler.context
-	var log = reconciler.log.WithValues("component", component)
-	var k8sClient = reconciler.k8sClient
-
-	log.Info("Creating ingress", "resource", *ingress)
-	var err = k8sClient.Create(context, ingress)
-	if err != nil {
-		log.Info("Failed to create ingress", "error", err)
-	} else {
-		log.Info("Ingress created")
-	}
-	return err
-}
-
-func (reconciler *ClusterReconciler) deleteIngress(
-	ingress *networkingv1.Ingress, component string) error {
-	var context = reconciler.context
-	var log = reconciler.log.WithValues("component", component)
-	var k8sClient = reconciler.k8sClient
-
-	log.Info("Deleting ingress", "ingress", ingress)
-	var err = k8sClient.Delete(context, ingress)
-	err = client.IgnoreNotFound(err)
-	if err != nil {
-		log.Error(err, "Failed to delete ingress")
-	} else {
-		log.Info("Ingress deleted")
-	}
-	return err
+	return reconciler.reconcileComponent("JobManagerIngress", desiredJmIngress, observedJmIngress)
 }
 
 func (reconciler *ClusterReconciler) reconcileConfigMap() error {
 	var desiredConfigMap = reconciler.desired.ConfigMap
 	var observedConfigMap = reconciler.observed.configMap
 
-	if desiredConfigMap != nil && observedConfigMap == nil {
-		return reconciler.createConfigMap(desiredConfigMap, "ConfigMap")
-	}
-
-	if desiredConfigMap != nil && observedConfigMap != nil {
-		var cluster = reconciler.observed.cluster
-		if shouldUpdateCluster(&reconciler.observed) && !isComponentUpdated(observedConfigMap, cluster) {
-			var err error
-			if *reconciler.observed.cluster.Spec.RecreateOnUpdate {
-				err = reconciler.deleteOldComponent(desiredConfigMap, observedConfigMap, "ConfigMap")
-			} else {
-				err = reconciler.updateComponent(desiredConfigMap, "ConfigMap")
-			}
-			if err != nil {
-				return err
-			}
-			return nil
-		}
-		reconciler.log.Info("ConfigMap already exists, no action")
-		return nil
-	}
-
-	if desiredConfigMap == nil && observedConfigMap != nil {
-		return reconciler.deleteConfigMap(observedConfigMap, "ConfigMap")
-	}
-
-	return nil
+	return reconciler.reconcileComponent("ConfigMap", desiredConfigMap, observedConfigMap)
 }
 
 // Set the owner reference of the cluster to the HA ConfigMap (if it doesn't already have one)
@@ -579,85 +349,19 @@ func (reconciler *ClusterReconciler) reconcileHAConfigMap() error {
 	return nil
 }
 
-func (reconciler *ClusterReconciler) createConfigMap(
-	cm *corev1.ConfigMap, component string) error {
-	var context = reconciler.context
-	var log = reconciler.log.WithValues("component", component)
-	var k8sClient = reconciler.k8sClient
-
-	log.Info("Creating configMap", "configMap", *cm)
-	var err = k8sClient.Create(context, cm)
-	if err != nil {
-		log.Info("Failed to create configMap", "error", err)
-	} else {
-		log.Info("ConfigMap created")
-	}
-	return err
-}
-
-func (reconciler *ClusterReconciler) deleteConfigMap(
-	cm *corev1.ConfigMap, component string) error {
-	var context = reconciler.context
-	var log = reconciler.log.WithValues("component", component)
-	var k8sClient = reconciler.k8sClient
-
-	log.Info("Deleting configMap", "configMap", cm)
-	var err = k8sClient.Delete(context, cm)
-	err = client.IgnoreNotFound(err)
-	if err != nil {
-		log.Error(err, "Failed to delete configMap")
-	} else {
-		log.Info("ConfigMap deleted")
-	}
-	return err
-}
-
 func (reconciler *ClusterReconciler) reconcilePodDisruptionBudget() error {
 	var desiredPodDisruptionBudget = reconciler.desired.PodDisruptionBudget
 	var observedPodDisruptionBudget = reconciler.observed.podDisruptionBudget
 
 	if desiredPodDisruptionBudget != nil && observedPodDisruptionBudget == nil {
-		return reconciler.createPodDisruptionBudget(desiredPodDisruptionBudget, "PodDisruptionBudget")
+		return reconciler.createComponent(desiredPodDisruptionBudget, "PodDisruptionBudget")
 	}
 
 	if desiredPodDisruptionBudget == nil && observedPodDisruptionBudget != nil {
-		return reconciler.deletePodDisruptionBudget(observedPodDisruptionBudget, "PodDisruptionBudget")
+		return reconciler.deleteComponent(observedPodDisruptionBudget, "PodDisruptionBudget")
 	}
 
 	return nil
-}
-
-func (reconciler *ClusterReconciler) createPodDisruptionBudget(
-	pdb *policyv1.PodDisruptionBudget, component string) error {
-	var context = reconciler.context
-	var log = reconciler.log.WithValues("component", component)
-	var k8sClient = reconciler.k8sClient
-
-	log.Info("Creating PodDisruptionBudget", "PodDisruptionBudget", *pdb)
-	var err = k8sClient.Create(context, pdb)
-	if err != nil {
-		log.Info("Failed to create PodDisruptionBudget", "error", err)
-	} else {
-		log.Info("PodDisruptionBudget created")
-	}
-	return err
-}
-
-func (reconciler *ClusterReconciler) deletePodDisruptionBudget(
-	pdb *policyv1.PodDisruptionBudget, component string) error {
-	var context = reconciler.context
-	var log = reconciler.log.WithValues("component", component)
-	var k8sClient = reconciler.k8sClient
-
-	log.Info("Deleting PodDisruptionBudget", "PodDisruptionBudget", pdb)
-	var err = k8sClient.Delete(context, pdb)
-	err = client.IgnoreNotFound(err)
-	if err != nil {
-		log.Error(err, "Failed to delete PodDisruptionBudget")
-	} else {
-		log.Info("PodDisruptionBudget deleted")
-	}
-	return err
 }
 
 func (reconciler *ClusterReconciler) reconcilePersistentVolumeClaims() error {
