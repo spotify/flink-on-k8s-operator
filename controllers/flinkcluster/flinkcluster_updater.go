@@ -650,11 +650,8 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 	// Derive the job state from the observed Flink job, if it exists.
 	case observedFlinkJob != nil:
 		newJobState = getFlinkJobDeploymentState(observedFlinkJob.State)
-		// job state can be unknown for brief period of time after job is submitted/updated/restarted
-		if newJobState != v1beta1.JobStateUnknown {
-			newJob.ID = observedFlinkJob.Id
-			newJob.Name = observedFlinkJob.Name
-		}
+		newJob.ID = observedFlinkJob.Id
+		newJob.Name = observedFlinkJob.Name
 	case oldJob.IsActive() && observedSubmitter.job != nil && observedSubmitter.job.Status.Active == 0:
 		if observedSubmitter.job.Status.Succeeded == 1 {
 			newJobState = v1beta1.JobStateSucceeded
