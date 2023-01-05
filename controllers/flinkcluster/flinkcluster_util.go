@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -60,6 +59,7 @@ type UpdateState string
 type JobSubmitState string
 
 const (
+	UpdateStateNoUpdate   UpdateState = "NoUpdate"
 	UpdateStatePreparing  UpdateState = "Preparing"
 	UpdateStateInProgress UpdateState = "InProgress"
 	UpdateStateFinished   UpdateState = "Finished"
@@ -445,13 +445,13 @@ func finalSavepointRequested(jobID string, s *v1beta1.SavepointStatus) bool {
 
 func getUpdateState(observed *ObservedClusterState) UpdateState {
 	if observed.cluster == nil {
-		return ""
+		return UpdateStateNoUpdate
 	}
 	var recorded = observed.cluster.Status
 	var job = recorded.Components.Job
 
 	if !recorded.Revision.IsUpdateTriggered() {
-		return ""
+		return UpdateStateNoUpdate
 	}
 
 	switch {
@@ -464,30 +464,47 @@ func getUpdateState(observed *ObservedClusterState) UpdateState {
 	return UpdateStateFinished
 }
 
+func revisionDiff(a, b *appsv1.ControllerRevision) map[string]util.DiffValue {
+	patchSpec := func(bytes []byte) map[string]any {
+		var raw map[string]any
+		json.Unmarshal(bytes, &raw)
+		return raw["spec"].(map[string]any)
+	}
+
+	aSpec := patchSpec(a.Data.Raw)
+	bSpec := patchSpec(b.Data.Raw)
+
+	return util.MapDiff(aSpec, bSpec)
+}
+
 func isJobUpdate(revisions []*appsv1.ControllerRevision, cluster *v1beta1.FlinkCluster) bool {
 	if len(revisions) < 2 || (cluster != nil && cluster.Spec.Job == nil) {
 		return false
 	}
 
-	lr := new(appsv1.ControllerRevision)
 	history.SortControllerRevisions(revisions)
-	revisions[len(revisions)-2].DeepCopyInto(lr)
+	diff := revisionDiff(revisions[len(revisions)-2], revisions[len(revisions)-1])
+	_, ok := diff["job"]
+	return ok
+}
 
-	patchJobSpec := func(bytes []byte) map[string]interface{} {
-		var raw map[string]interface{}
-		json.Unmarshal(bytes, &raw)
-		spec := raw["spec"].(map[string]interface{})
-
-		return spec["job"].(map[string]interface{})
+func isScaleUpdate(revisions []*appsv1.ControllerRevision, cluster *v1beta1.FlinkCluster) bool {
+	if len(revisions) < 2 || (cluster != nil && cluster.Spec.Job == nil) {
+		return false
 	}
 
-	patch, _ := newRevisionDataPatch(cluster)
-	job := patchJobSpec(patch)
-	lastRevisionJob := patchJobSpec(lr.Data.Raw)
+	history.SortControllerRevisions(revisions)
+	diff := revisionDiff(revisions[len(revisions)-2], revisions[len(revisions)-1])
 
-	jobUpdated := !reflect.DeepEqual(job, lastRevisionJob)
+	tmDiff, ok := diff["taskManager"]
+	if len(diff) != 1 || !ok {
+		return false
+	}
 
-	return jobUpdated
+	left := tmDiff.Left.(map[string]any)["replicas"]
+	right := tmDiff.Right.(map[string]any)["replicas"]
+
+	return left != right
 }
 
 func shouldUpdateJob(observed *ObservedClusterState) bool {
@@ -501,6 +518,11 @@ func shouldUpdateCluster(observed *ObservedClusterState) bool {
 	}
 
 	return observed.updateState == UpdateStateInProgress
+}
+
+func shouldRecreateOnUpdate(observed *ObservedClusterState) bool {
+	ru := observed.cluster.Spec.RecreateOnUpdate
+	return *ru && !isScaleUpdate(observed.revisions, observed.cluster)
 }
 
 func getFlinkJobDeploymentState(flinkJobState string) v1beta1.JobState {
