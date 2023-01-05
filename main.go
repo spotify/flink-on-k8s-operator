@@ -88,8 +88,9 @@ func main() {
 	}
 
 	reconciler := &flinkcluster.FlinkClusterReconciler{
-		Client:    mgr.GetClient(),
-		Clientset: cs,
+		Client:        mgr.GetClient(),
+		Clientset:     cs,
+		EventRecorder: mgr.GetEventRecorderFor("FlinkOperator"),
 	}
 	err = reconciler.SetupWithManager(mgr, *maxConcurrentReconciles)
 	if err != nil {
