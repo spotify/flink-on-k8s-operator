@@ -24,7 +24,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
@@ -206,7 +205,7 @@ func (reconciler *ClusterReconciler) reconcileComponent(
 		if shouldUpdateCluster(&reconciler.observed) && !isComponentUpdated(observedObj, cluster) {
 			var err error
 			if *reconciler.observed.cluster.Spec.RecreateOnUpdate {
-				err = reconciler.deleteOldComponent(ctx, desiredObj, observedObj, component)
+				err = reconciler.deleteComponent(ctx, desiredObj, component)
 			} else {
 				err = reconciler.updateComponent(ctx, desiredObj, component)
 			}
@@ -250,27 +249,6 @@ func (reconciler *ClusterReconciler) createComponent(
 	}
 
 	log.Info("Created")
-	return nil
-}
-
-func (reconciler *ClusterReconciler) deleteOldComponent(ctx context.Context, desired client.Object, observed runtime.Object, component string) error {
-	log := logr.FromContextOrDiscard(ctx).
-		WithValues("component", component).
-		WithValues("desired", desired).
-		WithValues("observed", desired)
-	if isComponentUpdated(observed, reconciler.observed.cluster) {
-		log.Info("Already updated, no action")
-		return nil
-	}
-
-	var k8sClient = reconciler.k8sClient
-	err := k8sClient.Delete(ctx, desired)
-	if err != nil {
-		log.Error(err, "Failed to delete component for update")
-		return err
-	}
-
-	log.Info("Deleted")
 	return nil
 }
 
