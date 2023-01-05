@@ -49,7 +49,6 @@ type ClusterStateObserver struct {
 	k8sClientset *kubernetes.Clientset
 	flinkClient  *flink.Client
 	request      ctrl.Request
-	log          logr.Logger
 	history      history.Interface
 	recorder     record.EventRecorder
 }
@@ -132,7 +131,7 @@ func (s *FlinkJobSubmitter) getState() JobSubmitState {
 // Observes the state of the cluster and its components.
 // NOT_FOUND error is ignored because it is normal, other errors are returned.
 func (observer *ClusterStateObserver) observe(ctx context.Context, observed *ObservedClusterState) error {
-	var log = observer.log
+	var log = logr.FromContextOrDiscard(ctx)
 
 	// Cluster state.
 	observed.cluster = new(v1beta1.FlinkCluster)
@@ -220,7 +219,7 @@ func (observer *ClusterStateObserver) observe(ctx context.Context, observed *Obs
 	observed.observeTime = time.Now()
 	observed.updateState = getUpdateState(observed)
 
-	observer.logObservedState(observed)
+	observer.logObservedState(ctx, observed)
 
 	return nil
 }
@@ -250,7 +249,7 @@ func (observer *ClusterStateObserver) observeJob(
 	if observed.cluster == nil || observed.cluster.Spec.Job == nil {
 		return nil
 	}
-	var log = observer.log
+	var log = logr.FromContextOrDiscard(ctx)
 	// Extract the log stream from pod only when the job state is Deploying.
 	var recordedJob = observed.cluster.Status.Components.Job
 	var jobName string
@@ -317,7 +316,7 @@ func (observer *ClusterStateObserver) observeJob(
 		if recordedJob != nil {
 			flinkJobID = recordedJob.ID
 		}
-		observer.observeFlinkJobStatus(observed, flinkJobID, &observed.flinkJob)
+		observer.observeFlinkJobStatus(ctx, observed, flinkJobID, &observed.flinkJob)
 	}
 
 	return nil
@@ -328,8 +327,8 @@ func (observer *ClusterStateObserver) observeJob(
 //
 // This needs to be done after the job manager is ready, because we use it to detect whether the Flink API server is up
 // and running.
-func (observer *ClusterStateObserver) observeFlinkJobStatus(observed *ObservedClusterState, flinkJobID string, flinkJob *FlinkJob) {
-	var log = observer.log
+func (observer *ClusterStateObserver) observeFlinkJobStatus(ctx context.Context, observed *ObservedClusterState, flinkJobID string, flinkJob *FlinkJob) {
+	var log = logr.FromContextOrDiscard(ctx)
 	// Observe following
 	var flinkJobStatus *flink.Job
 	var flinkJobList *flink.JobsOverview
@@ -730,8 +729,8 @@ func (observer *ClusterStateObserver) observeObject(ctx context.Context, name st
 		obj)
 }
 
-func (observer *ClusterStateObserver) logObservedState(observed *ObservedClusterState) error {
-	log := observer.log
+func (observer *ClusterStateObserver) logObservedState(ctx context.Context, observed *ObservedClusterState) error {
+	log := logr.FromContextOrDiscard(ctx)
 
 	if observed.cluster == nil {
 		log = log.WithValues("cluster", "nil")

@@ -68,20 +68,20 @@ type FlinkClusterReconciler struct {
 // +kubebuilder:rbac:groups=networking,resources=ingresses/status,verbs=get
 
 // Reconcile the observed state towards the desired state for a FlinkCluster custom resource.
-func (reconciler *FlinkClusterReconciler) Reconcile(ctx context.Context,
+func (r *FlinkClusterReconciler) Reconcile(ctx context.Context,
 	request ctrl.Request) (ctrl.Result, error) {
-	var log = reconciler.Log.WithValues(
-		"cluster", request.NamespacedName)
+	log := logr.FromContextOrDiscard(ctx)
+
 	var handler = FlinkClusterHandler{
-		k8sClient:    reconciler.Client,
-		k8sClientset: reconciler.Clientset,
+		k8sClient:    r.Client,
+		k8sClientset: r.Clientset,
 		flinkClient:  flink.NewDefaultClient(log),
 		request:      request,
-		log:          log,
-		recorder:     reconciler.Mgr.GetEventRecorderFor("FlinkOperator"),
+		recorder:     r.Mgr.GetEventRecorderFor("FlinkOperator"),
 		observed:     ObservedClusterState{},
 	}
-	return handler.reconcile(ctx, request)
+
+	return handler.reconcile(logr.NewContext(ctx, log), request)
 }
 
 // SetupWithManager registers this reconciler with the controller manager and
@@ -107,7 +107,6 @@ type FlinkClusterHandler struct {
 	k8sClientset *kubernetes.Clientset
 	flinkClient  *flink.Client
 	request      ctrl.Request
-	log          logr.Logger
 	recorder     record.EventRecorder
 	observed     ObservedClusterState
 	desired      model.DesiredClusterState
@@ -117,7 +116,7 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 	request ctrl.Request) (ctrl.Result, error) {
 	var k8sClient = handler.k8sClient
 	var flinkClient = handler.flinkClient
-	var log = handler.log
+	var log = logr.FromContextOrDiscard(ctx)
 	var observed = &handler.observed
 	var desired = &handler.desired
 	var statusChanged bool
@@ -134,7 +133,6 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 		k8sClientset: handler.k8sClientset,
 		flinkClient:  flinkClient,
 		request:      request,
-		log:          log,
 		recorder:     handler.recorder,
 		history:      history,
 	}
