@@ -20,12 +20,12 @@ package flinkcluster
 // components.
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
 
+	"golang.org/x/net/context"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -47,7 +47,6 @@ const (
 // ClusterStatusUpdater updates the status of the FlinkCluster CR.
 type ClusterStatusUpdater struct {
 	k8sClient client.Client
-	context   context.Context
 	log       logr.Logger
 	recorder  record.EventRecorder
 	observed  ObservedClusterState
@@ -60,7 +59,7 @@ type Status interface {
 // Compares the current status recorded in the cluster's status field and the
 // new status derived from the status of the components, updates the cluster
 // status if it is changed, returns the new status.
-func (updater *ClusterStatusUpdater) updateStatusIfChanged() (
+func (updater *ClusterStatusUpdater) updateStatusIfChanged(ctx context.Context) (
 	bool, error) {
 	if updater.observed.cluster == nil {
 		updater.log.Info("The cluster has been deleted, no status to update")
@@ -89,7 +88,7 @@ func (updater *ClusterStatusUpdater) updateStatusIfChanged() (
 		updater.createStatusChangeEvents(oldStatus, newStatus)
 		var tc = &util.TimeConverter{}
 		newStatus.LastUpdateTime = tc.ToString(time.Now())
-		return true, updater.updateClusterStatus(newStatus)
+		return true, updater.updateClusterStatus(ctx, newStatus)
 	}
 
 	updater.log.Info("No status change", "state", oldStatus.State)
@@ -891,6 +890,7 @@ func (updater *ClusterStatusUpdater) isStatusChanged(
 }
 
 func (updater *ClusterStatusUpdater) updateClusterStatus(
+	ctx context.Context,
 	status v1beta1.FlinkClusterStatus) error {
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		cluster := &v1beta1.FlinkCluster{}
@@ -899,7 +899,7 @@ func (updater *ClusterStatusUpdater) updateClusterStatus(
 			Name:      cluster.Name,
 			Namespace: cluster.Namespace,
 		}
-		err := updater.k8sClient.Get(updater.context, lookupKey, cluster)
+		err := updater.k8sClient.Get(ctx, lookupKey, cluster)
 		if err != nil {
 			if client.IgnoreNotFound(err) != nil {
 				return nil
@@ -908,15 +908,15 @@ func (updater *ClusterStatusUpdater) updateClusterStatus(
 		}
 		cluster.Status = status
 
-		err = updater.k8sClient.Status().Update(updater.context, cluster)
+		err = updater.k8sClient.Status().Update(ctx, cluster)
 		// Clear control annotation after status update is complete.
-		updater.clearControlAnnotation(status.Control)
+		updater.clearControlAnnotation(ctx, status.Control)
 		return err
 	})
 }
 
 // Clear finished or improper user control in annotations
-func (updater *ClusterStatusUpdater) clearControlAnnotation(newControlStatus *v1beta1.FlinkClusterControlStatus) error {
+func (updater *ClusterStatusUpdater) clearControlAnnotation(ctx context.Context, newControlStatus *v1beta1.FlinkClusterControlStatus) error {
 	var userControl = updater.observed.cluster.Annotations[v1beta1.ControlAnnotation]
 	if userControl == "" {
 		return nil
@@ -935,7 +935,8 @@ func (updater *ClusterStatusUpdater) clearControlAnnotation(newControlStatus *v1
 		if err != nil {
 			return err
 		}
-		return updater.k8sClient.Patch(updater.context, updater.observed.cluster, client.RawPatch(types.MergePatchType, patchBytes))
+		rawPatch := client.RawPatch(types.MergePatchType, patchBytes)
+		return updater.k8sClient.Patch(ctx, updater.observed.cluster, rawPatch)
 	}
 
 	return nil

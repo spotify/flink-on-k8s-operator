@@ -49,7 +49,6 @@ import (
 type ClusterReconciler struct {
 	k8sClient   client.Client
 	flinkClient *flink.Client
-	context     context.Context
 	log         logr.Logger
 	observed    ObservedClusterState
 	desired     model.DesiredClusterState
@@ -62,7 +61,7 @@ var requeueResult = ctrl.Result{RequeueAfter: JobCheckInterval, Requeue: true}
 
 // Compares the desired state and the observed state, if there is a difference,
 // takes actions to drive the observed state towards the desired state.
-func (reconciler *ClusterReconciler) reconcile() (ctrl.Result, error) {
+func (reconciler *ClusterReconciler) reconcile(ctx context.Context) (ctrl.Result, error) {
 	var err error
 
 	// Child resources of the cluster CR will be automatically reclaimed by K8S.
@@ -80,57 +79,57 @@ func (reconciler *ClusterReconciler) reconcile() (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	err = reconciler.reconcileConfigMap()
+	err = reconciler.reconcileConfigMap(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	err = reconciler.reconcileHAConfigMap()
+	err = reconciler.reconcileHAConfigMap(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	err = reconciler.reconcilePodDisruptionBudget()
+	err = reconciler.reconcilePodDisruptionBudget(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	err = reconciler.reconcileJobManagerStatefulSet()
+	err = reconciler.reconcileJobManagerStatefulSet(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	err = reconciler.reconcileJobManagerService()
+	err = reconciler.reconcileJobManagerService(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	err = reconciler.reconcileJobManagerIngress()
+	err = reconciler.reconcileJobManagerIngress(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	err = reconciler.reconcileTaskManagerStatefulSet()
+	err = reconciler.reconcileTaskManagerStatefulSet(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	err = reconciler.reconcileTaskManagerDeployment()
+	err = reconciler.reconcileTaskManagerDeployment(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	err = reconciler.reconcileTaskManagerService()
+	err = reconciler.reconcileTaskManagerService(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	err = reconciler.reconcilePersistentVolumeClaims()
+	err = reconciler.reconcilePersistentVolumeClaims(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	result, err := reconciler.reconcileJob()
+	result, err := reconciler.reconcileJob(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -165,28 +164,32 @@ func (reconciler *ClusterReconciler) reconcileBatchScheduler() error {
 	return nil
 }
 
-func (reconciler *ClusterReconciler) reconcileJobManagerStatefulSet() error {
+func (reconciler *ClusterReconciler) reconcileJobManagerStatefulSet(ctx context.Context) error {
 	return reconciler.reconcileComponent(
+		ctx,
 		"JobManager",
 		reconciler.desired.JmStatefulSet,
 		reconciler.observed.jmStatefulSet)
 }
 
-func (reconciler *ClusterReconciler) reconcileTaskManagerStatefulSet() error {
+func (reconciler *ClusterReconciler) reconcileTaskManagerStatefulSet(ctx context.Context) error {
 	return reconciler.reconcileComponent(
+		ctx,
 		"TaskManager",
 		reconciler.desired.TmStatefulSet,
 		reconciler.observed.tmStatefulSet)
 }
 
-func (reconciler *ClusterReconciler) reconcileTaskManagerDeployment() error {
+func (reconciler *ClusterReconciler) reconcileTaskManagerDeployment(ctx context.Context) error {
 	return reconciler.reconcileComponent(
+		ctx,
 		"TaskManager",
 		reconciler.desired.TmDeployment,
 		reconciler.observed.tmDeployment)
 }
 
 func (reconciler *ClusterReconciler) reconcileComponent(
+	ctx context.Context,
 	component string,
 	desiredObj client.Object,
 	observedObj client.Object) error {
@@ -195,7 +198,7 @@ func (reconciler *ClusterReconciler) reconcileComponent(
 	observedObjIsNil := reflect.ValueOf(observedObj).IsNil()
 
 	if !desiredObjIsNil && observedObjIsNil {
-		return reconciler.createComponent(desiredObj, component)
+		return reconciler.createComponent(ctx, desiredObj, component)
 	}
 
 	if !desiredObjIsNil && !observedObjIsNil {
@@ -203,9 +206,9 @@ func (reconciler *ClusterReconciler) reconcileComponent(
 		if shouldUpdateCluster(&reconciler.observed) && !isComponentUpdated(observedObj, cluster) {
 			var err error
 			if *reconciler.observed.cluster.Spec.RecreateOnUpdate {
-				err = reconciler.deleteOldComponent(desiredObj, observedObj, component)
+				err = reconciler.deleteOldComponent(ctx, desiredObj, observedObj, component)
 			} else {
-				err = reconciler.updateComponent(desiredObj, component)
+				err = reconciler.updateComponent(ctx, desiredObj, component)
 			}
 			if err != nil {
 				return err
@@ -217,13 +220,13 @@ func (reconciler *ClusterReconciler) reconcileComponent(
 	}
 
 	if desiredObjIsNil && !observedObjIsNil {
-		return reconciler.deleteComponent(observedObj, component)
+		return reconciler.deleteComponent(ctx, observedObj, component)
 	}
 
 	return nil
 }
 
-func (reconciler *ClusterReconciler) reconcileTaskManagerService() error {
+func (reconciler *ClusterReconciler) reconcileTaskManagerService(ctx context.Context) error {
 	var desiredTmService = reconciler.desired.TmService
 	var observedTmService = reconciler.observed.tmService
 
@@ -232,17 +235,16 @@ func (reconciler *ClusterReconciler) reconcileTaskManagerService() error {
 		desiredTmService.SetResourceVersion(observedTmService.GetResourceVersion())
 		desiredTmService.Spec.ClusterIP = observedTmService.Spec.ClusterIP
 	}
-	return reconciler.reconcileComponent("JobManagerService", desiredTmService, observedTmService)
+	return reconciler.reconcileComponent(ctx, "JobManagerService", desiredTmService, observedTmService)
 }
 
 func (reconciler *ClusterReconciler) createComponent(
-	obj client.Object, component string) error {
-	var context = reconciler.context
+	ctx context.Context, obj client.Object, component string) error {
 	var log = reconciler.log.
 		WithValues("component", component).
 		WithValues("object", obj)
 
-	if err := reconciler.k8sClient.Create(context, obj); err != nil {
+	if err := reconciler.k8sClient.Create(ctx, obj); err != nil {
 		log.Error(err, "Failed to create")
 		return err
 	}
@@ -251,7 +253,7 @@ func (reconciler *ClusterReconciler) createComponent(
 	return nil
 }
 
-func (reconciler *ClusterReconciler) deleteOldComponent(desired client.Object, observed runtime.Object, component string) error {
+func (reconciler *ClusterReconciler) deleteOldComponent(ctx context.Context, desired client.Object, observed runtime.Object, component string) error {
 	var log = reconciler.log.
 		WithValues("component", component).
 		WithValues("desired", desired).
@@ -261,9 +263,8 @@ func (reconciler *ClusterReconciler) deleteOldComponent(desired client.Object, o
 		return nil
 	}
 
-	var context = reconciler.context
 	var k8sClient = reconciler.k8sClient
-	err := k8sClient.Delete(context, desired)
+	err := k8sClient.Delete(ctx, desired)
 	if err != nil {
 		log.Error(err, "Failed to delete component for update")
 		return err
@@ -273,14 +274,13 @@ func (reconciler *ClusterReconciler) deleteOldComponent(desired client.Object, o
 	return nil
 }
 
-func (reconciler *ClusterReconciler) updateComponent(desired client.Object, component string) error {
+func (reconciler *ClusterReconciler) updateComponent(ctx context.Context, desired client.Object, component string) error {
 	var log = reconciler.log.
 		WithValues("component", component).
 		WithValues("object", desired)
-	var context = reconciler.context
 	var k8sClient = reconciler.k8sClient
 
-	if err := k8sClient.Update(context, desired); err != nil {
+	if err := k8sClient.Update(ctx, desired); err != nil {
 		log.Error(err, "Failed to update component for update")
 		return err
 	}
@@ -290,14 +290,13 @@ func (reconciler *ClusterReconciler) updateComponent(desired client.Object, comp
 }
 
 func (reconciler *ClusterReconciler) deleteComponent(
-	obj client.Object, component string) error {
-	var context = reconciler.context
+	ctx context.Context, obj client.Object, component string) error {
 	var log = reconciler.log.
 		WithValues("component", component).
 		WithValues("object", obj)
 	var k8sClient = reconciler.k8sClient
 
-	var err = k8sClient.Delete(context, obj)
+	var err = k8sClient.Delete(ctx, obj)
 	if client.IgnoreNotFound(err) != nil {
 		log.Error(err, "Failed to delete", component, obj)
 	}
@@ -306,7 +305,7 @@ func (reconciler *ClusterReconciler) deleteComponent(
 	return nil
 }
 
-func (reconciler *ClusterReconciler) reconcileJobManagerService() error {
+func (reconciler *ClusterReconciler) reconcileJobManagerService(ctx context.Context) error {
 	var desiredJmService = reconciler.desired.JmService
 	var observedJmService = reconciler.observed.jmService
 
@@ -316,32 +315,32 @@ func (reconciler *ClusterReconciler) reconcileJobManagerService() error {
 		desiredJmService.Spec.ClusterIP = observedJmService.Spec.ClusterIP
 	}
 
-	return reconciler.reconcileComponent("JobManagerService", desiredJmService, observedJmService)
+	return reconciler.reconcileComponent(ctx, "JobManagerService", desiredJmService, observedJmService)
 }
 
-func (reconciler *ClusterReconciler) reconcileJobManagerIngress() error {
+func (reconciler *ClusterReconciler) reconcileJobManagerIngress(ctx context.Context) error {
 	var desiredJmIngress = reconciler.desired.JmIngress
 	var observedJmIngress = reconciler.observed.jmIngress
 
-	return reconciler.reconcileComponent("JobManagerIngress", desiredJmIngress, observedJmIngress)
+	return reconciler.reconcileComponent(ctx, "JobManagerIngress", desiredJmIngress, observedJmIngress)
 }
 
-func (reconciler *ClusterReconciler) reconcileConfigMap() error {
+func (reconciler *ClusterReconciler) reconcileConfigMap(ctx context.Context) error {
 	var desiredConfigMap = reconciler.desired.ConfigMap
 	var observedConfigMap = reconciler.observed.configMap
 
-	return reconciler.reconcileComponent("ConfigMap", desiredConfigMap, observedConfigMap)
+	return reconciler.reconcileComponent(ctx, "ConfigMap", desiredConfigMap, observedConfigMap)
 }
 
 // Set the owner reference of the cluster to the HA ConfigMap (if it doesn't already have one)
-func (reconciler *ClusterReconciler) reconcileHAConfigMap() error {
+func (reconciler *ClusterReconciler) reconcileHAConfigMap(ctx context.Context) error {
 	var observedHAConfigMap = reconciler.observed.haConfigMap
 	if observedHAConfigMap == nil {
 		return nil
 	}
 	if observedHAConfigMap.OwnerReferences == nil || len(observedHAConfigMap.OwnerReferences) == 0 {
 		observedHAConfigMap.OwnerReferences = []metav1.OwnerReference{ToOwnerReference(reconciler.observed.cluster)}
-		err := reconciler.updateComponent(observedHAConfigMap, "HA ConfigMap")
+		err := reconciler.updateComponent(ctx, observedHAConfigMap, "HA ConfigMap")
 		if err != nil {
 			return err
 		}
@@ -349,22 +348,22 @@ func (reconciler *ClusterReconciler) reconcileHAConfigMap() error {
 	return nil
 }
 
-func (reconciler *ClusterReconciler) reconcilePodDisruptionBudget() error {
+func (reconciler *ClusterReconciler) reconcilePodDisruptionBudget(ctx context.Context) error {
 	var desiredPodDisruptionBudget = reconciler.desired.PodDisruptionBudget
 	var observedPodDisruptionBudget = reconciler.observed.podDisruptionBudget
 
 	if desiredPodDisruptionBudget != nil && observedPodDisruptionBudget == nil {
-		return reconciler.createComponent(desiredPodDisruptionBudget, "PodDisruptionBudget")
+		return reconciler.createComponent(ctx, desiredPodDisruptionBudget, "PodDisruptionBudget")
 	}
 
 	if desiredPodDisruptionBudget == nil && observedPodDisruptionBudget != nil {
-		return reconciler.deleteComponent(observedPodDisruptionBudget, "PodDisruptionBudget")
+		return reconciler.deleteComponent(ctx, observedPodDisruptionBudget, "PodDisruptionBudget")
 	}
 
 	return nil
 }
 
-func (reconciler *ClusterReconciler) reconcilePersistentVolumeClaims() error {
+func (reconciler *ClusterReconciler) reconcilePersistentVolumeClaims(ctx context.Context) error {
 	observed := reconciler.observed
 	pvcs := observed.persistentVolumeClaims
 	jm := observed.jmStatefulSet
@@ -372,19 +371,18 @@ func (reconciler *ClusterReconciler) reconcilePersistentVolumeClaims() error {
 
 	for _, pvc := range pvcs.Items {
 		if c, ok := pvc.Labels["component"]; ok && c == "jobmanager" && jm != nil {
-			reconciler.reconcilePersistentVolumeClaim(&pvc, jm)
+			reconciler.reconcilePersistentVolumeClaim(ctx, &pvc, jm)
 		}
 		if c, ok := pvc.Labels["component"]; ok && c == "taskmanager" && tm != nil {
-			reconciler.reconcilePersistentVolumeClaim(&pvc, tm)
+			reconciler.reconcilePersistentVolumeClaim(ctx, &pvc, tm)
 		}
 	}
 
 	return nil
 }
 
-func (reconciler *ClusterReconciler) reconcilePersistentVolumeClaim(pvc *corev1.PersistentVolumeClaim, sset *appsv1.StatefulSet) error {
+func (reconciler *ClusterReconciler) reconcilePersistentVolumeClaim(ctx context.Context, pvc *corev1.PersistentVolumeClaim, sset *appsv1.StatefulSet) error {
 	var log = reconciler.log
-	ctx := reconciler.context
 	k8sClient := reconciler.k8sClient
 
 	for _, ownerRef := range pvc.GetOwnerReferences() {
@@ -411,7 +409,7 @@ func (reconciler *ClusterReconciler) reconcilePersistentVolumeClaim(pvc *corev1.
 	return err
 }
 
-func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
+func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Result, error) {
 	var log = reconciler.log
 	var desiredJob = reconciler.desired.Job
 	var observed = reconciler.observed
@@ -424,7 +422,7 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 	// Update status changed via job reconciliation.
 	var newSavepointStatus *v1beta1.SavepointStatus
 	var newControlStatus *v1beta1.FlinkClusterControlStatus
-	defer reconciler.updateStatus(&newSavepointStatus, &newControlStatus)
+	defer reconciler.updateStatus(ctx, &newSavepointStatus, &newControlStatus)
 
 	observedSubmitter := observed.flinkJobSubmitter.job
 
@@ -446,7 +444,7 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 		}
 		// kill job submitter pod
 		if observedSubmitter != nil {
-			if err := reconciler.deleteJob(observedSubmitter); err != nil {
+			if err := reconciler.deleteJob(ctx, observedSubmitter); err != nil {
 				return requeueResult, err
 			}
 		}
@@ -472,19 +470,19 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 		// Create Flink job submitter
 		log.Info("Updating job status to proceed creating new job submitter")
 		// Job status must be updated before creating a job submitter to ensure the observed job is the job submitted by the operator.
-		err = reconciler.updateJobDeployStatus()
+		err = reconciler.updateJobDeployStatus(ctx)
 		if err != nil {
 			log.Info("Failed to update the job status for job submission")
 			return requeueResult, err
 		}
 		if observedSubmitter != nil {
 			log.Info("Found old job submitter")
-			err = reconciler.deleteJob(observedSubmitter)
+			err = reconciler.deleteJob(ctx, observedSubmitter)
 			if err != nil {
 				return requeueResult, err
 			}
 		}
-		err = reconciler.createJob(desiredJob)
+		err = reconciler.createJob(ctx, desiredJob)
 
 		return requeueResult, err
 	}
@@ -503,7 +501,7 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 			if shouldSuspend {
 				newSavepointStatus, err = reconciler.trySuspendJob()
 			} else if shouldUpdateJob(&observed) {
-				err = reconciler.cancelJob()
+				err = reconciler.cancelJob(ctx)
 			}
 			return requeueResult, err
 		}
@@ -543,7 +541,7 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 				log.Info("Job submitter has not finished yet")
 				return requeueResult, err
 			}
-			if err := reconciler.deleteJob(observedSubmitter); err != nil {
+			if err := reconciler.deleteJob(ctx, observedSubmitter); err != nil {
 				return requeueResult, err
 			}
 		}
@@ -559,13 +557,12 @@ func (reconciler *ClusterReconciler) reconcileJob() (ctrl.Result, error) {
 	return ctrl.Result{}, nil
 }
 
-func (reconciler *ClusterReconciler) createJob(job *batchv1.Job) error {
-	var context = reconciler.context
+func (reconciler *ClusterReconciler) createJob(ctx context.Context, job *batchv1.Job) error {
 	var log = reconciler.log
 	var k8sClient = reconciler.k8sClient
 
 	log.Info("Creating job submitter", "resource", *job)
-	var err = k8sClient.Create(context, job)
+	var err = k8sClient.Create(ctx, job)
 	if err != nil {
 		log.Info("Failed to created job submitter", "error", err)
 	} else {
@@ -574,8 +571,7 @@ func (reconciler *ClusterReconciler) createJob(job *batchv1.Job) error {
 	return err
 }
 
-func (reconciler *ClusterReconciler) deleteJob(job *batchv1.Job) error {
-	var context = reconciler.context
+func (reconciler *ClusterReconciler) deleteJob(ctx context.Context, job *batchv1.Job) error {
 	var log = reconciler.log
 	var k8sClient = reconciler.k8sClient
 
@@ -583,7 +579,7 @@ func (reconciler *ClusterReconciler) deleteJob(job *batchv1.Job) error {
 	var deleteOption = client.DeleteOptions{PropagationPolicy: &deletePolicy}
 
 	log.Info("Deleting job submitter", "job", job)
-	var err = k8sClient.Delete(context, job, &deleteOption)
+	var err = k8sClient.Delete(ctx, job, &deleteOption)
 	err = client.IgnoreNotFound(err)
 	if err != nil {
 		log.Error(err, "Failed to delete job submitter")
@@ -627,7 +623,7 @@ func (reconciler *ClusterReconciler) trySuspendJob() (*v1beta1.SavepointStatus, 
 	return nil, nil
 }
 
-func (reconciler *ClusterReconciler) cancelJob() error {
+func (reconciler *ClusterReconciler) cancelJob(ctx context.Context) error {
 	var log = reconciler.log
 	var observedFlinkJob = reconciler.observed.flinkJob.status
 
@@ -641,7 +637,7 @@ func (reconciler *ClusterReconciler) cancelJob() error {
 	// TODO: Not to delete the job submitter immediately, and retain the latest ones for inspection.
 	var observedSubmitter = reconciler.observed.flinkJobSubmitter.job
 	if observedSubmitter != nil {
-		var err = reconciler.deleteJob(observedSubmitter)
+		var err = reconciler.deleteJob(ctx, observedSubmitter)
 		if err != nil {
 			log.Error(
 				err, "Failed to delete job submitter", "job", observedSubmitter)
@@ -839,7 +835,7 @@ func (reconciler *ClusterReconciler) takeSavepoint(
 }
 
 func (reconciler *ClusterReconciler) updateStatus(
-	ss **v1beta1.SavepointStatus, cs **v1beta1.FlinkClusterControlStatus) {
+	ctx context.Context, ss **v1beta1.SavepointStatus, cs **v1beta1.FlinkClusterControlStatus) {
 	var log = reconciler.log
 
 	var savepointStatus = *ss
@@ -872,13 +868,13 @@ func (reconciler *ClusterReconciler) updateStatus(
 		}
 		util.SetTimestamp(&newStatus.LastUpdateTime)
 		log.Info("Updating cluster status", "clusterClone", clusterClone, "newStatus", newStatus)
-		statusUpdateErr = reconciler.k8sClient.Status().Update(reconciler.context, clusterClone)
+		statusUpdateErr = reconciler.k8sClient.Status().Update(ctx, clusterClone)
 		if statusUpdateErr == nil {
 			return nil
 		}
 		var clusterUpdated v1beta1.FlinkCluster
 		if err := reconciler.k8sClient.Get(
-			reconciler.context,
+			ctx,
 			types.NamespacedName{Namespace: clusterClone.Namespace, Name: clusterClone.Name}, &clusterUpdated); err == nil {
 			clusterClone = clusterUpdated.DeepCopy()
 		}
@@ -890,7 +886,7 @@ func (reconciler *ClusterReconciler) updateStatus(
 	}
 }
 
-func (reconciler *ClusterReconciler) updateJobDeployStatus() error {
+func (reconciler *ClusterReconciler) updateJobDeployStatus(ctx context.Context) error {
 	var log = reconciler.log
 	var observedCluster = reconciler.observed.cluster
 	var desiredJobSubmitter = reconciler.desired.Job
@@ -916,7 +912,7 @@ func (reconciler *ClusterReconciler) updateJobDeployStatus() error {
 	}
 
 	// Update job status.
-	err = reconciler.k8sClient.Status().Update(reconciler.context, clusterClone)
+	err = reconciler.k8sClient.Status().Update(ctx, clusterClone)
 	if err != nil {
 		log.Error(
 			err, "Failed to update job status for new job submitter", "error", err)
