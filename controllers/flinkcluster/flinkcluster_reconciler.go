@@ -204,7 +204,7 @@ func (reconciler *ClusterReconciler) reconcileComponent(
 		var cluster = reconciler.observed.cluster
 		if shouldUpdateCluster(&reconciler.observed) && !isComponentUpdated(observedObj, cluster) {
 			var err error
-			if *reconciler.observed.cluster.Spec.RecreateOnUpdate {
+			if shouldRecreateOnUpdate(&reconciler.observed) {
 				err = reconciler.deleteComponent(ctx, desiredObj, component)
 			} else {
 				err = reconciler.updateComponent(ctx, desiredObj, component)
