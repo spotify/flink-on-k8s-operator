@@ -42,10 +42,9 @@ var controllerKind = v1beta1.GroupVersion.WithKind("FlinkCluster")
 
 // FlinkClusterReconciler reconciles a FlinkCluster object
 type FlinkClusterReconciler struct {
-	Client    client.Client
-	Clientset *kubernetes.Clientset
-	Log       logr.Logger
-	Mgr       ctrl.Manager
+	Client        client.Client
+	Clientset     *kubernetes.Clientset
+	EventRecorder record.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=flinkoperator.k8s.io,resources=flinkclusters,verbs=get;list;watch;create;update;patch;delete
@@ -73,12 +72,12 @@ func (r *FlinkClusterReconciler) Reconcile(ctx context.Context,
 	log := logr.FromContextOrDiscard(ctx)
 
 	var handler = FlinkClusterHandler{
-		k8sClient:    r.Client,
-		k8sClientset: r.Clientset,
-		flinkClient:  flink.NewDefaultClient(log),
-		request:      request,
-		recorder:     r.Mgr.GetEventRecorderFor("FlinkOperator"),
-		observed:     ObservedClusterState{},
+		k8sClient:     r.Client,
+		k8sClientset:  r.Clientset,
+		flinkClient:   flink.NewDefaultClient(log),
+		request:       request,
+		eventRecorder: r.EventRecorder,
+		observed:      ObservedClusterState{},
 	}
 
 	return handler.reconcile(logr.NewContext(ctx, log), request)
@@ -89,7 +88,6 @@ func (r *FlinkClusterReconciler) Reconcile(ctx context.Context,
 func (reconciler *FlinkClusterReconciler) SetupWithManager(
 	mgr ctrl.Manager,
 	maxConcurrentReconciles int) error {
-	reconciler.Mgr = mgr
 	return ctrl.NewControllerManagedBy(mgr).
 		WithOptions(ctrlcontroller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).
 		For(&v1beta1.FlinkCluster{}).
@@ -103,13 +101,13 @@ func (reconciler *FlinkClusterReconciler) SetupWithManager(
 // FlinkClusterHandler holds the context and state for a
 // reconcile request.
 type FlinkClusterHandler struct {
-	k8sClient    client.Client
-	k8sClientset *kubernetes.Clientset
-	flinkClient  *flink.Client
-	request      ctrl.Request
-	recorder     record.EventRecorder
-	observed     ObservedClusterState
-	desired      model.DesiredClusterState
+	k8sClient     client.Client
+	k8sClientset  *kubernetes.Clientset
+	flinkClient   *flink.Client
+	request       ctrl.Request
+	eventRecorder record.EventRecorder
+	observed      ObservedClusterState
+	desired       model.DesiredClusterState
 }
 
 func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
@@ -133,7 +131,7 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 		k8sClientset: handler.k8sClientset,
 		flinkClient:  flinkClient,
 		request:      request,
-		recorder:     handler.recorder,
+		recorder:     handler.eventRecorder,
 		history:      history,
 	}
 	err = observer.observe(ctx, observed)
@@ -154,7 +152,7 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 	var updater = ClusterStatusUpdater{
 		k8sClient: k8sClient,
 		log:       log,
-		recorder:  handler.recorder,
+		recorder:  handler.eventRecorder,
 		observed:  handler.observed,
 	}
 	statusChanged, err = updater.updateStatusIfChanged(ctx)
@@ -227,7 +225,7 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 		flinkClient: flinkClient,
 		observed:    handler.observed,
 		desired:     handler.desired,
-		recorder:    handler.recorder,
+		recorder:    handler.eventRecorder,
 	}
 	result, err := reconciler.reconcile(ctx)
 	if err != nil {
