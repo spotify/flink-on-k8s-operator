@@ -77,7 +77,6 @@ func (reconciler *FlinkClusterReconciler) Reconcile(ctx context.Context,
 		k8sClientset: reconciler.Clientset,
 		flinkClient:  flink.NewDefaultClient(log),
 		request:      request,
-		context:      context.Background(),
 		log:          log,
 		recorder:     reconciler.Mgr.GetEventRecorderFor("FlinkOperator"),
 		observed:     ObservedClusterState{},
@@ -108,7 +107,6 @@ type FlinkClusterHandler struct {
 	k8sClientset *kubernetes.Clientset
 	flinkClient  *flink.Client
 	request      ctrl.Request
-	context      context.Context
 	log          logr.Logger
 	recorder     record.EventRecorder
 	observed     ObservedClusterState
@@ -120,14 +118,13 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 	var k8sClient = handler.k8sClient
 	var flinkClient = handler.flinkClient
 	var log = handler.log
-	var context = handler.context
 	var observed = &handler.observed
 	var desired = &handler.desired
 	var statusChanged bool
 	var err error
 
 	// History interface
-	var history = history.NewHistory(k8sClient, context)
+	var history = history.NewHistory(k8sClient, ctx)
 
 	log.Info("============================================================")
 	log.Info("---------- 1. Observe the current state ----------")
@@ -137,12 +134,11 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 		k8sClientset: handler.k8sClientset,
 		flinkClient:  flinkClient,
 		request:      request,
-		context:      context,
 		log:          log,
 		recorder:     handler.recorder,
 		history:      history,
 	}
-	err = observer.observe(observed)
+	err = observer.observe(ctx, observed)
 	if err != nil {
 		log.Error(err, "Failed to observe the current state")
 		return ctrl.Result{}, err
@@ -159,7 +155,6 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 
 	var updater = ClusterStatusUpdater{
 		k8sClient: k8sClient,
-		context:   context,
 		log:       log,
 		recorder:  handler.recorder,
 		observed:  handler.observed,
@@ -232,7 +227,6 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 	var reconciler = ClusterReconciler{
 		k8sClient:   k8sClient,
 		flinkClient: flinkClient,
-		context:     context,
 		log:         log,
 		observed:    handler.observed,
 		desired:     handler.desired,
