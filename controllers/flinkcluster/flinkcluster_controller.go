@@ -159,7 +159,7 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 		recorder:  handler.recorder,
 		observed:  handler.observed,
 	}
-	statusChanged, err = updater.updateStatusIfChanged()
+	statusChanged, err = updater.updateStatusIfChanged(ctx)
 	if err != nil {
 		log.Error(err, "Failed to update cluster status")
 		return ctrl.Result{}, err
@@ -232,7 +232,7 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 		desired:     handler.desired,
 		recorder:    handler.recorder,
 	}
-	result, err := reconciler.reconcile()
+	result, err := reconciler.reconcile(ctx)
 	if err != nil {
 		log.Error(err, "Failed to reconcile")
 	}
