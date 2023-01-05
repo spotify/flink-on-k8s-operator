@@ -26,7 +26,6 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -81,16 +80,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	cs, err := kubernetes.NewForConfig(mgr.GetConfig())
+	reconciler, err := flinkcluster.NewReconciler(mgr)
 	if err != nil {
-		setupLog.Error(err, "Unable to create clientset")
+		setupLog.Error(err, "Unable to create reconciler")
 		os.Exit(1)
-	}
-
-	reconciler := &flinkcluster.FlinkClusterReconciler{
-		Client:        mgr.GetClient(),
-		Clientset:     cs,
-		EventRecorder: mgr.GetEventRecorderFor("FlinkOperator"),
 	}
 	err = reconciler.SetupWithManager(mgr, *maxConcurrentReconciles)
 	if err != nil {

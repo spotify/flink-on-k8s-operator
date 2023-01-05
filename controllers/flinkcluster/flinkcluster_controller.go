@@ -35,6 +35,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 // controllerKind contains the schema.GroupVersionKind for this controller type.
@@ -45,6 +46,19 @@ type FlinkClusterReconciler struct {
 	Client        client.Client
 	Clientset     *kubernetes.Clientset
 	EventRecorder record.EventRecorder
+}
+
+func NewReconciler(mgr manager.Manager) (*FlinkClusterReconciler, error) {
+	cs, err := kubernetes.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		return nil, err
+	}
+
+	return &FlinkClusterReconciler{
+		Client:        mgr.GetClient(),
+		Clientset:     cs,
+		EventRecorder: mgr.GetEventRecorderFor("FlinkOperator"),
+	}, nil
 }
 
 // +kubebuilder:rbac:groups=flinkoperator.k8s.io,resources=flinkclusters,verbs=get;list;watch;create;update;patch;delete
