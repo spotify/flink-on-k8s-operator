@@ -225,7 +225,6 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 	var reconciler = ClusterReconciler{
 		k8sClient:   k8sClient,
 		flinkClient: flinkClient,
-		log:         log,
 		observed:    handler.observed,
 		desired:     handler.desired,
 		recorder:    handler.recorder,
