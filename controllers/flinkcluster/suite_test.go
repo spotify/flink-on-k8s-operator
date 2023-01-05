@@ -22,7 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -82,15 +81,10 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	cs, err := kubernetes.NewForConfig(k8sManager.GetConfig())
+	reconciler, err := NewReconciler(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&FlinkClusterReconciler{
-		Client:    k8sManager.GetClient(),
-		Clientset: cs,
-		Log:       ctrl.Log.WithName("controllers").WithName("FlinkCluster"),
-		Mgr:       k8sManager,
-	}).SetupWithManager(k8sManager, 1)
+	err = reconciler.SetupWithManager(k8sManager, 1)
 	Expect(err).ToNot(HaveOccurred())
 
 	go func() {
