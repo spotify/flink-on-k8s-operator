@@ -453,14 +453,19 @@ func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Res
 			log.Info("Failed to update the job status for job submission")
 			return requeueResult, err
 		}
+
+		cr := getCurrentRevisionName(&observed.cluster.Status.Revision)
 		if observedSubmitter != nil {
-			log.Info("Found old job submitter")
-			err = reconciler.deleteJob(ctx, observedSubmitter)
-			if err != nil {
-				return requeueResult, err
+			if observedSubmitter.Labels[RevisionNameLabel] == cr {
+				log.Info("Found old job submitter")
+				err = reconciler.deleteJob(ctx, observedSubmitter)
+				if err != nil {
+					return requeueResult, err
+				}
 			}
+		} else {
+			err = reconciler.createJob(ctx, desiredJob)
 		}
-		err = reconciler.createJob(ctx, desiredJob)
 
 		return requeueResult, err
 	}
