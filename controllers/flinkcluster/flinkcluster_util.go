@@ -18,6 +18,8 @@ package flinkcluster
 
 import (
 	"bytes"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -47,6 +49,7 @@ const (
 	ControlMaxRetries = "3"
 
 	RevisionNameLabel = "flinkoperator.k8s.io/revision-name"
+	JobIdLabel        = "flinkoperator.k8s.io/job-id"
 
 	SavepointRetryIntervalSeconds = 10
 )
@@ -566,4 +569,13 @@ func IsApplicationModeCluster(cluster *v1beta1.FlinkCluster) bool {
 // checks if job-cancel was requested
 func wasJobCancelRequested(controlStatus *v1beta1.FlinkClusterControlStatus) bool {
 	return controlStatus != nil && controlStatus.Name == v1beta1.ControlNameJobCancel
+}
+
+func GenJobId(cluster *v1beta1.FlinkCluster) (string, error) {
+	if cluster == nil || len(cluster.Status.Revision.NextRevision) == 0 {
+		return "", fmt.Errorf("error generating job id: cluster or next revision is nil")
+	}
+
+	hash := md5.Sum([]byte(cluster.Status.Revision.NextRevision))
+	return hex.EncodeToString(hash[:]), nil
 }

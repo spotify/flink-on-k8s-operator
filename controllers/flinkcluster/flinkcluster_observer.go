@@ -305,7 +305,7 @@ func (observer *ClusterStateObserver) observeJob(
 	if jmReady {
 		// Observe the Flink job status.
 		var flinkJobID string
-		if jobID, ok := jobPod.Labels["job-id"]; ok {
+		if jobID, ok := jobPod.Labels[JobIdLabel]; ok {
 			flinkJobID = jobID
 		} else
 		// Get the ID from the job submitter.

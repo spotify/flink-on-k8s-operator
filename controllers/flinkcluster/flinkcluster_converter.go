@@ -27,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
-	"github.com/spotify/flink-on-k8s-operator/internal/flink"
 	"github.com/spotify/flink-on-k8s-operator/internal/model"
 	"github.com/spotify/flink-on-k8s-operator/internal/util"
 
@@ -186,8 +185,9 @@ func newJobManagerContainer(flinkCluster *v1beta1.FlinkCluster) *corev1.Containe
 			args = append(args, "--allowNonRestoredState")
 		}
 
+		jobId, _ := GenJobId(flinkCluster)
 		args = append(args,
-			"--job-id", flink.GenJobId(flinkCluster.Namespace, flinkCluster.Name),
+			"--job-id", jobId,
 			"--job-classname", *jobSpec.ClassName,
 		)
 
@@ -848,11 +848,10 @@ func newJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 	var podSpec *corev1.PodSpec
 
 	if IsApplicationModeCluster(flinkCluster) {
+		jobId, _ := GenJobId(flinkCluster)
 		labels = mergeLabels(labels, getComponentLabels(flinkCluster, "jobmanager"))
 		labels = mergeLabels(labels, jobManagerSpec.PodLabels)
-		labels = mergeLabels(labels, map[string]string{
-			"job-id": flink.GenJobId(flinkCluster.Namespace, flinkCluster.Name),
-		})
+		labels = mergeLabels(labels, map[string]string{JobIdLabel: jobId})
 		jobName = getJobManagerJobName(flinkCluster.Name)
 		annotations = jobManagerSpec.PodAnnotations
 		mainContainer := newJobManagerContainer(flinkCluster)
