@@ -253,7 +253,7 @@ func (observer *ClusterStateObserver) observeJob(
 	// Extract the log stream from pod only when the job state is Deploying.
 	var recordedJob = observed.cluster.Status.Components.Job
 	var jobName string
-	var applicationMode = *observed.cluster.Spec.Job.Mode == v1beta1.JobModeApplication
+	var applicationMode = IsApplicationModeCluster(observed.cluster)
 	if applicationMode {
 		jobName = getJobManagerJobName(observed.cluster.Name)
 	} else {
