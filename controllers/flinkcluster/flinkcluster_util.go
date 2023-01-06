@@ -412,7 +412,6 @@ func isClusterUpdateToDate(observed *ObservedClusterState) bool {
 	if !observed.cluster.Status.Revision.IsUpdateTriggered() {
 		return true
 	}
-	tmDeploymentType := observed.cluster.Spec.TaskManager.DeploymentType
 
 	components := []client.Object{
 		observed.configMap,
@@ -425,11 +424,13 @@ func isClusterUpdateToDate(observed *ObservedClusterState) bool {
 		components = append(components, observed.podDisruptionBudget)
 	}
 
-	if tmDeploymentType == v1beta1.DeploymentTypeDeployment {
+	switch observed.cluster.Spec.TaskManager.DeploymentType {
+	case v1beta1.DeploymentTypeDeployment:
 		components = append(components, observed.tmDeployment)
-	} else {
+	case v1beta1.DeploymentTypeStatefulSet:
 		components = append(components, observed.tmStatefulSet)
 	}
+
 	return areComponentsUpdated(components, observed.cluster)
 }
 

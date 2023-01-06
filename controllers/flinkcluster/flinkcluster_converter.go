@@ -92,21 +92,18 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 		state.PodDisruptionBudget = newPodDisruptionBudget(cluster)
 	}
 
-	if !shouldCleanup(cluster, "JobManagerStatefulSet") && !applicationMode {
+	if !shouldCleanup(cluster, "JobManager") && !applicationMode {
 		state.JmStatefulSet = newJobManagerStatefulSet(cluster)
 	}
 
-	deploymentType := cluster.Spec.TaskManager.DeploymentType
-	if deploymentType == v1beta1.DeploymentTypeStatefulSet || deploymentType == "" {
-		if !shouldCleanup(cluster, "TaskManagerStatefulSet") {
+	if !shouldCleanup(cluster, "TaskManager") {
+		switch cluster.Spec.TaskManager.DeploymentType {
+		case v1beta1.DeploymentTypeStatefulSet:
 			state.TmStatefulSet = newTaskManagerStatefulSet(cluster)
-		}
-	} else {
-		if !shouldCleanup(cluster, "TaskManagerDeployment") {
+		case v1beta1.DeploymentTypeDeployment:
 			state.TmDeployment = newTaskManagerDeployment(cluster)
 		}
 	}
-
 	if !shouldCleanup(cluster, "TaskManagerService") {
 		state.TmService = newTaskManagerService(cluster)
 	}
@@ -1055,7 +1052,7 @@ func shouldCleanup(cluster *v1beta1.FlinkCluster, component string) bool {
 	case v1beta1.CleanupActionDeleteCluster:
 		return true
 	case v1beta1.CleanupActionDeleteTaskManager:
-		return component == "TaskManagerStatefulSet" || component == "TaskManagerDeployment"
+		return component == "TaskManager"
 	}
 
 	return false
