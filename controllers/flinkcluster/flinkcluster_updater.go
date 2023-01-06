@@ -238,25 +238,27 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 	// JobManager StatefulSet.
 	var observedJmStatefulSet = observed.jmStatefulSet
 	jmStatus := &status.Components.JobManager
-	if !isComponentUpdated(observedJmStatefulSet, observed.cluster) && shouldUpdateCluster(observed) {
-		*jmStatus = new(v1beta1.JobManagerStatus)
-		recorded.Components.JobManager.DeepCopyInto(*jmStatus)
-		(*jmStatus).State = v1beta1.ComponentStateUpdating
-	} else if observedJmStatefulSet != nil {
-		*jmStatus = &v1beta1.JobManagerStatus{
-			Name:          observedJmStatefulSet.Name,
-			State:         getStatefulSetState(observedJmStatefulSet),
-			Replicas:      observedJmStatefulSet.Status.Replicas,
-			ReadyReplicas: observedJmStatefulSet.Status.ReadyReplicas,
-			Ready:         fmt.Sprintf("%d/%d", observedJmStatefulSet.Status.ReadyReplicas, observedJmStatefulSet.Status.Replicas),
-		}
-		if (*jmStatus).State == v1beta1.ComponentStateReady {
-			runningComponents++
-		}
-	} else if recorded.Components.JobManager != nil {
-		*jmStatus = &v1beta1.JobManagerStatus{
-			Name:  recorded.Components.JobManager.Name,
-			State: v1beta1.ComponentStateDeleted,
+	if !IsApplicationModeCluster(cluster) {
+		if !isComponentUpdated(observedJmStatefulSet, observed.cluster) && shouldUpdateCluster(observed) {
+			*jmStatus = new(v1beta1.JobManagerStatus)
+			recorded.Components.JobManager.DeepCopyInto(*jmStatus)
+			(*jmStatus).State = v1beta1.ComponentStateUpdating
+		} else if observedJmStatefulSet != nil {
+			*jmStatus = &v1beta1.JobManagerStatus{
+				Name:          observedJmStatefulSet.Name,
+				State:         getStatefulSetState(observedJmStatefulSet),
+				Replicas:      observedJmStatefulSet.Status.Replicas,
+				ReadyReplicas: observedJmStatefulSet.Status.ReadyReplicas,
+				Ready:         fmt.Sprintf("%d/%d", observedJmStatefulSet.Status.ReadyReplicas, observedJmStatefulSet.Status.Replicas),
+			}
+			if (*jmStatus).State == v1beta1.ComponentStateReady {
+				runningComponents++
+			}
+		} else if recorded.Components.JobManager != nil {
+			*jmStatus = &v1beta1.JobManagerStatus{
+				Name:  recorded.Components.JobManager.Name,
+				State: v1beta1.ComponentStateDeleted,
+			}
 		}
 	}
 
