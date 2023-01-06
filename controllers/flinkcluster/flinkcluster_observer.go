@@ -170,9 +170,11 @@ func (observer *ClusterStateObserver) observe(ctx context.Context, observed *Obs
 		}
 
 		// JobManager StatefulSet.
-		if err := observer.observeJobManager(ctx, observed); err != nil {
-			log.Error(err, "Failed to get JobManager StatefulSet")
-			return err
+		if !IsApplicationModeCluster(observed.cluster) {
+			if err := observer.observeJobManager(ctx, observed); err != nil {
+				log.Error(err, "Failed to get JobManager StatefulSet")
+				return err
+			}
 		}
 
 		// JobManager service.

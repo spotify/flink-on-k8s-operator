@@ -417,8 +417,11 @@ func isClusterUpdateToDate(observed *ObservedClusterState) bool {
 	components := []client.Object{
 		observed.configMap,
 		observed.tmService,
-		observed.jmStatefulSet,
 		observed.jmService,
+	}
+
+	if !IsApplicationModeCluster(observed.cluster) {
+		components = append(components, observed.jmStatefulSet)
 	}
 
 	if observed.cluster.Spec.PodDisruptionBudget != nil {
@@ -565,7 +568,7 @@ func getFlinkJobSubmitLogFromString(podLog string) *SubmitterLog {
 
 func IsApplicationModeCluster(cluster *v1beta1.FlinkCluster) bool {
 	jobSpec := cluster.Spec.Job
-	return jobSpec != nil && *jobSpec.Mode == v1beta1.JobModeApplication
+	return jobSpec != nil && jobSpec.Mode != nil && *jobSpec.Mode == v1beta1.JobModeApplication
 }
 
 // checks if job-cancel was requested
