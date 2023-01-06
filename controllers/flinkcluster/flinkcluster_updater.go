@@ -570,7 +570,7 @@ func (updater *ClusterStatusUpdater) getFlinkJobID() *string {
 
 	var observedJobSubmitter = updater.observed.flinkJobSubmitter
 	if observedJobSubmitter.pod != nil {
-		if jobId, ok := observedJobSubmitter.pod.Labels["job-id"]; ok && jobId != "" {
+		if jobId, ok := observedJobSubmitter.pod.Labels[JobIdLabel]; ok && jobId != "" {
 			return &jobId
 		}
 	}
