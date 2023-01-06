@@ -30,6 +30,7 @@ import (
 
 	"github.com/spotify/flink-on-k8s-operator/internal/flink"
 	"github.com/spotify/flink-on-k8s-operator/internal/util"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
 	"github.com/spotify/flink-on-k8s-operator/internal/controllers/history"
@@ -353,7 +354,7 @@ func hasTimeElapsed(timeToCheckStr string, now time.Time, intervalSec int) bool 
 // If the component is observed as well as the next revision name in status.nextRevision and component's label `flinkoperator.k8s.io/hash` are equal, then it is updated already.
 // If the component is not observed and it is required, then it is not updated yet.
 // If the component is not observed and it is optional, but it is specified in the spec, then it is not updated yet.
-func isComponentUpdated(component runtime.Object, cluster *v1beta1.FlinkCluster) bool {
+func isComponentUpdated(component client.Object, cluster *v1beta1.FlinkCluster) bool {
 	if !cluster.Status.Revision.IsUpdateTriggered() {
 		return true
 	}
@@ -397,7 +398,7 @@ func isComponentUpdated(component runtime.Object, cluster *v1beta1.FlinkCluster)
 	return labels[RevisionNameLabel] == nextRevisionName
 }
 
-func areComponentsUpdated(components []runtime.Object, cluster *v1beta1.FlinkCluster) bool {
+func areComponentsUpdated(components []client.Object, cluster *v1beta1.FlinkCluster) bool {
 	for _, c := range components {
 		if !isComponentUpdated(c, cluster) {
 			return false
@@ -412,7 +413,8 @@ func isClusterUpdateToDate(observed *ObservedClusterState) bool {
 		return true
 	}
 	tmDeploymentType := observed.cluster.Spec.TaskManager.DeploymentType
-	components := []runtime.Object{
+
+	components := []client.Object{
 		observed.configMap,
 		observed.tmService,
 		observed.jmStatefulSet,
