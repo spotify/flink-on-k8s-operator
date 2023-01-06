@@ -39,7 +39,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -390,11 +389,9 @@ func isComponentUpdated(component client.Object, cluster *v1beta1.FlinkCluster) 
 		}
 	}
 
-	var labels, err = meta.NewAccessor().Labels(component)
-	var nextRevisionName = getNextRevisionName(&cluster.Status.Revision)
-	if err != nil {
-		return false
-	}
+	labels := component.GetLabels()
+	nextRevisionName := getNextRevisionName(&cluster.Status.Revision)
+
 	return labels[RevisionNameLabel] == nextRevisionName
 }
 
