@@ -194,7 +194,7 @@ func TestGetClusterResource(t *testing.T) {
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
-						corev1.Container{
+						{
 							Name:  "taskmanager",
 							Image: "flink:1.8.1",
 							Args:  []string{"taskmanager"},
@@ -259,7 +259,7 @@ func TestGetClusterResource(t *testing.T) {
 								},
 							},
 						},
-						corev1.Container{Name: "sidecar", Image: "alpine"},
+						{Name: "sidecar", Image: "alpine"},
 					},
 					Volumes: []corev1.Volume{
 						{
@@ -343,7 +343,7 @@ func TestGetClusterResourceForDeployment(t *testing.T) {
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
-						corev1.Container{
+						{
 							Name:  "taskmanager",
 							Image: "flink:1.8.1",
 							Args:  []string{"taskmanager"},
@@ -408,7 +408,7 @@ func TestGetClusterResourceForDeployment(t *testing.T) {
 								},
 							},
 						},
-						corev1.Container{Name: "sidecar", Image: "alpine"},
+						{Name: "sidecar", Image: "alpine"},
 					},
 					Volumes: []corev1.Volume{
 						{
