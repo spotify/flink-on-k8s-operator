@@ -104,10 +104,6 @@ type Revision struct {
 	collisionCount  int32
 }
 
-func (o *ObservedClusterState) isClusterUpdating() bool {
-	return o.updateState == UpdateStateInProgress
-}
-
 // Job submitter status.
 func (s *FlinkJobSubmitter) getState() JobSubmitState {
 	switch {
