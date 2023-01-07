@@ -3,7 +3,7 @@ VERSION ?= latest
 # Image URL to use all building/pushing image targets
 IMG ?= ghcr.io/spotify/flink-operator:$(VERSION)
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:maxDescLen=0,trivialVersions=true,preserveUnknownFields=false,generateEmbeddedObjectMeta=true"
+CRD_OPTIONS ?= "crd:maxDescLen=0,generateEmbeddedObjectMeta=true"
 # The Kubernetes namespace in which the operator will be deployed.
 FLINK_OPERATOR_NAMESPACE ?= flink-operator-system
 # Prefix for Kubernetes resource names. When deploying multiple operators, make sure that the names of cluster-scoped resources are not duplicated.
@@ -12,6 +12,7 @@ RESOURCE_PREFIX ?= flink-operator-
 WATCH_NAMESPACE ?=
 
 KUSTOMIZE_VERSION=v4.5.7
+CONTROLLER_GEN_VERSION=v0.11.1
 
 # Env test configuration
 ENVTEST_K8S_VERSION=1.25.0
@@ -39,13 +40,13 @@ help: ## Display this help.
 ##@ Development
 
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./apis/.../v1beta1/..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./apis/flinkcluster/v1beta1/..." output:crd:artifacts:config=config/crd/bases
 	# remove status field as they interfer with ArgoCD and Google config-sync
 	# https://github.com/kubernetes-sigs/controller-tools/issues/456
 	yq -i e 'del(.status)' config/crd/bases/flinkoperator.k8s.io_flinkclusters.yaml
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./apis/.../v1beta1/..."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./apis/flinkcluster/v1beta1/..."
 
 generate-crd-docs: crd-ref-docs ## Generate CRD documentation to docs/crd.md
 	$(CRD_REF_DOCS) --source-path=./apis/flinkcluster/v1beta1 --config=docs/config.yaml --renderer=markdown --output-path=docs/crd.md
@@ -122,7 +123,7 @@ samples:
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
-	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.6.2)
+	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION))
 
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.
@@ -132,7 +133,6 @@ ENVTEST = $(shell pwd)/bin/setup-envtest
 .PHONY: envtest
 envtest: ## Download envtest-setup locally if necessary.
 	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@$(SETUP_ENVTEST_VERSION))
-
 
 CRD_REF_DOCS = $(shell pwd)/bin/crd-ref-docs
 crd-ref-docs:
