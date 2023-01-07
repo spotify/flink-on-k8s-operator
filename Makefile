@@ -11,6 +11,7 @@ RESOURCE_PREFIX ?= flink-operator-
 # The Kubernetes namespace to limit watching.
 WATCH_NAMESPACE ?=
 
+KUSTOMIZE_VERSION=v4.5.7
 CONTROLLER_GEN_VERSION=v0.11.1
 
 # Env test configuration
@@ -126,7 +127,7 @@ controller-gen: ## Download controller-gen locally if necessary.
 
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.
-	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v4@v4.5.4)
+	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v4@$(KUSTOMIZE_VERSION))
 
 ENVTEST = $(shell pwd)/bin/setup-envtest
 .PHONY: envtest
