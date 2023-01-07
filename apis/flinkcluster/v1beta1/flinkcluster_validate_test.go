@@ -56,7 +56,7 @@ func TestValidateCreate(t *testing.T) {
 	var maxStateAgeToRestoreSeconds = int32(60)
 	var restartPolicy = JobRestartPolicyFromSavepointOnFailure
 	var memoryProcessRatio int32 = 25
-	var jobMode JobMode = JobModeDetached
+	var jobMode = JobModeDetached
 	var resources = DefaultResources
 	var cluster = FlinkCluster{
 		ObjectMeta: metav1.ObjectMeta{
@@ -766,7 +766,7 @@ func getSimpleFlinkCluster() FlinkCluster {
 	var maxStateAge = MaxStateAgeToRestore
 	var restartPolicy = JobRestartPolicyFromSavepointOnFailure
 	var savepointDir = "/savepoint_dir"
-	var jobMode JobMode = JobModeDetached
+	var jobMode = JobModeDetached
 	resources := DefaultResources
 	return FlinkCluster{
 		ObjectMeta: metav1.ObjectMeta{

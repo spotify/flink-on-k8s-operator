@@ -1030,7 +1030,7 @@ taskmanager.rpc.port: 6122
 }
 
 func TestTmDeploymentTypeDeployment(t *testing.T) {
-	var observed *ObservedClusterState = getObservedClusterState()
+	var observed = getObservedClusterState()
 	observed.cluster.Spec.TaskManager.DeploymentType = v1beta1.DeploymentTypeDeployment
 
 	var desired = getDesiredClusterState(observed)
@@ -1242,7 +1242,7 @@ func TestSecurityContext(t *testing.T) {
 		RunAsUser:  &userAndGroupId,
 		RunAsGroup: &userAndGroupId,
 	}
-	var jobMode v1beta1.JobMode = v1beta1.JobModeDetached
+	var jobMode = v1beta1.JobModeDetached
 
 	// Provided security context
 	var observed = &ObservedClusterState{
@@ -1563,7 +1563,7 @@ func TestClassPath(t *testing.T) {
 	var tmQueryPort int32 = 6125
 	var tmReplicas int32 = v1beta1.DefaultTaskManagerReplicas
 
-	var jobMode v1beta1.JobMode = v1beta1.JobModeDetached
+	var jobMode = v1beta1.JobModeDetached
 	var jarFile = "/cache/my-job.jar"
 	var className = "org.apache.flink.examples.java.wordcount.WordCount"
 	var parallelism int32 = 3

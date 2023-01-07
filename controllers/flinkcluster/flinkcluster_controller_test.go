@@ -25,7 +25,7 @@ var _ = Describe("FlinkCluster Controller", Ordered, func() {
 
 	var getDummyFlinkClusterWithJob = func() *v1beta1.FlinkCluster {
 		fc := getDummyFlinkCluster()
-		var blocking v1beta1.JobMode = v1beta1.JobModeBlocking
+		var blocking = v1beta1.JobModeBlocking
 		fc.Spec.Job.Mode = &blocking
 		fc.Spec.PodDisruptionBudget = &policyv1.PodDisruptionBudgetSpec{
 			Selector: &metav1.LabelSelector{

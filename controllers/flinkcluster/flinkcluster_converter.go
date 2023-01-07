@@ -517,7 +517,7 @@ func getEphemeralVolumesFromTaskManagerSpec(flinkCluster *v1beta1.FlinkCluster, 
 	var volumeClaimsInSpec = flinkCluster.Spec.TaskManager.VolumeClaimTemplates
 	for _, volume := range volumeClaimsInSpec {
 		ephemeralVolumes = append(ephemeralVolumes, corev1.Volume{
-			Name: volume.ObjectMeta.Name,
+			Name: volume.Name,
 			// Ephemeral volume
 			VolumeSource: corev1.VolumeSource{
 				Ephemeral: &corev1.EphemeralVolumeSource{
