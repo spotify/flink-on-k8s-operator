@@ -23,6 +23,14 @@ func (tc *TimeConverter) ToString(timestamp time.Time) string {
 	return timestamp.Format(time.RFC3339)
 }
 
+// Check time has passed
+func HasTimeElapsed(timeToCheckStr string, now time.Time, intervalSec int) bool {
+	tc := &TimeConverter{}
+	timeToCheck := tc.FromString(timeToCheckStr)
+	intervalPassedTime := timeToCheck.Add(time.Duration(int64(intervalSec) * int64(time.Second)))
+	return now.After(intervalPassedTime)
+}
+
 // SetTimestamp sets the current timestamp to the target.
 func SetTimestamp(target *string) {
 	var tc = &TimeConverter{}

@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spotify/flink-on-k8s-operator/internal/util"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"gotest.tools/v3/assert"
@@ -371,7 +372,7 @@ func TestTaskManagerDeploymentTypeUpdate(t *testing.T) {
 
 func TestUpdateJob(t *testing.T) {
 	var validator = &Validator{}
-	var tc = &TimeConverter{}
+	var tc = &util.TimeConverter{}
 	var maxStateAge = time.Duration(MaxStateAgeToRestore)
 	var jarFileNew = "gs://my-bucket/myjob-v2.jar"
 
