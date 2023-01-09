@@ -20,12 +20,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spotify/flink-on-k8s-operator/internal/util"
 	"gotest.tools/v3/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestIsSavepointUpToDate(t *testing.T) {
-	var tc = &TimeConverter{}
+	var tc = &util.TimeConverter{}
 	var savepointTime = time.Now()
 	var jobCompletionTime = savepointTime.Add(time.Second * 100)
 	var maxStateAgeToRestoreSeconds = int32(300)
@@ -92,7 +93,7 @@ func TestIsSavepointUpToDate(t *testing.T) {
 }
 
 func TestShouldRestartJob(t *testing.T) {
-	var tc = &TimeConverter{}
+	var tc = &util.TimeConverter{}
 	var restartOnFailure = JobRestartPolicyFromSavepointOnFailure
 	var neverRestart = JobRestartPolicyNever
 	var maxStateAgeToRestoreSeconds = int32(300) // 5 min
