@@ -13,10 +13,9 @@ WATCH_NAMESPACE ?=
 
 KUSTOMIZE_VERSION=v4.5.7
 CONTROLLER_GEN_VERSION=v0.11.1
-
 # Env test configuration
-ENVTEST_K8S_VERSION=1.25.0
-SETUP_ENVTEST_VERSION=v0.0.0-20221007015352-8ad090e0663e
+ENVTEST_K8S_VERSION=1.26.0
+
 LOCALBIN=$(shell pwd)/bin
 
 all: build
@@ -132,7 +131,7 @@ kustomize: ## Download kustomize locally if necessary.
 ENVTEST = $(shell pwd)/bin/setup-envtest
 .PHONY: envtest
 envtest: ## Download envtest-setup locally if necessary.
-	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@$(SETUP_ENVTEST_VERSION))
+	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
 
 CRD_REF_DOCS = $(shell pwd)/bin/crd-ref-docs
 crd-ref-docs:
