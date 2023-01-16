@@ -453,16 +453,16 @@ func getUpdateState(observed *ObservedClusterState) UpdateState {
 	if observed.cluster == nil {
 		return UpdateStateNoUpdate
 	}
-	var recorded = observed.cluster.Status
-	var job = recorded.Components.Job
 
-	if !recorded.Revision.IsUpdateTriggered() {
+	clusterStatus := observed.cluster.Status
+	if !clusterStatus.Revision.IsUpdateTriggered() {
 		return UpdateStateNoUpdate
 	}
 
+	jobStatus := clusterStatus.Components.Job
 	switch {
 	case isJobUpdate(observed.revisions, observed.cluster) &&
-		!job.UpdateReady(observed.cluster.Spec.Job, observed.observeTime):
+		!jobStatus.UpdateReady(observed.cluster.Spec.Job, observed.observeTime):
 		return UpdateStatePreparing
 	case !isClusterUpdateToDate(observed):
 		return UpdateStateInProgress
@@ -484,6 +484,10 @@ func revisionDiff(a, b *appsv1.ControllerRevision) map[string]util.DiffValue {
 }
 
 func isJobUpdate(revisions []*appsv1.ControllerRevision, cluster *v1beta1.FlinkCluster) bool {
+	if wasJobCancelRequested(cluster.Status.Control) {
+		return false
+	}
+
 	if len(revisions) < 2 || (cluster != nil && cluster.Spec.Job == nil) {
 		return false
 	}
