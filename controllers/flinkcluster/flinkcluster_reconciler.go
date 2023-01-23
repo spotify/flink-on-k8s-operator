@@ -327,18 +327,14 @@ func (reconciler *ClusterReconciler) reconcileHAConfigMap(ctx context.Context) e
 }
 
 func (reconciler *ClusterReconciler) reconcilePodDisruptionBudget(ctx context.Context) error {
-	var desiredPodDisruptionBudget = reconciler.desired.PodDisruptionBudget
-	var observedPodDisruptionBudget = reconciler.observed.podDisruptionBudget
+	desiredPodDisruptionBudget := reconciler.desired.PodDisruptionBudget
+	observedPodDisruptionBudget := reconciler.observed.podDisruptionBudget
+	return reconciler.reconcileComponent(
+		ctx,
+		"PodDisruptionBudget",
+		desiredPodDisruptionBudget,
+		observedPodDisruptionBudget)
 
-	if desiredPodDisruptionBudget != nil && observedPodDisruptionBudget == nil {
-		return reconciler.createComponent(ctx, desiredPodDisruptionBudget, "PodDisruptionBudget")
-	}
-
-	if desiredPodDisruptionBudget == nil && observedPodDisruptionBudget != nil {
-		return reconciler.deleteComponent(ctx, observedPodDisruptionBudget, "PodDisruptionBudget")
-	}
-
-	return nil
 }
 
 func (reconciler *ClusterReconciler) reconcilePersistentVolumeClaims(ctx context.Context) error {
