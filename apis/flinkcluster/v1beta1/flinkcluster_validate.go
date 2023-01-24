@@ -97,12 +97,9 @@ func (v *Validator) ValidateUpdate(old *FlinkCluster, new *FlinkCluster) error {
 		return nil
 	}
 
-	cancelRequested, err := v.checkCancelRequested(old, new)
+	_, err = v.checkCancelRequested(old, new)
 	if err != nil {
 		return err
-	}
-	if cancelRequested {
-		return nil
 	}
 
 	savepointGenUpdated, err := v.checkSavepointGeneration(old, new)
