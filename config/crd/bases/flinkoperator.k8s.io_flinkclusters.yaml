@@ -4625,7 +4625,6 @@ spec:
                               - type
                             type: object
                           type: array
-                          x-kubernetes-list-type: atomic
                         minReplicas:
                           format: int32
                           type: integer
