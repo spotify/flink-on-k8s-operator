@@ -32,6 +32,7 @@ import (
 	flink "github.com/spotify/flink-on-k8s-operator/internal/flink"
 	"github.com/spotify/flink-on-k8s-operator/internal/util"
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -55,24 +56,25 @@ type ClusterStateObserver struct {
 
 // ObservedClusterState holds observed state of a cluster.
 type ObservedClusterState struct {
-	cluster                *v1beta1.FlinkCluster
-	revisions              []*appsv1.ControllerRevision
-	configMap              *corev1.ConfigMap
-	haConfigMap            *corev1.ConfigMap
-	jmStatefulSet          *appsv1.StatefulSet
-	jmService              *corev1.Service
-	jmIngress              *networkingv1.Ingress
-	tmStatefulSet          *appsv1.StatefulSet
-	tmDeployment           *appsv1.Deployment
-	tmService              *corev1.Service
-	podDisruptionBudget    *policyv1.PodDisruptionBudget
-	persistentVolumeClaims *corev1.PersistentVolumeClaimList
-	flinkJob               FlinkJob
-	flinkJobSubmitter      FlinkJobSubmitter
-	savepoint              Savepoint
-	revision               Revision
-	observeTime            time.Time
-	updateState            UpdateState
+	cluster                 *v1beta1.FlinkCluster
+	revisions               []*appsv1.ControllerRevision
+	configMap               *corev1.ConfigMap
+	haConfigMap             *corev1.ConfigMap
+	jmStatefulSet           *appsv1.StatefulSet
+	jmService               *corev1.Service
+	jmIngress               *networkingv1.Ingress
+	tmStatefulSet           *appsv1.StatefulSet
+	tmDeployment            *appsv1.Deployment
+	tmService               *corev1.Service
+	podDisruptionBudget     *policyv1.PodDisruptionBudget
+	horizontalPodAutoscaler *autoscalingv2.HorizontalPodAutoscaler
+	persistentVolumeClaims  *corev1.PersistentVolumeClaimList
+	flinkJob                FlinkJob
+	flinkJobSubmitter       FlinkJobSubmitter
+	savepoint               Savepoint
+	revision                Revision
+	observeTime             time.Time
+	updateState             UpdateState
 }
 
 type FlinkJob struct {
@@ -188,6 +190,12 @@ func (observer *ClusterStateObserver) observe(ctx context.Context, observed *Obs
 		// TaskManager
 		if err := observer.observeTaskManager(ctx, observed); err != nil {
 			log.Error(err, "Failed to get TaskManager")
+			return err
+		}
+
+		// HorizontalPodAutoscaler
+		if err := observer.observeHorizontalPodAutoscaler(ctx, observed); err != nil {
+			log.Error(err, "Failed to get HorizontalPodAutoscaler")
 			return err
 		}
 
@@ -427,6 +435,21 @@ func (observer *ClusterStateObserver) observePodDisruptionBudget(
 			return err
 		}
 		observed.podDisruptionBudget = nil
+	}
+	return nil
+}
+
+func (observer *ClusterStateObserver) observeHorizontalPodAutoscaler(
+	ctx context.Context,
+	observed *ObservedClusterState) error {
+	var clusterName = observer.request.Name
+	observed.horizontalPodAutoscaler = new(autoscalingv2.HorizontalPodAutoscaler)
+	hpaName := getHorizontalPodAutoscalerName(clusterName)
+	if err := observer.observeObject(ctx, hpaName, observed.horizontalPodAutoscaler); err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			return err
+		}
+		observed.horizontalPodAutoscaler = nil
 	}
 	return nil
 }
@@ -779,6 +802,11 @@ func (observer *ClusterStateObserver) logObservedState(ctx context.Context, obse
 			log = log.WithValues("tmService", *observed.tmService)
 		} else {
 			log = log.WithValues("tmService", "nil")
+		}
+		if observed.horizontalPodAutoscaler != nil {
+			log = log.WithValues("horizontalPodAutoscaler", *observed.horizontalPodAutoscaler)
+		} else {
+			log = log.WithValues("horizontalPodAutoscaler", "nil")
 		}
 		if observed.savepoint.status != nil {
 			log = log.WithValues("savepoint", *observed.savepoint.status)

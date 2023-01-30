@@ -106,6 +106,11 @@ func getPodDisruptionBudgetName(clusterName string) string {
 	return "flink-" + clusterName
 }
 
+// Get HorizontalPodAutoscaler name
+func getHorizontalPodAutoscalerName(clusterName string) string {
+	return "flink-" + clusterName
+}
+
 // Gets JobManager StatefulSet name
 func getJobManagerName(clusterName string) string {
 	return clusterName + "-jobmanager"

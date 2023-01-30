@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -361,6 +362,32 @@ const (
 	DeploymentTypeDeployment = "Deployment"
 )
 
+type HorizontalPodAutoscalerSpec struct {
+	// minReplicas is the lower limit for the number of replicas to which the autoscaler
+	// can scale down.  It defaults to 1 pod.  minReplicas is allowed to be 0 if the
+	// alpha feature gate HPAScaleToZero is enabled and at least one Object or External
+	// metric is configured.  Scaling is active as long as at least one metric value is
+	// available.
+	MinReplicas *int32 `json:"minReplicas,omitempty"`
+	// maxReplicas is the upper limit for the number of replicas to which the autoscaler can scale up.
+	// It cannot be less that minReplicas.
+	MaxReplicas int32 `json:"maxReplicas"`
+	// metrics contains the specifications for which to use to calculate the
+	// desired replica count (the maximum replica count across all metrics will
+	// be used).  The desired replica count is calculated multiplying the
+	// ratio between the target value and the current value by the current
+	// number of pods.  Ergo, metrics used must decrease as the pod count is
+	// increased, and vice-versa.  See the individual metric source types for
+	// more information about how each type of metric must respond.
+	// If not set, the default metric will be set to 80% average CPU utilization.
+	Metrics []autoscalingv2.MetricSpec `json:"metrics,omitempty"`
+
+	// behavior configures the scaling behavior of the target
+	// in both Up and Down directions (scaleUp and scaleDown fields respectively).
+	// If not set, the default HPAScalingRules for scale up and scale down are used.
+	Behavior *autoscalingv2.HorizontalPodAutoscalerBehavior `json:"behavior,omitempty" protobuf:"bytes,5,opt,name=behavior"`
+}
+
 // TaskManagerSpec defines properties of TaskManager.
 type TaskManagerSpec struct {
 	// _(Optional)_ Defines the replica workload's type: `StatefulSet` or `Deployment`. If not specified, the default value is `StatefulSet`.
@@ -458,6 +485,10 @@ type TaskManagerSpec struct {
 	// _(Optional)_ Adding entries to TaskManager pod /etc/hosts with HostAliases
 	// [More info](https://kubernetes.io/docs/tasks/network/customize-hosts-file-for-pods/)
 	HostAliases []corev1.HostAlias `json:"hostAliases,omitempty"`
+
+	// _(Optional)_ HorizontalPodAutoscaler for TaskManager.
+	// [More info](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/)
+	HorizontalPodAutoscaler *HorizontalPodAutoscalerSpec `json:"horizontalPodAutoscaler,omitempty"`
 }
 
 // CleanupAction defines the action to take after job finishes.

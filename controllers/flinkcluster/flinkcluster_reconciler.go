@@ -118,6 +118,11 @@ func (reconciler *ClusterReconciler) reconcile(ctx context.Context) (ctrl.Result
 		return ctrl.Result{}, err
 	}
 
+	err = reconciler.reconcileHorizontalPodAutoscaler(ctx)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	err = reconciler.reconcileTaskManagerService(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -225,6 +230,14 @@ func (reconciler *ClusterReconciler) reconcileComponent(
 	return nil
 }
 
+func (reconciler *ClusterReconciler) reconcileHorizontalPodAutoscaler(ctx context.Context) error {
+	return reconciler.reconcileComponent(
+		ctx,
+		"HorizontalPodAutoscaler",
+		reconciler.desired.HorizontalPodAutoscaler,
+		reconciler.observed.horizontalPodAutoscaler)
+}
+
 func (reconciler *ClusterReconciler) reconcileTaskManagerService(ctx context.Context) error {
 	var desiredTmService = reconciler.desired.TmService
 	var observedTmService = reconciler.observed.tmService
@@ -234,7 +247,7 @@ func (reconciler *ClusterReconciler) reconcileTaskManagerService(ctx context.Con
 		desiredTmService.SetResourceVersion(observedTmService.GetResourceVersion())
 		desiredTmService.Spec.ClusterIP = observedTmService.Spec.ClusterIP
 	}
-	return reconciler.reconcileComponent(ctx, "JobManagerService", desiredTmService, observedTmService)
+	return reconciler.reconcileComponent(ctx, "TaskManagerService", desiredTmService, observedTmService)
 }
 
 func (reconciler *ClusterReconciler) createComponent(
