@@ -280,8 +280,7 @@ func (observer *ClusterStateObserver) observeJob(
 	// Extract submission result only when it is in deployment progress or the submitter pod failed.
 	// It is not necessary to get the log stream from the submitter pod always.
 	var jobDeployInProgress = recordedJob != nil && recordedJob.State == v1beta1.JobStateDeploying
-	var jobPodFailed = jobPod != nil && jobPod.Status.Phase == corev1.PodFailed
-	if jobPod != nil && (jobDeployInProgress || jobPodFailed) {
+	if jobPod != nil && (jobDeployInProgress || jobPod.Status.Phase == corev1.PodFailed) {
 		var err error
 		submitterLog, err = getFlinkJobSubmitLog(observer.k8sClientset, jobPod)
 		if err != nil {
