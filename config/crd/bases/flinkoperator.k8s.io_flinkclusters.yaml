@@ -660,6 +660,18 @@ spec:
                             type: object
                           resources:
                             properties:
+                              claims:
+                                items:
+                                  properties:
+                                    name:
+                                      type: string
+                                  required:
+                                    - name
+                                  type: object
+                                type: array
+                                x-kubernetes-list-map-keys:
+                                  - name
+                                x-kubernetes-list-type: map
                               limits:
                                 additionalProperties:
                                   anyOf:
@@ -910,6 +922,18 @@ spec:
                           cpu: 200m
                           memory: 512Mi
                       properties:
+                        claims:
+                          items:
+                            properties:
+                              name:
+                                type: string
+                            required:
+                              - name
+                            type: object
+                          type: array
+                          x-kubernetes-list-map-keys:
+                            - name
+                          x-kubernetes-list-type: map
                         limits:
                           additionalProperties:
                             anyOf:
@@ -1279,13 +1303,26 @@ spec:
                                             type: string
                                           name:
                                             type: string
+                                          namespace:
+                                            type: string
                                         required:
                                           - kind
                                           - name
                                         type: object
-                                        x-kubernetes-map-type: atomic
                                       resources:
                                         properties:
+                                          claims:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                              required:
+                                                - name
+                                              type: object
+                                            type: array
+                                            x-kubernetes-list-map-keys:
+                                              - name
+                                            x-kubernetes-list-type: map
                                           limits:
                                             additionalProperties:
                                               anyOf:
@@ -2211,6 +2248,18 @@ spec:
                             type: object
                           resources:
                             properties:
+                              claims:
+                                items:
+                                  properties:
+                                    name:
+                                      type: string
+                                  required:
+                                    - name
+                                  type: object
+                                type: array
+                                x-kubernetes-list-map-keys:
+                                  - name
+                                x-kubernetes-list-type: map
                               limits:
                                 additionalProperties:
                                   anyOf:
@@ -2642,6 +2691,18 @@ spec:
                           cpu: 200m
                           memory: 512Mi
                       properties:
+                        claims:
+                          items:
+                            properties:
+                              name:
+                                type: string
+                            required:
+                              - name
+                            type: object
+                          type: array
+                          x-kubernetes-list-map-keys:
+                            - name
+                          x-kubernetes-list-type: map
                         limits:
                           additionalProperties:
                             anyOf:
@@ -3112,6 +3173,18 @@ spec:
                             type: object
                           resources:
                             properties:
+                              claims:
+                                items:
+                                  properties:
+                                    name:
+                                      type: string
+                                  required:
+                                    - name
+                                  type: object
+                                type: array
+                                x-kubernetes-list-map-keys:
+                                  - name
+                                x-kubernetes-list-type: map
                               limits:
                                 additionalProperties:
                                   anyOf:
@@ -3385,13 +3458,26 @@ spec:
                                     type: string
                                   name:
                                     type: string
+                                  namespace:
+                                    type: string
                                 required:
                                   - kind
                                   - name
                                 type: object
-                                x-kubernetes-map-type: atomic
                               resources:
                                 properties:
+                                  claims:
+                                    items:
+                                      properties:
+                                        name:
+                                          type: string
+                                      required:
+                                        - name
+                                      type: object
+                                    type: array
+                                    x-kubernetes-list-map-keys:
+                                      - name
+                                    x-kubernetes-list-type: map
                                   limits:
                                     additionalProperties:
                                       anyOf:
@@ -3750,13 +3836,26 @@ spec:
                                             type: string
                                           name:
                                             type: string
+                                          namespace:
+                                            type: string
                                         required:
                                           - kind
                                           - name
                                         type: object
-                                        x-kubernetes-map-type: atomic
                                       resources:
                                         properties:
+                                          claims:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                              required:
+                                                - name
+                                              type: object
+                                            type: array
+                                            x-kubernetes-list-map-keys:
+                                              - name
+                                            x-kubernetes-list-type: map
                                           limits:
                                             additionalProperties:
                                               anyOf:
@@ -4267,6 +4366,8 @@ spec:
                           type: object
                       type: object
                       x-kubernetes-map-type: atomic
+                    unhealthyPodEvictionPolicy:
+                      type: string
                   type: object
                 recreateOnUpdate:
                   default: true
@@ -4703,6 +4804,18 @@ spec:
                             type: object
                           resources:
                             properties:
+                              claims:
+                                items:
+                                  properties:
+                                    name:
+                                      type: string
+                                  required:
+                                    - name
+                                  type: object
+                                type: array
+                                x-kubernetes-list-map-keys:
+                                  - name
+                                x-kubernetes-list-type: map
                               limits:
                                 additionalProperties:
                                   anyOf:
@@ -5126,6 +5239,18 @@ spec:
                           cpu: 200m
                           memory: 512Mi
                       properties:
+                        claims:
+                          items:
+                            properties:
+                              name:
+                                type: string
+                            required:
+                              - name
+                            type: object
+                          type: array
+                          x-kubernetes-list-map-keys:
+                            - name
+                          x-kubernetes-list-type: map
                         limits:
                           additionalProperties:
                             anyOf:
@@ -5596,6 +5721,18 @@ spec:
                             type: object
                           resources:
                             properties:
+                              claims:
+                                items:
+                                  properties:
+                                    name:
+                                      type: string
+                                  required:
+                                    - name
+                                  type: object
+                                type: array
+                                x-kubernetes-list-map-keys:
+                                  - name
+                                x-kubernetes-list-type: map
                               limits:
                                 additionalProperties:
                                   anyOf:
@@ -5869,13 +6006,26 @@ spec:
                                     type: string
                                   name:
                                     type: string
+                                  namespace:
+                                    type: string
                                 required:
                                   - kind
                                   - name
                                 type: object
-                                x-kubernetes-map-type: atomic
                               resources:
                                 properties:
+                                  claims:
+                                    items:
+                                      properties:
+                                        name:
+                                          type: string
+                                      required:
+                                        - name
+                                      type: object
+                                    type: array
+                                    x-kubernetes-list-map-keys:
+                                      - name
+                                    x-kubernetes-list-type: map
                                   limits:
                                     additionalProperties:
                                       anyOf:
@@ -6234,13 +6384,26 @@ spec:
                                             type: string
                                           name:
                                             type: string
+                                          namespace:
+                                            type: string
                                         required:
                                           - kind
                                           - name
                                         type: object
-                                        x-kubernetes-map-type: atomic
                                       resources:
                                         properties:
+                                          claims:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                              required:
+                                                - name
+                                              type: object
+                                            type: array
+                                            x-kubernetes-list-map-keys:
+                                              - name
+                                            x-kubernetes-list-type: map
                                           limits:
                                             additionalProperties:
                                               anyOf:
