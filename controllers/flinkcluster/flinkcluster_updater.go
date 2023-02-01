@@ -654,9 +654,15 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 		newJobState = v1beta1.JobStateDeploying
 	// Derive the job state from the observed Flink job, if it exists.
 	case observedFlinkJob != nil:
-		newJobState = getFlinkJobDeploymentState(observedFlinkJob.State)
 		newJob.ID = observedFlinkJob.Id
 		newJob.Name = observedFlinkJob.Name
+		tmpState := getFlinkJobDeploymentState(observedFlinkJob.State)
+		if observedSubmitter.job == nil || tmpState != v1beta1.JobStateSucceeded {
+			newJobState = tmpState
+			break
+		}
+		updater.log.Info("The submitter maybe still running. Waiting for it")
+		fallthrough
 	case oldJob.IsActive() && observedSubmitter.job != nil && observedSubmitter.job.Status.Active == 0:
 		if observedSubmitter.job.Status.Succeeded == 1 {
 			newJobState = v1beta1.JobStateSucceeded
@@ -725,8 +731,7 @@ func (updater *ClusterStatusUpdater) deriveJobStatus() *v1beta1.JobStatus {
 					for _, e := range exceptions.Exceptions {
 						newJob.FailureReasons = append(newJob.FailureReasons, e.Exception)
 					}
-				}
-				if observedSubmitter.log != nil {
+				} else if observedSubmitter.log != nil {
 					newJob.FailureReasons = append(newJob.FailureReasons, observedSubmitter.log.message)
 				}
 			}
