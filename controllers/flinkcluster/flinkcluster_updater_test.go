@@ -17,6 +17,7 @@ limitations under the License.
 package flinkcluster
 
 import (
+	"context"
 	"testing"
 
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
@@ -24,7 +25,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func TestGetStatefulSetStateNotReady(t *testing.T) {
@@ -43,7 +43,7 @@ func TestClusterStatus(t *testing.T) {
 		var oldStatus = v1beta1.FlinkClusterStatus{}
 		var newStatus = v1beta1.FlinkClusterStatus{}
 		var updater = &ClusterStatusUpdater{}
-		assert.Assert(t, updater.isStatusChanged(oldStatus, newStatus) == false)
+		assert.Assert(t, updater.isStatusChanged(context.TODO(), oldStatus, newStatus) == false)
 	})
 
 	t.Run("changed", func(t *testing.T) {
@@ -96,8 +96,8 @@ func TestClusterStatus(t *testing.T) {
 				},
 			},
 			State: "Creating"}
-		var updater = &ClusterStatusUpdater{log: log.Log}
-		assert.Assert(t, updater.isStatusChanged(oldStatus, newStatus))
+		var updater = &ClusterStatusUpdater{}
+		assert.Assert(t, updater.isStatusChanged(context.TODO(), oldStatus, newStatus))
 	})
 
 	t.Run("derive status", func(t *testing.T) {
@@ -208,10 +208,10 @@ func TestClusterStatus(t *testing.T) {
 			},
 		}
 
-		var updater = &ClusterStatusUpdater{log: log.Log, observed: observed}
+		var updater = &ClusterStatusUpdater{observed: observed}
 		cluster := v1beta1.FlinkCluster{Status: oldStatus, Spec: v1beta1.FlinkClusterSpec{TaskManager: &v1beta1.TaskManagerSpec{DeploymentType: v1beta1.DeploymentTypeStatefulSet}}}
-		newStatus := updater.deriveClusterStatus(&cluster, &observed)
-		assert.Assert(t, updater.isStatusChanged(oldStatus, newStatus))
+		newStatus := updater.deriveClusterStatus(context.TODO(), &cluster, &observed)
+		assert.Assert(t, updater.isStatusChanged(context.TODO(), oldStatus, newStatus))
 		assert.Equal(t, newStatus.State, v1beta1.ClusterStateRunning)
 	})
 

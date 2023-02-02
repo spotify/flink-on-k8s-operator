@@ -165,7 +165,6 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 
 	var updater = ClusterStatusUpdater{
 		k8sClient: k8sClient,
-		log:       log,
 		recorder:  handler.eventRecorder,
 		observed:  handler.observed,
 	}
