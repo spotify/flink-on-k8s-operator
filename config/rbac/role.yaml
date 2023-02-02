@@ -119,6 +119,7 @@ rules:
       - poddisruptionbudgets
     verbs:
       - create
+      - update
       - delete
       - get
       - list
@@ -135,6 +136,7 @@ rules:
       - horizontalpodautoscalers
     verbs:
       - create
+      - update
       - delete
       - get
       - list
