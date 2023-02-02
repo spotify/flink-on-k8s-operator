@@ -223,6 +223,11 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 	} else {
 		log = log.WithValues("TaskManager", "nil")
 	}
+	if desired.HorizontalPodAutoscaler != nil {
+		log = log.WithValues("HorizontalPodAutoscaler", *desired.HorizontalPodAutoscaler)
+	} else {
+		log = log.WithValues("HorizontalPodAutoscaler", "nil")
+	}
 
 	if desired.Job != nil {
 		log = log.WithValues("Job", *desired.Job)

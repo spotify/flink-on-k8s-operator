@@ -118,6 +118,11 @@ func (reconciler *ClusterReconciler) reconcile(ctx context.Context) (ctrl.Result
 		return ctrl.Result{}, err
 	}
 
+	err = reconciler.reconcileHorizontalPodAutoscaler(ctx)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	err = reconciler.reconcileTaskManagerService(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -223,6 +228,14 @@ func (reconciler *ClusterReconciler) reconcileComponent(
 	}
 
 	return nil
+}
+
+func (reconciler *ClusterReconciler) reconcileHorizontalPodAutoscaler(ctx context.Context) error {
+	return reconciler.reconcileComponent(
+		ctx,
+		"HorizontalPodAutoscaler",
+		reconciler.desired.HorizontalPodAutoscaler,
+		reconciler.observed.horizontalPodAutoscaler)
 }
 
 func (reconciler *ClusterReconciler) reconcileTaskManagerService(ctx context.Context) error {

@@ -31,6 +31,7 @@ import (
 	"github.com/spotify/flink-on-k8s-operator/internal/util"
 
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -90,6 +91,10 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 
 	if !shouldCleanup(cluster, "PodDisruptionBudget") {
 		state.PodDisruptionBudget = newPodDisruptionBudget(cluster)
+	}
+
+	if !shouldCleanup(cluster, "HorizontalPodAutoscaler") {
+		state.HorizontalPodAutoscaler = newHorizontalPodAutoscaler(cluster)
 	}
 
 	if !shouldCleanup(cluster, "JobManager") && !applicationMode {
@@ -599,6 +604,40 @@ func newPodDisruptionBudget(flinkCluster *v1beta1.FlinkCluster) *policyv1.PodDis
 		},
 		Spec: *pdbSpec,
 	}
+}
+
+// Gets the desired HorizontalPodAutoscaler.
+func newHorizontalPodAutoscaler(flinkCluster *v1beta1.FlinkCluster) *autoscalingv2.HorizontalPodAutoscaler {
+	hpaSpec := flinkCluster.Spec.TaskManager.HorizontalPodAutoscaler
+	if hpaSpec == nil {
+		return nil
+	}
+
+	selectorLabels := getClusterLabels(flinkCluster)
+	labels := mergeLabels(selectorLabels, getRevisionHashLabels(&flinkCluster.Status.Revision))
+
+	return &autoscalingv2.HorizontalPodAutoscaler{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: flinkCluster.Namespace,
+			Name:      getHorizontalPodAutoscalerName(flinkCluster.Name),
+			OwnerReferences: []metav1.OwnerReference{
+				ToOwnerReference(flinkCluster),
+			},
+			Labels: labels,
+		},
+		Spec: autoscalingv2.HorizontalPodAutoscalerSpec{
+			MaxReplicas: hpaSpec.MaxReplicas,
+			MinReplicas: hpaSpec.MinReplicas,
+			Metrics:     hpaSpec.Metrics,
+			Behavior:    hpaSpec.Behavior,
+			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
+				APIVersion: flinkCluster.APIVersion,
+				Kind:       flinkCluster.Kind,
+				Name:       flinkCluster.Name,
+			},
+		},
+	}
+
 }
 
 // Gets the desired TaskManager Headless Service.

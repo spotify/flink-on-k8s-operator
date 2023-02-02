@@ -15,6 +15,7 @@ package model
 
 import (
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -23,13 +24,14 @@ import (
 
 // DesiredClusterState holds desired state of a cluster.
 type DesiredClusterState struct {
-	JmStatefulSet       *appsv1.StatefulSet
-	JmService           *corev1.Service
-	JmIngress           *networkingv1.Ingress
-	TmStatefulSet       *appsv1.StatefulSet
-	TmDeployment        *appsv1.Deployment
-	TmService           *corev1.Service
-	ConfigMap           *corev1.ConfigMap
-	Job                 *batchv1.Job
-	PodDisruptionBudget *policyv1.PodDisruptionBudget
+	JmStatefulSet           *appsv1.StatefulSet
+	JmService               *corev1.Service
+	JmIngress               *networkingv1.Ingress
+	TmStatefulSet           *appsv1.StatefulSet
+	TmDeployment            *appsv1.Deployment
+	TmService               *corev1.Service
+	ConfigMap               *corev1.ConfigMap
+	Job                     *batchv1.Job
+	PodDisruptionBudget     *policyv1.PodDisruptionBudget
+	HorizontalPodAutoscaler *autoscalingv2.HorizontalPodAutoscaler
 }

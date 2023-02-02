@@ -130,6 +130,22 @@ rules:
     verbs:
       - get
   - apiGroups:
+      - "autoscaling"
+    resources:
+      - horizontalpodautoscalers
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "autoscaling"
+    resources:
+      - horizontalpodautoscalers/status
+    verbs:
+      - get
+  - apiGroups:
       - ""
     resources:
       - pods
