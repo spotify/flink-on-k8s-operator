@@ -234,7 +234,7 @@ func (reconciler *ClusterReconciler) reconcileTaskManagerService(ctx context.Con
 		desiredTmService.SetResourceVersion(observedTmService.GetResourceVersion())
 		desiredTmService.Spec.ClusterIP = observedTmService.Spec.ClusterIP
 	}
-	return reconciler.reconcileComponent(ctx, "JobManagerService", desiredTmService, observedTmService)
+	return reconciler.reconcileComponent(ctx, "TaskManagerService", desiredTmService, observedTmService)
 }
 
 func (reconciler *ClusterReconciler) createComponent(
