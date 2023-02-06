@@ -671,6 +671,12 @@ func (updater *ClusterStatusUpdater) deriveJobStatus(ctx context.Context) *v1bet
 	case oldJob.IsActive() && observedSubmitter.job != nil && observedSubmitter.job.Status.Active == 0:
 		if observedSubmitter.job.Status.Succeeded == 1 {
 			newJobState = v1beta1.JobStateSucceeded
+			if newJob.SubmitterExitCode == -1 {
+				log.Info("Job succeeded but the exit code is -1. This is an edge case that may " +
+					"happen if the controller is down or busy for a long time and the submitter pod is deleted externally " +
+					"including by kube-system:pod-garbage-collector. Changing exit code to 0.")
+				newJob.SubmitterExitCode = 0
+			}
 		} else if observedSubmitter.job.Status.Failed == 1 {
 			newJobState = v1beta1.JobStateFailed
 		} else {
