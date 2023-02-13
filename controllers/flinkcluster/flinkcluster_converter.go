@@ -210,6 +210,7 @@ func newJobManagerPodSpec(mainContainer *corev1.Container, flinkCluster *v1beta1
 		InitContainers:                convertContainers(jobManagerSpec.InitContainers, []corev1.VolumeMount{}, clusterSpec.EnvVars),
 		Containers:                    []corev1.Container{*mainContainer},
 		Volumes:                       jobManagerSpec.Volumes,
+		Affinity:                      jobManagerSpec.Affinity,
 		NodeSelector:                  jobManagerSpec.NodeSelector,
 		Tolerations:                   jobManagerSpec.Tolerations,
 		ImagePullSecrets:              imageSpec.PullSecrets,
@@ -456,6 +457,7 @@ func newTaskManagerPodSpec(mainContainer *corev1.Container, flinkCluster *v1beta
 		InitContainers:                convertContainers(taskManagerSpec.InitContainers, []corev1.VolumeMount{}, clusterSpec.EnvVars),
 		Containers:                    []corev1.Container{*mainContainer},
 		Volumes:                       taskManagerSpec.Volumes,
+		Affinity:                      taskManagerSpec.Affinity,
 		NodeSelector:                  taskManagerSpec.NodeSelector,
 		Tolerations:                   taskManagerSpec.Tolerations,
 		ImagePullSecrets:              imageSpec.PullSecrets,
@@ -858,6 +860,7 @@ func newJobSubmitterPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec 
 		SecurityContext:    jobSpec.SecurityContext,
 		HostAliases:        jobSpec.HostAliases,
 		ServiceAccountName: getServiceAccountName(serviceAccount),
+		Affinity:           jobSpec.Affinity,
 		NodeSelector:       jobSpec.NodeSelector,
 		Tolerations:        jobSpec.Tolerations,
 	}

@@ -57,7 +57,7 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `name` _string_ | The resource name of the component. |
-| `state` _string_ | The state of the component. |
+| `state` _ComponentState_ | The state of the component. |
 
 
 #### FlinkCluster
@@ -190,6 +190,23 @@ _Appears in:_
 | `mountPath` _string_ | The path where to mount the Volume of the ConfigMap. default: `/etc/hadoop/conf`. |
 
 
+#### HorizontalPodAutoscalerSpec
+
+
+
+
+
+_Appears in:_
+- [TaskManagerSpec](#taskmanagerspec)
+
+| Field | Description |
+| --- | --- |
+| `minReplicas` _integer_ | minReplicas is the lower limit for the number of replicas to which the autoscaler can scale down.  It defaults to 1 pod.  minReplicas is allowed to be 0 if the alpha feature gate HPAScaleToZero is enabled and at least one Object or External metric is configured.  Scaling is active as long as at least one metric value is available. |
+| `maxReplicas` _integer_ | maxReplicas is the upper limit for the number of replicas to which the autoscaler can scale up. It cannot be less that minReplicas. |
+| `metrics` _[MetricSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#metricspec-v2-autoscaling) array_ | metrics contains the specifications for which to use to calculate the desired replica count (the maximum replica count across all metrics will be used).  The desired replica count is calculated multiplying the ratio between the target value and the current value by the current number of pods.  Ergo, metrics used must decrease as the pod count is increased, and vice-versa.  See the individual metric source types for more information about how each type of metric must respond. If not set, the default metric will be set to 80% average CPU utilization. |
+| `behavior` _[HorizontalPodAutoscalerBehavior](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#horizontalpodautoscalerbehavior-v2-autoscaling)_ | behavior configures the scaling behavior of the target in both Up and Down directions (scaleUp and scaleDown fields respectively). If not set, the default HPAScalingRules for scale up and scale down are used. |
+
+
 #### ImageSpec
 
 
@@ -235,7 +252,7 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `name` _string_ | The name of the Kubernetes ingress resource. |
-| `state` _string_ | The state of the component. |
+| `state` _ComponentState_ | The state of the component. |
 | `urls` _string array_ | The URLs of ingress. |
 
 
@@ -268,7 +285,7 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `name` _string_ | The name of the Kubernetes jobManager service. |
-| `state` _string_ | The state of the component. |
+| `state` _ComponentState_ | The state of the component. |
 | `nodePort` _integer_ | (Optional) The node port, present when `accessScope` is `NodePort`. |
 | `loadBalancerIngress` _[LoadBalancerIngress](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#loadbalanceringress-v1-core) array_ | (Optional) The load balancer ingress, present when `accessScope` is `VPC` or `External` |
 
@@ -299,8 +316,9 @@ _Appears in:_
 | `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volumemount-v1-core) array_ | _(Optional)_ Volume mounts in the JobManager container. [More info](https://kubernetes.io/docs/concepts/storage/volumes/) |
 | `volumeClaimTemplates` _[PersistentVolumeClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#persistentvolumeclaim-v1-core) array_ | _(Optional)_ A template for persistent volume claim each requested and mounted to JobManager pod, This can be used to mount an external volume with a specific storageClass or larger captivity (for larger/faster state backend). [More info](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims) |
 | `initContainers` _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#container-v1-core) array_ | _(Optional)_ Init containers of the Job Manager pod. [More info](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/) |
+| `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#affinity-v1-core)_ | _(Optional)_ Defines the affinity of the JobManager pod [More info](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity) |
 | `nodeSelector` _object (keys:string, values:string)_ | _(Optional)_ Selector which must match a node's labels for the JobManager pod to be scheduled on that node. [More info](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/) |
-| `tolerations` _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#toleration-v1-core) array_ | _(Optional)_ Defines the node affinity of the pod [More info](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) |
+| `tolerations` _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#toleration-v1-core) array_ | _(Optional)_ Defines the node affinity of the JobManager pod [More info](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) |
 | `sidecars` _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#container-v1-core) array_ | _(Optional)_ Sidecar containers running alongside with the JobManager container in the pod. [More info](https://kubernetes.io/docs/concepts/containers/) |
 | `podAnnotations` _object (keys:string, values:string)_ | _(Optional)_ JobManager StatefulSet pod template annotations. [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/) |
 | `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#podsecuritycontext-v1-core)_ | _(Optional)_ SecurityContext of the JobManager pod. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod) |
@@ -322,7 +340,7 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `name` _string_ | The resource name of the component. |
-| `state` _string_ | The state of the component. |
+| `state` _ComponentState_ | The state of the component. |
 | `replicas` _integer_ | replicas is the number of desired replicas. |
 | `readyReplicas` _integer_ | readyReplicas is the number of created pods with a Ready Condition. |
 | `ready` _string_ |  |
@@ -358,6 +376,7 @@ _Appears in:_
 | `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volume-v1-core) array_ | _(Optional)_ Volumes in the Job pod. [More info](https://kubernetes.io/docs/concepts/storage/volumes/) |
 | `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volumemount-v1-core) array_ | _(Optional)_ Volume mounts in the Job container. [More info](https://kubernetes.io/docs/concepts/storage/volumes/) |
 | `initContainers` _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#container-v1-core) array_ | _(Optional)_ Init containers of the Job pod. A typical use case could be using an init container to download a remote job jar to a local path which is referenced by the `jarFile` property. [More info](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/) |
+| `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#affinity-v1-core)_ | _(Optional)_ Defines the affinity of the Job submitter pod [More info](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity) |
 | `nodeSelector` _object (keys:string, values:string)_ | _(Optional)_ Selector which must match a node's labels for the Job submitter pod to be scheduled on that node. [More info](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/) |
 | `tolerations` _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#toleration-v1-core) array_ | _(Optional)_ Defines the node affinity of the Job submitter pod [More info](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) |
 | `restartPolicy` _JobRestartPolicy_ | Restart policy when the job fails, one of `Never, FromSavepointOnFailure`, default: `Never`. `Never` means the operator will never try to restart a failed job, manual cleanup and restart is required. `FromSavepointOnFailure` means the operator will try to restart the failed job from the savepoint recorded in the job status if available; otherwise, the job will stay in failed state. This option is usually used together with `autoSavepointSeconds` and `savepointsDir`. |
@@ -386,7 +405,7 @@ _Appears in:_
 | `name` _string_ | The Name of the Flink job. |
 | `submitterName` _string_ | The name of the Kubernetes job resource. |
 | `submitterExitCode` _integer_ | Exit code of the JubSubmitter job resource. |
-| `state` _string_ | The state of the Flink job deployment. |
+| `state` _JobState_ | The state of the Flink job deployment. |
 | `fromSavepoint` _string_ | The actual savepoint from which this job started. In case of restart, it might be different from the savepoint in the job spec. |
 | `savepointGeneration` _integer_ | The generation of the savepoint in `savepointsDir` taken by the operator. The value starts from 0 when there is no savepoint and increases by 1 for each successful savepoint. |
 | `savepointLocation` _string_ | Savepoint location. |
@@ -491,8 +510,9 @@ _Appears in:_
 | `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#volumemount-v1-core) array_ | _(Optional)_ Volume mounts in the TaskManager containers. [More info](https://kubernetes.io/docs/concepts/storage/volumes/) |
 | `volumeClaimTemplates` _[PersistentVolumeClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#persistentvolumeclaim-v1-core) array_ | _(Optional)_ A template for persistent volume claim each requested and mounted to TaskManager pod, This can be used to mount an external volume with a specific storageClass or larger captivity (for larger/faster state backend). [More info](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims) If deploymentType: StatefulSet is used, these templates will be added to the taskManager statefulset template, hence mounting persistent-pvcs to the indexed statefulset pods. If deploymentType: Deployment is used, these templates are appended to the Ephemeral Volumes in the PodSpec, hence mounting ephemeral-pvcs to the replicaset pods. |
 | `initContainers` _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#container-v1-core) array_ | _(Optional)_ Init containers of the Task Manager pod. [More info](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/) |
-| `nodeSelector` _object (keys:string, values:string)_ | _(Optional)_ Selector which must match a node's labels for the TaskManager pod to be scheduled on that node. [More info](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/) |
-| `tolerations` _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#toleration-v1-core) array_ | _(Optional)_ Defines the node affinity of the pod [More info](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) |
+| `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#affinity-v1-core)_ | _(Optional)_ Defines the affinity of the Task Manager pod [More info](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity) |
+| `nodeSelector` _object (keys:string, values:string)_ | _(Optional)_ Selector which must match a node's labels for the Task Manager pod to be scheduled on that node. [More info](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/) |
+| `tolerations` _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#toleration-v1-core) array_ | _(Optional)_ Defines the node affinity of the Task Manager pod [More info](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) |
 | `sidecars` _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#container-v1-core) array_ | _(Optional)_ Sidecar containers running alongside with the TaskManager container in the pod. [More info](https://kubernetes.io/docs/concepts/containers/) |
 | `podAnnotations` _object (keys:string, values:string)_ | _(Optional)_ TaskManager StatefulSet pod template annotations. [More info](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/) |
 | `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#podsecuritycontext-v1-core)_ | _(Optional)_ SecurityContext of the TaskManager pod. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod) |
@@ -500,6 +520,7 @@ _Appears in:_
 | `livenessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core)_ | Container liveness probe If omitted, a [default value](https://github.com/spotify/flink-on-k8s-operator/blob/a88ed2b/api/v1beta1/flinkcluster_default.go#L177-L187) will be used. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) |
 | `readinessProbe` _[Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core)_ | Container readiness probe If omitted, a [default value](https://github.com/spotify/flink-on-k8s-operator/blob/a88ed2b/api/v1beta1/flinkcluster_default.go#L193-L203) will be used. [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) |
 | `hostAliases` _[HostAlias](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#hostalias-v1-core) array_ | _(Optional)_ Adding entries to TaskManager pod /etc/hosts with HostAliases [More info](https://kubernetes.io/docs/tasks/network/customize-hosts-file-for-pods/) |
+| `horizontalPodAutoscaler` _[HorizontalPodAutoscalerSpec](#horizontalpodautoscalerspec)_ | _(Optional)_ HorizontalPodAutoscaler for TaskManager. [More info](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) |
 
 
 #### TaskManagerStatus
@@ -514,12 +535,11 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `name` _string_ | The resource name of the component. |
-| `state` _string_ | The state of the component. |
+| `state` _ComponentState_ | The state of the component. |
 | `replicas` _integer_ | replicas is the number of desired Pods. |
 | `readyReplicas` _integer_ | readyReplicas is the number of created pods with a Ready Condition. |
 | `ready` _string_ |  |
-
-
+| `selector` _string_ |  |
 
 
 
