@@ -8,7 +8,7 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/hashicorp/go-version v1.6.0
 	github.com/imdario/mergo v0.3.13
-	github.com/onsi/ginkgo/v2 v2.8.0
+	github.com/onsi/ginkgo/v2 v2.8.1
 	github.com/onsi/gomega v1.26.0
 	golang.org/x/net v0.6.0
 	gotest.tools/v3 v3.4.0
