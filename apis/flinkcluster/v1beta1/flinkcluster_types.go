@@ -288,12 +288,16 @@ type JobManagerSpec struct {
 	// [More info](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/)
 	InitContainers []corev1.Container `json:"initContainers,omitempty"`
 
+	// _(Optional)_ Defines the affinity of the JobManager pod
+	// [More info](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity)
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+
 	// _(Optional)_ Selector which must match a node's labels for the JobManager pod to be
 	// scheduled on that node.
 	// [More info](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/)
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
-	// _(Optional)_ Defines the node affinity of the pod
+	// _(Optional)_ Defines the node affinity of the JobManager pod
 	// [More info](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 
@@ -447,12 +451,16 @@ type TaskManagerSpec struct {
 	// [More info](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/)
 	InitContainers []corev1.Container `json:"initContainers,omitempty"`
 
-	// _(Optional)_ Selector which must match a node's labels for the TaskManager pod to be
+	// _(Optional)_ Defines the affinity of the Task Manager pod
+	// [More info](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity)
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+
+	// _(Optional)_ Selector which must match a node's labels for the Task Manager pod to be
 	// scheduled on that node.
 	// [More info](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/)
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
-	// _(Optional)_ Defines the node affinity of the pod
+	// _(Optional)_ Defines the node affinity of the Task Manager pod
 	// [More info](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 
@@ -598,6 +606,10 @@ type JobSpec struct {
 	// referenced by the `jarFile` property.
 	// [More info](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/)
 	InitContainers []corev1.Container `json:"initContainers,omitempty"`
+
+	// _(Optional)_ Defines the affinity of the Job submitter pod
+	// [More info](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity)
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 
 	// _(Optional)_ Selector which must match a node's labels for the Job submitter pod to be
 	// scheduled on that node.
