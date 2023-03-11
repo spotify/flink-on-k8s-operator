@@ -35,6 +35,7 @@ import (
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
 	"github.com/spotify/flink-on-k8s-operator/internal/controllers/history"
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -392,6 +393,10 @@ func isComponentUpdated(component client.Object, cluster *v1beta1.FlinkCluster) 
 			jm := cluster.Spec.JobManager
 			return jm == nil || jm.Ingress == nil
 		}
+	case *autoscalingv2.HorizontalPodAutoscaler:
+		if o == nil {
+			return false
+		}
 	}
 
 	labels := component.GetLabels()
@@ -427,6 +432,10 @@ func isClusterUpdateToDate(observed *ObservedClusterState) bool {
 
 	if observed.cluster.Spec.PodDisruptionBudget != nil {
 		components = append(components, observed.podDisruptionBudget)
+	}
+
+	if observed.cluster.Spec.TaskManager.HorizontalPodAutoscaler != nil {
+		components = append(components, observed.horizontalPodAutoscaler)
 	}
 
 	switch observed.cluster.Spec.TaskManager.DeploymentType {
