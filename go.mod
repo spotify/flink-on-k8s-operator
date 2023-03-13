@@ -12,8 +12,8 @@ require (
 	github.com/onsi/gomega v1.27.2
 	golang.org/x/net v0.7.0
 	gotest.tools/v3 v3.4.0
-	k8s.io/api v0.26.1
-	k8s.io/apimachinery v0.26.1
+	k8s.io/api v0.26.2
+	k8s.io/apimachinery v0.26.2
 	k8s.io/client-go v0.26.1
 	k8s.io/klog v1.0.0
 	sigs.k8s.io/controller-runtime v0.14.2
