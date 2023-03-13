@@ -342,6 +342,13 @@ func (reconciler *ClusterReconciler) reconcileHAConfigMap(ctx context.Context) e
 func (reconciler *ClusterReconciler) reconcilePodDisruptionBudget(ctx context.Context) error {
 	desiredPodDisruptionBudget := reconciler.desired.PodDisruptionBudget
 	observedPodDisruptionBudget := reconciler.observed.podDisruptionBudget
+
+	if desiredPodDisruptionBudget != nil && observedPodDisruptionBudget != nil {
+		// When updating a PodDisruptionBudget, the resource version must be set!
+		// Setting the resource version to the observed resource version ensures that the update is not rejected
+		desiredPodDisruptionBudget.SetResourceVersion(observedPodDisruptionBudget.ResourceVersion)
+	}
+
 	return reconciler.reconcileComponent(
 		ctx,
 		"PodDisruptionBudget",
