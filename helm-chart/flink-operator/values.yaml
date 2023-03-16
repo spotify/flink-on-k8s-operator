@@ -24,7 +24,7 @@ rbac:
 
 # The definition of the operator image
 operatorImage:
-  name: ghcr.io/spotify/flink-operator:v0.4.2-beta.7
+  name: ghcr.io/spotify/flink-operator:v0.5.0
   pullPolicy: IfNotPresent
 
 # The definition of the kube-rbac-proxy image
