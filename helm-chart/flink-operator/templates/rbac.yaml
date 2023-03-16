@@ -157,6 +157,7 @@ rules:
       - poddisruptionbudgets
     verbs:
       - create
+      - update
       - delete
       - get
       - list
@@ -165,6 +166,23 @@ rules:
       - policy
     resources:
       - poddisruptionbudgets/status
+    verbs:
+      - get
+  - apiGroups:
+      - autoscaling
+    resources:
+      - horizontalpodautoscalers
+    verbs:
+      - create
+      - update
+      - delete
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - autoscaling
+    resources:
+      - horizontalpodautoscalers/status
     verbs:
       - get
   - apiGroups:
