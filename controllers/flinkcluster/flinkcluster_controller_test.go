@@ -111,11 +111,17 @@ var _ = Describe("FlinkCluster Controller", Ordered, func() {
 			Namespace: dummyFlinkCluster.Namespace,
 		}
 
-		Expect(k8sClient.Get(ctx, flinkClusterLookupKey, fetchedFlinkCluster)).Should(Succeed())
-		fetchedFlinkCluster.Annotations = map[string]string{
-			v1beta1.ControlAnnotation: v1beta1.ControlNameJobCancel,
-		}
-		Expect(k8sClient.Update(ctx, fetchedFlinkCluster)).Should(Succeed())
+		Eventually(func() bool {
+			e := k8sClient.Get(ctx, flinkClusterLookupKey, fetchedFlinkCluster)
+			if e != nil {
+				return false
+			}
+			fetchedFlinkCluster.Annotations = map[string]string{
+				v1beta1.ControlAnnotation: v1beta1.ControlNameJobCancel,
+			}
+			e = k8sClient.Update(ctx, fetchedFlinkCluster)
+			return e == nil
+		}, timeout, interval).Should(BeTrue())
 
 		expectedJobSubmitterName := dummyFlinkCluster.Name + "-job-submitter"
 		jobSubmitterLookupKey := types.NamespacedName{

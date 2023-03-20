@@ -46,10 +46,15 @@ type FlinkClusterReconciler struct {
 	Client        client.Client
 	Clientset     *kubernetes.Clientset
 	EventRecorder record.EventRecorder
+	Sharder       *Sharder
 }
 
 func NewReconciler(mgr manager.Manager) (*FlinkClusterReconciler, error) {
 	cs, err := kubernetes.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		return nil, err
+	}
+	sh, err := NewSharderFromEnv()
 	if err != nil {
 		return nil, err
 	}
@@ -58,6 +63,7 @@ func NewReconciler(mgr manager.Manager) (*FlinkClusterReconciler, error) {
 		Client:        mgr.GetClient(),
 		Clientset:     cs,
 		EventRecorder: mgr.GetEventRecorderFor("FlinkOperator"),
+		Sharder:       sh,
 	}, nil
 }
 
@@ -92,6 +98,7 @@ func (r *FlinkClusterReconciler) Reconcile(ctx context.Context,
 		request:       request,
 		eventRecorder: r.EventRecorder,
 		observed:      ObservedClusterState{},
+		sharder:       r.Sharder,
 	}
 
 	return handler.reconcile(logr.NewContext(ctx, log), request)
@@ -122,6 +129,7 @@ type FlinkClusterHandler struct {
 	eventRecorder record.EventRecorder
 	observed      ObservedClusterState
 	desired       model.DesiredClusterState
+	sharder       *Sharder
 }
 
 func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
@@ -133,10 +141,12 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 	var desired = &handler.desired
 	var statusChanged bool
 	var err error
-
+	if !handler.sharder.IsOwnedByMe(request.Namespace, request.Name) {
+		return ctrl.Result{}, nil
+	}
+	log.Info("Reconciling FlinkCluster", "namespace", request.Namespace, "name", request.Name)
 	// History interface
 	var history = history.NewHistory(k8sClient, ctx)
-
 	log.Info("============================================================")
 	log.Info("---------- 1. Observe the current state ----------")
 
