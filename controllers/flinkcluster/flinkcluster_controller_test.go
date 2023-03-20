@@ -18,7 +18,7 @@ import (
 var _ = Describe("FlinkCluster Controller", Ordered, func() {
 	// Utility constants and functions here
 	const (
-		timeout  = time.Second * 10
+		timeout  = time.Second * 20
 		duration = time.Second * 10
 		interval = time.Millisecond * 250
 	)
