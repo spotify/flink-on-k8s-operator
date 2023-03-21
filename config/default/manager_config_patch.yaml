@@ -11,4 +11,4 @@ spec:
           args:
             - "--metrics-addr=127.0.0.1:8080"
             - "--zap-devel=false"
-            - "--zap-log-level=info"
+            - "--zap-log-level=error"

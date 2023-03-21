@@ -33,7 +33,7 @@ spec:
     matchLabels:
       control-plane: controller-manager
       app: flink-operator
-  replicas: 1 # keep it in sync with SHARDS below
+  replicas: 1 # keep it in sync with total-shards below
   template:
     metadata:
       labels:
@@ -59,25 +59,11 @@ spec:
               cpu: 100m
               memory: 100Mi
           env:
-            - name: SHARDS
+            - name: total-shards
               value: "1" # keep it in sync with the number of replicas
-            - name: SHARD_NAME
+            - name: pod-name
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: controller-manager
-  labels:
-    app: flink-operator
-spec:
-  ports:
-  - port: 8443
-    name: https
-  clusterIP: None
-  selector:
-    app: flink-operator

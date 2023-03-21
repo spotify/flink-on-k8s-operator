@@ -18,7 +18,6 @@ package flinkcluster
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -82,8 +81,6 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	os.Setenv("SHARDS", "1")
-	os.Setenv("SHARD_NAME", "flink-operator-controller-manager-0")
 	reconciler, err := NewReconciler(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

@@ -1,28 +1,24 @@
 package flinkcluster
 
 import (
-	"os"
 	"testing"
 
 	"gotest.tools/v3/assert"
 )
 
 func TestSharder(t *testing.T) {
-	os.Setenv("SHARDS", "2")
-	os.Setenv("SHARD_NAME", "flink-operator-1")
-	sharder, err := NewSharderFromEnv()
+	sharder, err := NewSharderFromEnv("2", "flink-operator-1")
 	if err != nil {
 		t.Error(err)
 	}
-	os.Setenv("SHARD_NAME", "flink-operator-0")
-	sharder2, err := NewSharderFromEnv()
+	sharder2, err := NewSharderFromEnv("2", "flink-operator-0")
 	if err != nil {
 		t.Error(err)
 	}
 
-	assert.Equal(t, sharder.ShardId, 1)
-	assert.Equal(t, sharder.Shards, 2)
+	assert.Equal(t, sharder.Shard, 1)
+	assert.Equal(t, sharder.TotalShards, 2)
 	assert.Equal(t, sharder.IsOwnedByMe("test-namespace", "fxoxo1"), true)
-	assert.Equal(t, sharder2.ShardId, 0)
+	assert.Equal(t, sharder2.Shard, 0)
 	assert.Equal(t, sharder2.IsOwnedByMe("test-namespace", "fxoxo2"), true)
 }

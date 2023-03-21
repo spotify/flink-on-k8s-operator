@@ -3,14 +3,19 @@ package flinkcluster
 import (
 	"errors"
 	"hash/fnv"
-	"os"
 	"regexp"
 	"strconv"
 )
 
+const bigPrime = 31393
+
+var (
+	podNameRegex, _ = regexp.Compile("(.*-)([0-9]+)$")
+)
+
 type Sharder struct {
-	Shards  int // Total number of shards
-	ShardId int // Shard ordinal for this instance
+	TotalShards int // Total number of shards
+	Shard       int // Shard ordinal for this instance
 }
 
 func getResource(namespace, name string) string {
@@ -18,14 +23,13 @@ func getResource(namespace, name string) string {
 }
 
 func (s *Sharder) IsOwnedByMe(namespace, name string) bool {
-	return s.GetProcessorId(namespace, name) == s.ShardId
+	return s.GetShard(namespace, name) == s.Shard
 }
 
-func (s *Sharder) GetProcessorId(namespace, name string) int {
+func (s *Sharder) GetShard(namespace, name string) int {
 	resource := getResource(namespace, name)
-	bigPrime := 31393
 	h := fnv1aHash(resource)
-	indx := (int(h) * bigPrime) % s.Shards
+	indx := (int(h) * bigPrime) % s.TotalShards
 	return indx
 }
 
@@ -35,32 +39,41 @@ func fnv1aHash(s string) uint32 {
 	return h.Sum32()
 }
 
-func NewSharderFromEnv() (*Sharder, error) {
-	shards, err := strconv.Atoi(os.Getenv("SHARDS"))
+func getShardFromPod(podName string) (int, error) {
+	m := podNameRegex.FindStringSubmatch(podName)
+	if m == nil || len(m) != 3 {
+		return 0, errors.New("pod-name is not in the expected format")
+	}
+	shard, err := strconv.Atoi(m[2])
+	if err != nil {
+		return 0, err
+	}
+	return shard, nil
+}
+
+func NewSharderFromEnv(totalShardsStr string, podName string) (*Sharder, error) {
+	if totalShardsStr == "" {
+		totalShardsStr = "1"
+	}
+	if podName == "" {
+		podName = "flink-operator-0"
+	}
+	totalShards, err := strconv.Atoi(totalShardsStr)
 	if err != nil {
 		return nil, err
 	}
 	// Extract index from statefulset pod name
-	shardName := os.Getenv("SHARD_NAME")
-	if shardName == "" {
-		return nil, errors.New("SHARD_NAME is not set")
-	}
-	r, _ := regexp.Compile("(.*-)([0-9]+)$")
-	m := r.FindStringSubmatch(shardName)
-	if m == nil || len(m) != 3 {
-		return nil, errors.New("SHARD_NAME is not in the expected format")
-	}
-	shardId, err := strconv.Atoi(m[2])
+	shard, err := getShardFromPod(podName)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewSharder(shards, shardId), nil
+	return NewSharder(totalShards, shard), nil
 }
 
-func NewSharder(shards, shardId int) *Sharder {
+func NewSharder(totalShards, shard int) *Sharder {
 	return &Sharder{
-		Shards:  shards,
-		ShardId: shardId,
+		TotalShards: totalShards,
+		Shard:       shard,
 	}
 }
