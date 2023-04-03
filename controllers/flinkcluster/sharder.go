@@ -52,10 +52,9 @@ func getShardFromPod(podName string) (int, error) {
 }
 
 func NewSharderFromEnv(totalShardsStr string, podName string) (*Sharder, error) {
-	if totalShardsStr == "" {
+	// If totalShards or podName is not set, assume sharding is disabled.
+	if totalShardsStr == "" || podName == "" {
 		totalShardsStr = "1"
-	}
-	if podName == "" {
 		podName = "flink-operator-0"
 	}
 	totalShards, err := strconv.Atoi(totalShardsStr)

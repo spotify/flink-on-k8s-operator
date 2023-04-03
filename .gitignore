@@ -27,5 +27,6 @@ bin
 # Dynamic files
 config/test
 config/deploy
+config/deploy-sharded
 ./helm-chart/.deploy
 .deploy

@@ -12,15 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-resources:
-  - manager.yaml
-
-generatorOptions:
-  disableNameSuffixHash: true
-
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-images:
-  - name: controller
-    newName: controller
-    newTag: latest
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: controller-manager
+  namespace: system
+spec:
+  template:
+    spec:
+      containers:
+        - name: manager
+          ports:
+            - containerPort: 9443
+              name: webhook-server
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /tmp/k8s-webhook-server/serving-certs
+              name: cert
+              readOnly: true
+      volumes:
+        - name: cert
+          secret:
+            defaultMode: 420
+            secretName: webhook-server-cert

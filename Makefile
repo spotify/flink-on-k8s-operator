@@ -82,6 +82,19 @@ ifneq ($(WATCH_NAMESPACE),)
 			&& 	rm config/deploy/*.bak || true
 endif
 
+build-overlay-sharded: manifests kustomize ## Build overlay for deployment.
+	rm -rf config/deploy-sharded && cp -rf config/default-sharded config/deploy-sharded && cd config/deploy-sharded \
+	    && $(KUSTOMIZE) edit set image controller="${IMG}" \
+		&& $(KUSTOMIZE) edit set nameprefix $(RESOURCE_PREFIX) \
+		&& $(KUSTOMIZE) edit set namespace $(FLINK_OPERATOR_NAMESPACE)
+ifneq ($(WATCH_NAMESPACE),)
+	cd config/deploy-sharded \
+			&& sed -E -i.bak  "s/(\-\-watch\-namespace\=)/\1$(WATCH_NAMESPACE)/" manager_auth_proxy_patch.yaml \
+			&& kustomize edit add patch --path mutation_webhook_namespace_selector_patch.yaml \
+			&& kustomize edit add patch --path validation_webhook_namespace_selector_patch.yaml \
+			&& 	rm config/deploy-sharded/*.bak || true
+endif
+
 run: manifests generate fmt vet tidy ## Run a controller from your host against the configured Kubernetes cluster in ~/.kube/config
 	go run ./main.go
 
@@ -91,8 +104,9 @@ docker-build: test ## Build docker image with the manager.
 docker-push: docker-build ## Push docker image with the manager.
 	docker push ${IMG}
 
-release-manifests: build-overlay ## Build manifests for release.
-	$(KUSTOMIZE) build config/deploy > config/deploy/flink-operator.yaml
+release-manifests: build-overlay build-overlay-sharded ## Build manifests for release.
+	$(KUSTOMIZE) build config/deploy > config/deploy/flink-operator.yaml \
+	&& $(KUSTOMIZE) build config/deploy-sharded > config/deploy/flink-operator-sharded.yaml
 
 ##@ Deployment
 
@@ -104,6 +118,10 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 
 deploy: install build-overlay ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/deploy | kubectl apply -f -
+
+deploy-sharded: install build-overlay-sharded
+	$(KUSTOMIZE) build config/deploy-sharded | kubectl apply -f -
+
 ifneq ($(WATCH_NAMESPACE),)
     # Set the label on watch-target namespace to support webhook namespaceSelector.
 	kubectl label ns $(WATCH_NAMESPACE) flink-operator-namespace=$(FLINK_OPERATOR_NAMESPACE)
@@ -111,6 +129,10 @@ endif
 
 undeploy: build-overlay ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/deploy | kubectl delete -f -
+
+undeploy-sharded: build-overlay-sharded
+	$(KUSTOMIZE) build config/deploy-sharded | kubectl delete -f -
+
 ifneq ($(WATCH_NAMESPACE),)
     # Remove the label, which is set when operator is deployed to support webhook namespaceSelector
 	kubectl label ns $(WATCH_NAMESPACE) flink-operator-namespace-

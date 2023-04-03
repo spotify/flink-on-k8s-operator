@@ -20,7 +20,7 @@ metadata:
   name: system
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: controller-manager
   namespace: system
@@ -28,11 +28,12 @@ metadata:
     control-plane: controller-manager
     app: flink-operator
 spec:
+  serviceName: controller-manager
   selector:
     matchLabels:
       control-plane: controller-manager
       app: flink-operator
-  replicas: 1
+  replicas: 2 # keep it in sync with total-shards below
   template:
     metadata:
       labels:
@@ -46,8 +47,6 @@ spec:
       containers:
         - command:
             - /flink-operator
-          args:
-            - --enable-leader-election
           image: controller:latest
           name: manager
           securityContext:
@@ -59,5 +58,12 @@ spec:
             requests:
               cpu: 100m
               memory: 100Mi
+          env:
+            - name: total-shards
+              value: "2" # keep it in sync with the number of replicas
+            - name: pod-name
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10
