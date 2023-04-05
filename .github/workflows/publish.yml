@@ -37,3 +37,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: config/deploy/flink-operator.yaml
+      - name: Push release manifest sharded
+        uses: softprops/action-gh-release@v1
+        with:
+          files: config/deploy/flink-operator-sharded.yaml

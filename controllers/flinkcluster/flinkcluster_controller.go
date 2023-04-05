@@ -18,6 +18,7 @@ package flinkcluster
 
 import (
 	"context"
+	"os"
 	"time"
 
 	"github.com/spotify/flink-on-k8s-operator/internal/controllers/history"
@@ -46,10 +47,15 @@ type FlinkClusterReconciler struct {
 	Client        client.Client
 	Clientset     *kubernetes.Clientset
 	EventRecorder record.EventRecorder
+	Sharder       *Sharder
 }
 
 func NewReconciler(mgr manager.Manager) (*FlinkClusterReconciler, error) {
 	cs, err := kubernetes.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		return nil, err
+	}
+	sh, err := NewSharderFromEnv(os.Getenv("total-shards"), os.Getenv("pod-name"))
 	if err != nil {
 		return nil, err
 	}
@@ -58,6 +64,7 @@ func NewReconciler(mgr manager.Manager) (*FlinkClusterReconciler, error) {
 		Client:        mgr.GetClient(),
 		Clientset:     cs,
 		EventRecorder: mgr.GetEventRecorderFor("FlinkOperator"),
+		Sharder:       sh,
 	}, nil
 }
 
@@ -84,6 +91,10 @@ func NewReconciler(mgr manager.Manager) (*FlinkClusterReconciler, error) {
 func (r *FlinkClusterReconciler) Reconcile(ctx context.Context,
 	request ctrl.Request) (ctrl.Result, error) {
 	log := logr.FromContextOrDiscard(ctx)
+	if !r.Sharder.IsOwnedByMe(request.Namespace, request.Name) {
+		log.Info("Not owned by shard, skipping", "namespace", request.Namespace, "name", request.Name)
+		return ctrl.Result{}, nil
+	}
 
 	var handler = FlinkClusterHandler{
 		k8sClient:     r.Client,
@@ -133,10 +144,8 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 	var desired = &handler.desired
 	var statusChanged bool
 	var err error
-
 	// History interface
 	var history = history.NewHistory(k8sClient, ctx)
-
 	log.Info("============================================================")
 	log.Info("---------- 1. Observe the current state ----------")
 
