@@ -22,6 +22,7 @@ package flinkcluster
 import (
 	"encoding/json"
 	"fmt"
+	batchv1 "k8s.io/api/batch/v1"
 	"reflect"
 	"time"
 
@@ -593,7 +594,7 @@ func (updater *ClusterStatusUpdater) getFlinkJobID() *string {
 
 	return nil
 }
-func (updater *ClusterStatusUpdater) deriveJobSubmitterExitCodeAndReason(pod *corev1.Pod) (int32, string) {
+func (updater *ClusterStatusUpdater) deriveJobSubmitterExitCodeAndReason(pod *corev1.Pod, job *batchv1.Job) (int32, string) {
 	for _, containerStatus := range pod.Status.ContainerStatuses {
 		if containerStatus.Name == jobSubmitterPodMainContainerName && containerStatus.State.Terminated != nil {
 			exitCode := containerStatus.State.Terminated.ExitCode
@@ -601,6 +602,13 @@ func (updater *ClusterStatusUpdater) deriveJobSubmitterExitCodeAndReason(pod *co
 			message := containerStatus.State.Terminated.Message
 			return exitCode, fmt.Sprintf("[Exit code: %d] Reason: %s, Message: %s", exitCode, reason, message)
 		}
+	}
+	// In some cases, the finished pod maybe collected by k8s garbage collector. In this case, we use job.Status to fill it
+	if job.Status.Succeeded == 1 {
+		return 0, "[Exit code: 0]"
+	}
+	if job.Status.Failed == 1 {
+		return 1, fmt.Sprintf("[Exit code: %d] Reason: %s", 1, "Job submitter pod is lost. Returning exit code as 1.")
 	}
 	return -1, ""
 }
@@ -636,7 +644,7 @@ func (updater *ClusterStatusUpdater) deriveJobStatus(ctx context.Context) *v1bet
 
 	if observedSubmitter.job != nil {
 		newJob.SubmitterName = observedSubmitter.job.Name
-		exitCode, _ := updater.deriveJobSubmitterExitCodeAndReason(observed.flinkJobSubmitter.pod)
+		exitCode, _ := updater.deriveJobSubmitterExitCodeAndReason(observed.flinkJobSubmitter.pod, observed.flinkJobSubmitter.job)
 		newJob.SubmitterExitCode = exitCode
 	} else if observedSubmitter.job == nil || observed.flinkJobSubmitter.pod == nil {
 		// Submitter is nil, so the submitter exit code shouldn't be "running"
