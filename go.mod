@@ -12,9 +12,9 @@ require (
 	github.com/onsi/gomega v1.27.6
 	golang.org/x/net v0.9.0
 	gotest.tools/v3 v3.4.0
-	k8s.io/api v0.26.3
+	k8s.io/api v0.27.0
 	k8s.io/apimachinery v0.27.0
-	k8s.io/client-go v0.26.3
+	k8s.io/client-go v0.27.0
 	k8s.io/klog v1.0.0
 	sigs.k8s.io/controller-runtime v0.14.6
 	volcano.sh/apis v0.0.0-20210924061932-d4408f25a528
@@ -50,7 +50,6 @@ require (
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
-	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
