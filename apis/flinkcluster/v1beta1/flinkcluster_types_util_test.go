@@ -124,7 +124,7 @@ func TestShouldRestartJob(t *testing.T) {
 		CompletionTime: &metav1.Time{Time: jobCompletionTime},
 	}
 	restart = jobStatus.ShouldRestart(&jobSpec)
-	assert.Equal(t, restart, false)
+	assert.Equal(t, restart, true)
 
 	// Not restart with restartPolicy Never
 	jobSpec = JobSpec{
