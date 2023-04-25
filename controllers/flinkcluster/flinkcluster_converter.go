@@ -61,7 +61,6 @@ const (
 )
 
 var (
-	backoffLimit                  int32 = 0
 	terminationGracePeriodSeconds int64 = 60
 	flinkSysProps                       = map[string]struct{}{
 		"jobmanager.rpc.address": {},
@@ -927,7 +926,7 @@ func newJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 				},
 				Spec: *podSpec,
 			},
-			BackoffLimit: &backoffLimit,
+			BackoffLimit: jobSpec.BackoffLimit,
 		},
 	}
 }

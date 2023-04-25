@@ -632,6 +632,13 @@ type JobSpec struct {
 	// +kubebuilder:validation:Enum=Never;FromSavepointOnFailure
 	RestartPolicy *JobRestartPolicy `json:"restartPolicy,omitempty"`
 
+	// BackoffLimit limits the number of job pod restarts. This can happen when when the pod is kicked out of a node
+	// or when the RestartPolicy is set to Never and a container errors out
+	// default: `0`,
+	// 0 means no retry.
+	// +kubebuilder:default:=0
+	BackoffLimit *int32 `json:"backoffLimit,omitempty"`
+
 	// The action to take after job finishes.
 	// +kubebuilder:default:={afterJobSucceeds:DeleteCluster, afterJobFails:KeepCluster, afterJobCancelled:DeleteCluster}
 	CleanupPolicy *CleanupPolicy `json:"cleanupPolicy,omitempty"`

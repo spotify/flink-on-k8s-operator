@@ -587,6 +587,10 @@ spec:
                     autoSavepointSeconds:
                       format: int32
                       type: integer
+                    backoffLimit:
+                      default: 0
+                      format: int32
+                      type: integer
                     cancelRequested:
                       type: boolean
                     className:

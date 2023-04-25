@@ -47,6 +47,7 @@ spec:
       afterJobFails: KeepCluster
       afterJobCancelled: DeleteCluster
     mode: Detached
+    backoffLimit: 0
   flinkProperties:
     taskmanager.numberOfTaskSlots: "1"
   recreateOnUpdate: true

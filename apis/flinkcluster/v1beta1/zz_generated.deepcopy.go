@@ -822,6 +822,11 @@ func (in *JobSpec) DeepCopyInto(out *JobSpec) {
 		*out = new(JobRestartPolicy)
 		**out = **in
 	}
+	if in.BackoffLimit != nil {
+		in, out := &in.BackoffLimit, &out.BackoffLimit
+		*out = new(int32)
+		**out = **in
+	}
 	if in.CleanupPolicy != nil {
 		in, out := &in.CleanupPolicy, &out.CleanupPolicy
 		*out = new(CleanupPolicy)

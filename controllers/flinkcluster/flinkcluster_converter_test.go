@@ -57,7 +57,7 @@ var (
 	memoryOffHeapMin                   = resource.MustParse("600M")
 	memoryProcessRatio int32           = 80
 	jobMode            v1beta1.JobMode = v1beta1.JobModeDetached
-	jobBackoffLimit    int32           = 0
+	jobBackoffLimit    int32           = 10
 	ingressPathType                    = networkingv1.PathTypePrefix
 	storageClassName                   = "default-class"
 	jmReadinessProbe                   = corev1.Probe{
@@ -192,6 +192,7 @@ func getDummyFlinkCluster() *v1beta1.FlinkCluster {
 				},
 				SecurityContext: &securityContext,
 				HostAliases:     hostAliases,
+				BackoffLimit:    &jobBackoffLimit,
 			},
 			JobManager: &v1beta1.JobManagerSpec{
 				AccessScope: v1beta1.AccessScopeVPC,
@@ -1634,4 +1635,6 @@ func TestClassPath(t *testing.T) {
 	args := desired.Job.Spec.Template.Spec.Containers[0].Args
 
 	assert.DeepEqual(t, args, expectedArgs)
+
+	assert.Equal(t, observed.cluster.Spec.Job.BackoffLimit, desired.Job.Spec.BackoffLimit)
 }
