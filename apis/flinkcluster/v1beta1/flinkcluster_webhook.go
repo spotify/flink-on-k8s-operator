@@ -22,6 +22,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // +kubebuilder:docs-gen:collapse=Go imports
@@ -70,26 +71,27 @@ var validator = Validator{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered
 // for the type.
-func (cluster *FlinkCluster) ValidateCreate() error {
+func (cluster *FlinkCluster) ValidateCreate() (admission.Warnings, error) {
 	log.Info("Validate create", "name", cluster.Name)
-	return validator.ValidateCreate(cluster)
+
+	return nil, validator.ValidateCreate(cluster)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered
 // for the type.
-func (cluster *FlinkCluster) ValidateUpdate(old runtime.Object) error {
+func (cluster *FlinkCluster) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	log.Info("Validate update", "name", cluster.Name)
 	var oldCluster = old.(*FlinkCluster)
-	return validator.ValidateUpdate(oldCluster, cluster)
+	return nil, validator.ValidateUpdate(oldCluster, cluster)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered
 // for the type.
-func (cluster *FlinkCluster) ValidateDelete() error {
+func (cluster *FlinkCluster) ValidateDelete() (admission.Warnings, error) {
 	log.Info("validate delete", "name", cluster.Name)
 
 	// TODO
-	return nil
+	return nil, nil
 }
 
 // +kubebuilder:docs-gen:collapse=Validate object name
