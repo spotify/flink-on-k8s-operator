@@ -13,7 +13,7 @@ require (
 	golang.org/x/net v0.10.0
 	gotest.tools/v3 v3.4.0
 	k8s.io/api v0.27.2
-	k8s.io/apimachinery v0.27.2
+	k8s.io/apimachinery v0.27.3
 	k8s.io/client-go v0.27.2
 	k8s.io/klog v1.0.0
 	sigs.k8s.io/controller-runtime v0.15.0
