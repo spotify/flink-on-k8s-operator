@@ -11,7 +11,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.11.0
 	github.com/onsi/gomega v1.27.8
 	golang.org/x/net v0.11.0
-	gotest.tools/v3 v3.4.0
+	gotest.tools/v3 v3.5.0
 	k8s.io/api v0.27.3
 	k8s.io/apimachinery v0.27.3
 	k8s.io/client-go v0.27.3
