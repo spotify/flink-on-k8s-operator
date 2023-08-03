@@ -22,9 +22,10 @@ package flinkcluster
 import (
 	"encoding/json"
 	"fmt"
-	batchv1 "k8s.io/api/batch/v1"
 	"reflect"
 	"time"
+
+	batchv1 "k8s.io/api/batch/v1"
 
 	"golang.org/x/net/context"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -667,8 +668,12 @@ func (updater *ClusterStatusUpdater) deriveJobStatus(ctx context.Context) *v1bet
 		newJobState = v1beta1.JobStateDeploying
 	// Derive the job state from the observed Flink job, if it exists.
 	case observedFlinkJob != nil:
-		newJob.ID = observedFlinkJob.Id
-		newJob.Name = observedFlinkJob.Name
+		if observedFlinkJob.Id != "" {
+			newJob.ID = observedFlinkJob.Id
+		}
+		if observedFlinkJob.Name != "" {
+			newJob.Name = observedFlinkJob.Name
+		}
 		tmpState := getFlinkJobDeploymentState(observedFlinkJob.State)
 		if observedSubmitter.job == nil || tmpState != v1beta1.JobStateSucceeded {
 			newJobState = tmpState
