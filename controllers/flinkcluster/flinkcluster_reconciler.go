@@ -501,6 +501,12 @@ func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Res
 			return requeueResult, nil
 		}
 
+		if observedSubmitter != nil && observed.cluster.Status.Components.Job.SubmitterExitCode != -1 {
+			log.Info("Job submitter failed. No need to wait for the job to finish. Killing it.")
+			err = reconciler.cancelJob(ctx)
+			return requeueResult, err
+		}
+
 		// Suspend or stop job to proceed update.
 		if recorded.Revision.IsUpdateTriggered() && isJobUpdate(observed.revisions, observed.cluster) {
 			log.Info("Preparing job update")
