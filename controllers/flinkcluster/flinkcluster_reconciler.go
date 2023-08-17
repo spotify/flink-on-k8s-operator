@@ -911,7 +911,7 @@ func (reconciler *ClusterReconciler) updateJobDeployStatus(ctx context.Context) 
 	var newJob = clusterClone.Status.Components.Job
 
 	// Reset running job information.
-	newJob.ID = ""
+	// newJob.ID = ""
 	newJob.StartTime = ""
 	newJob.CompletionTime = nil
 

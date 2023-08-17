@@ -593,6 +593,10 @@ func wasJobCancelRequested(controlStatus *v1beta1.FlinkClusterControlStatus) boo
 }
 
 func GenJobId(cluster *v1beta1.FlinkCluster) (string, error) {
+	if cluster != nil && cluster.Status.Components.Job != nil && cluster.Status.Components.Job.ID != "" {
+		return cluster.Status.Components.Job.ID, nil
+	}
+
 	if cluster == nil || len(cluster.Status.Revision.NextRevision) == 0 {
 		return "", fmt.Errorf("error generating job id: cluster or next revision is nil")
 	}
