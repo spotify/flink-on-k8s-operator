@@ -478,6 +478,15 @@ func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Res
 				if err != nil {
 					return requeueResult, err
 				}
+			} else if observedSubmitter.Status.Failed >= 1 {
+				log.Info("Found failed job submitter")
+				err = reconciler.deleteJob(ctx, observedSubmitter)
+				if err != nil {
+					return requeueResult, err
+				}
+			} else {
+				log.Info("Found job submitter, wait for it to be active or failed")
+				return requeueResult, nil
 			}
 		} else {
 			err = reconciler.createJob(ctx, desiredJob)
@@ -567,6 +576,7 @@ func (reconciler *ClusterReconciler) createJob(ctx context.Context, job *batchv1
 	} else {
 		log.Info("Job submitter created")
 	}
+
 	return err
 }
 

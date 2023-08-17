@@ -600,3 +600,7 @@ func GenJobId(cluster *v1beta1.FlinkCluster) (string, error) {
 	hash := md5.Sum([]byte(cluster.Status.Revision.NextRevision))
 	return hex.EncodeToString(hash[:]), nil
 }
+
+func isJobInitialising(jobStatus batchv1.JobStatus) bool {
+	return jobStatus.Active == 0 && jobStatus.Succeeded == 0 && jobStatus.Failed == 0
+}

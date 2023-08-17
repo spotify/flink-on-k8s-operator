@@ -22,9 +22,10 @@ package flinkcluster
 import (
 	"encoding/json"
 	"fmt"
-	batchv1 "k8s.io/api/batch/v1"
 	"reflect"
 	"time"
+
+	batchv1 "k8s.io/api/batch/v1"
 
 	"golang.org/x/net/context"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -659,10 +660,13 @@ func (updater *ClusterStatusUpdater) deriveJobStatus(ctx context.Context) *v1bet
 		newJobState = v1beta1.JobStatePending
 	case shouldUpdateJob(&observed):
 		newJobState = v1beta1.JobStateUpdating
-	case oldJob.ShouldRestart(jobSpec):
-		newJobState = v1beta1.JobStateRestarting
 	case oldJob.IsStopped():
-		newJobState = oldJob.State
+		// When a new job is deploying, update the job state to deploying.
+		if observedSubmitter.job != nil && (observedSubmitter.job.Status.Active == 1 || isJobInitialising(observedSubmitter.job.Status)) {
+			newJobState = v1beta1.JobStateDeploying
+		} else {
+			newJobState = oldJob.State
+		}
 	case oldJob.IsPending() && oldJob.DeployTime != "":
 		newJobState = v1beta1.JobStateDeploying
 	// Derive the job state from the observed Flink job, if it exists.
