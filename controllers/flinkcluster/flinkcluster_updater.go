@@ -662,7 +662,7 @@ func (updater *ClusterStatusUpdater) deriveJobStatus(ctx context.Context) *v1bet
 		newJobState = v1beta1.JobStateUpdating
 	case oldJob.IsStopped():
 		// When a new job is deploying, update the job state to deploying.
-		if observedSubmitter.job != nil && observedSubmitter.job.Status.Active == 1 {
+		if observedSubmitter.job != nil && (observedSubmitter.job.Status.Active == 1 || isJobInitialising(observedSubmitter.job.Status)) {
 			newJobState = v1beta1.JobStateDeploying
 		} else {
 			newJobState = oldJob.State

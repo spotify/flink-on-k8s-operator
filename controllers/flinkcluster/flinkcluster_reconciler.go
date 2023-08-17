@@ -576,6 +576,7 @@ func (reconciler *ClusterReconciler) createJob(ctx context.Context, job *batchv1
 	} else {
 		log.Info("Job submitter created")
 	}
+
 	return err
 }
 
