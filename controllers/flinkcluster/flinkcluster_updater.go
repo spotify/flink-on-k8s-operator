@@ -678,7 +678,8 @@ func (updater *ClusterStatusUpdater) deriveJobStatus(ctx context.Context) *v1bet
 			newJob.Name = observedFlinkJob.Name
 		}
 		tmpState := getFlinkJobDeploymentState(observedFlinkJob.State)
-		if observedSubmitter.job == nil || tmpState != v1beta1.JobStateSucceeded {
+		if observedSubmitter.job == nil ||
+			(observedSubmitter.job.Status.Failed < 1 && tmpState != v1beta1.JobStateSucceeded) {
 			newJobState = tmpState
 			break
 		}
