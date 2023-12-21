@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/davecgh/go-spew v1.1.1
-	github.com/go-logr/logr v1.3.0
+	github.com/go-logr/logr v1.4.1
 	github.com/google/go-cmp v0.6.0
 	github.com/hashicorp/go-version v1.6.0
 	github.com/imdario/mergo v0.3.16
