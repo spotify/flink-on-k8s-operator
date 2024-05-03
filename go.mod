@@ -1,8 +1,6 @@
 module github.com/spotify/flink-on-k8s-operator
 
-go 1.21
-
-toolchain go1.22.2
+go 1.22
 
 require (
 	github.com/davecgh/go-spew v1.1.1
