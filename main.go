@@ -29,7 +29,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
 	"github.com/spotify/flink-on-k8s-operator/controllers/flinkcluster"
@@ -71,11 +73,13 @@ func main() {
 	ctrl.SetLogger(logger)
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: *metricsAddr,
-		LeaderElection:     *enableLeaderElection,
-		Namespace:          *watchNamespace,
-		LeaderElectionID:   *leaderElectionID,
+		Scheme:         scheme,
+		Metrics:        metricsserver.Options{BindAddress: *metricsAddr},
+		LeaderElection: *enableLeaderElection,
+		Cache: cache.Options{
+			DefaultNamespaces: map[string]cache.Config{*watchNamespace: {}},
+		},
+		LeaderElectionID: *leaderElectionID,
 	})
 	if err != nil {
 		setupLog.Error(err, "Unable to start manager")

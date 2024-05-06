@@ -174,7 +174,7 @@ func TestGetClusterResource(t *testing.T) {
 			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{{
 				Spec: corev1.PersistentVolumeClaimSpec{
 					VolumeName: "tm-claim",
-					Resources: corev1.ResourceRequirements{
+					Resources: corev1.VolumeResourceRequirements{
 						Requests: map[corev1.ResourceName]resource.Quantity{
 							corev1.ResourceStorage: resource.MustParse("100Gi"),
 						},
@@ -452,7 +452,7 @@ func TestGetClusterResourceForDeployment(t *testing.T) {
 									VolumeClaimTemplate: &corev1.PersistentVolumeClaimTemplate{
 										Spec: corev1.PersistentVolumeClaimSpec{
 											AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-											Resources: corev1.ResourceRequirements{
+											Resources: corev1.VolumeResourceRequirements{
 												Requests: map[corev1.ResourceName]resource.Quantity{
 													corev1.ResourceStorage: resource.MustParse("100Gi"),
 												},
