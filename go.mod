@@ -14,7 +14,7 @@ require (
 	gotest.tools/v3 v3.5.1
 	k8s.io/api v0.30.1
 	k8s.io/apimachinery v0.30.1
-	k8s.io/client-go v0.30.0
+	k8s.io/client-go v0.30.1
 	k8s.io/klog v1.0.0
 	sigs.k8s.io/controller-runtime v0.18.2
 	volcano.sh/apis v0.0.0-20210924061932-d4408f25a528
