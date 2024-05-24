@@ -23,7 +23,7 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.CR_PAT }}
       - name: Push Image
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
           go-version: "^1.19"
       - run: make release-manifests docker-push
