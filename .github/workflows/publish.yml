@@ -34,10 +34,10 @@ jobs:
       - name: Push latest
         run: docker push ${DOCKER_REPO}:latest
       - name: Push release manifest
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: config/deploy/flink-operator.yaml
       - name: Push release manifest sharded
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: config/deploy/flink-operator-sharded.yaml
