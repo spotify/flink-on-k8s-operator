@@ -469,8 +469,8 @@ func (v *Validator) validateJob(jobSpec *JobSpec) error {
 		return fmt.Errorf("job jarFile or pythonFile or pythonModule is unspecified")
 	}
 
-	if jobSpec.Parallelism != nil && *jobSpec.Parallelism < 1 {
-		return fmt.Errorf("job parallelism must be >= 1")
+	if jobSpec.Parallelism != nil && *jobSpec.Parallelism < 1 && *jobSpec.Parallelism != DefaultParallelism {
+		return fmt.Errorf("job parallelism must be -1 (adaptive) or >= 1")
 	}
 
 	switch *jobSpec.RestartPolicy {
