@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       packages: write
+      contents: write
     env:
       DOCKER_REPO: ghcr.io/spotify/flink-operator
     steps:
