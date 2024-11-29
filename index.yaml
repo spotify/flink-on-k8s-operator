@@ -3,6 +3,18 @@ entries:
   flink-operator:
   - apiVersion: v1
     appVersion: "1.0"
+    created: "2024-11-29T15:21:16.291361219Z"
+    description: A Helm chart for flink on Kubernetes operator
+    digest: 2998a93f964e45a9db3146636ce9b374c6fc8fc159ab9044eb02bc0b4a26e850
+    home: https://github.com/spotify/flink-on-k8s-operator
+    keywords:
+    - flink
+    name: flink-operator
+    urls:
+    - https://github.com/spotify/flink-on-k8s-operator/releases/download/flink-operator-0.5.1/flink-operator-0.5.1.tgz
+    version: 0.5.1
+  - apiVersion: v1
+    appVersion: "1.0"
     created: "2023-04-05T10:27:03.614669807Z"
     description: A Helm chart for flink on Kubernetes operator
     digest: c8f166d7941cd23ba27e31a5755f3b1e46132e6497dea4be7a2651a6e905f160
@@ -121,4 +133,4 @@ entries:
     urls:
     - https://github.com/GoogleCloudPlatform/flink-on-k8s-operator/releases/download/flink-operator-v1beta1/flink-operator-v1beta1.tgz
     version: v1beta1
-generated: "2023-04-05T10:27:03.614744609Z"
+generated: "2024-11-29T15:21:16.291442351Z"
