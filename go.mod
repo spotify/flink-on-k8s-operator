@@ -10,7 +10,7 @@ require (
 	github.com/hashicorp/go-version v1.7.0
 	github.com/onsi/ginkgo/v2 v2.22.0
 	github.com/onsi/gomega v1.36.1
-	golang.org/x/net v0.32.0
+	golang.org/x/net v0.33.0
 	gotest.tools/v3 v3.5.1
 	k8s.io/api v0.31.4
 	k8s.io/apimachinery v0.32.0
