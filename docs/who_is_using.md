@@ -6,3 +6,4 @@
 | Netease      | @ouyangwulin               | Production  | Flink Platform               |
 | Nextdoor     | @pjthepooh                 | Production  | Event tracking               |
 | Airwallex    | @haoxins                   | Production  | ML & Metric computing        |
+| DMALL        | @tcodehuber                | Production  | Flink Platform               |
