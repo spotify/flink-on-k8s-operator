@@ -72,12 +72,18 @@ func main() {
 		WithName("FlinkCluster")
 	ctrl.SetLogger(logger)
 
+	defaultNamespaces := make(map[string]cache.Config)
+	if *watchNamespace != "" {
+		setupLog.Info("Watching custom resources in the namespace", "namespace", *watchNamespace)
+		defaultNamespaces[*watchNamespace] = cache.Config{}
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:         scheme,
 		Metrics:        metricsserver.Options{BindAddress: *metricsAddr},
 		LeaderElection: *enableLeaderElection,
 		Cache: cache.Options{
-			DefaultNamespaces: map[string]cache.Config{*watchNamespace: {}},
+			DefaultNamespaces: defaultNamespaces,
 		},
 		LeaderElectionID: *leaderElectionID,
 	})
