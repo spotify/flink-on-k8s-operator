@@ -502,7 +502,7 @@ func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Res
 		}
 
 		// Suspend or stop job to proceed update.
-		if recorded.Revision.IsUpdateTriggered() && isJobUpdate(observed.revisions, observed.cluster) {
+		if recorded.Revision.IsUpdateTriggered() && !isScaleUpdate(observed.revisions, observed.cluster) {
 			log.Info("Preparing job update")
 			var takeSavepoint = jobSpec.TakeSavepointOnUpdate == nil || *jobSpec.TakeSavepointOnUpdate
 			var shouldSuspend = takeSavepoint && util.IsBlank(jobSpec.FromSavepoint)
@@ -724,7 +724,7 @@ func (reconciler *ClusterReconciler) canSuspendJob(ctx context.Context, jobID st
 	switch s.State {
 	case v1beta1.SavepointStateSucceeded:
 		log.Info("Successfully savepoint completed, wait until the job stops")
-		return false
+		return true
 	case v1beta1.SavepointStateInProgress:
 		log.Info("Savepoint is in progress, wait until it is completed")
 		return false

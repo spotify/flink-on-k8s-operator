@@ -475,7 +475,7 @@ func getUpdateState(observed *ObservedClusterState) UpdateState {
 
 	jobStatus := clusterStatus.Components.Job
 	switch {
-	case isJobUpdate(observed.revisions, observed.cluster) &&
+	case !isScaleUpdate(observed.revisions, observed.cluster) &&
 		!jobStatus.UpdateReady(observed.cluster.Spec.Job, observed.observeTime):
 		return UpdateStatePreparing
 	case !isClusterUpdateToDate(observed):
@@ -484,42 +484,31 @@ func getUpdateState(observed *ObservedClusterState) UpdateState {
 	return UpdateStateFinished
 }
 
-func revisionDiff(a, b *appsv1.ControllerRevision) map[string]util.DiffValue {
+func revisionDiff(revisions []*appsv1.ControllerRevision) map[string]util.DiffValue {
+	if len(revisions) < 2 {
+		return map[string]util.DiffValue{}
+	}
+
 	patchSpec := func(bytes []byte) map[string]any {
 		var raw map[string]any
 		json.Unmarshal(bytes, &raw)
 		return raw["spec"].(map[string]any)
 	}
 
+	history.SortControllerRevisions(revisions)
+	a, b := revisions[len(revisions)-2], revisions[len(revisions)-1]
 	aSpec := patchSpec(a.Data.Raw)
 	bSpec := patchSpec(b.Data.Raw)
 
 	return util.MapDiff(aSpec, bSpec)
 }
 
-func isJobUpdate(revisions []*appsv1.ControllerRevision, cluster *v1beta1.FlinkCluster) bool {
-	if wasJobCancelRequested(cluster.Status.Control) {
-		return false
-	}
-
-	if len(revisions) < 2 || (cluster != nil && cluster.Spec.Job == nil) {
-		return false
-	}
-
-	history.SortControllerRevisions(revisions)
-	diff := revisionDiff(revisions[len(revisions)-2], revisions[len(revisions)-1])
-	_, ok := diff["job"]
-	return ok
-}
-
 func isScaleUpdate(revisions []*appsv1.ControllerRevision, cluster *v1beta1.FlinkCluster) bool {
-	if len(revisions) < 2 || (cluster != nil && cluster.Spec.Job == nil) {
+	if cluster != nil && cluster.Spec.Job == nil {
 		return false
 	}
 
-	history.SortControllerRevisions(revisions)
-	diff := revisionDiff(revisions[len(revisions)-2], revisions[len(revisions)-1])
-
+	diff := revisionDiff(revisions)
 	tmDiff, ok := diff["taskManager"]
 	if len(diff) != 1 || !ok {
 		return false
@@ -532,16 +521,12 @@ func isScaleUpdate(revisions []*appsv1.ControllerRevision, cluster *v1beta1.Flin
 }
 
 func shouldUpdateJob(observed *ObservedClusterState) bool {
-	return observed.updateState == UpdateStateInProgress && isJobUpdate(observed.revisions, observed.cluster)
+	return observed.updateState == UpdateStateInProgress && !isScaleUpdate(observed.revisions, observed.cluster)
 }
 
 func shouldUpdateCluster(observed *ObservedClusterState) bool {
-	if isJobUpdate(observed.revisions, observed.cluster) {
-		var job = observed.cluster.Status.Components.Job
-		return !job.IsActive() && observed.updateState == UpdateStateInProgress
-	}
-
-	return observed.updateState == UpdateStateInProgress
+	var job = observed.cluster.Status.Components.Job
+	return !job.IsActive() && observed.updateState == UpdateStateInProgress
 }
 
 func shouldRecreateOnUpdate(observed *ObservedClusterState) bool {

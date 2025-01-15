@@ -515,6 +515,8 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 		v1beta1.ClusterStatePartiallyStopped:
 		if shouldUpdateCluster(observed) {
 			status.State = v1beta1.ClusterStateUpdating
+		} else if jobStatus.IsActive() {
+			status.State = v1beta1.ClusterStateRunning
 		} else if runningComponents == 0 {
 			status.State = v1beta1.ClusterStateStopped
 		} else if runningComponents < totalComponents {
