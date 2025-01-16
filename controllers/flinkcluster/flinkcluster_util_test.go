@@ -281,7 +281,7 @@ func TestGetUpdateState(t *testing.T) {
 		jmService:           &corev1.Service{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "cluster-85dc8f749"}}},
 	}
 	var state = getUpdateState(&observed)
-	assert.Equal(t, state, UpdateStateInProgress)
+	assert.Equal(t, state, UpdateStatePreparing)
 
 	observed = ObservedClusterState{
 		cluster: &v1beta1.FlinkCluster{
