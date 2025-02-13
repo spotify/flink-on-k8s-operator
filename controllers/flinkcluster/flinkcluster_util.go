@@ -525,6 +525,10 @@ func shouldUpdateJob(observed *ObservedClusterState) bool {
 }
 
 func shouldUpdateCluster(observed *ObservedClusterState) bool {
+	if isScaleUpdate(observed.revisions, observed.cluster) {
+		return observed.updateState == UpdateStateInProgress
+	}
+
 	var job = observed.cluster.Status.Components.Job
 	return !job.IsActive() && observed.updateState == UpdateStateInProgress
 }
