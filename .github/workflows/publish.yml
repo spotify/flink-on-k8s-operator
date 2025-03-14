@@ -20,7 +20,7 @@ jobs:
         run: |
           echo ::set-output name=image::${DOCKER_REPO}:${GITHUB_REF/refs\/tags\//}
       - name: Login to Github container registry
-        uses: docker/login-action@v3.3.0
+        uses: docker/login-action@v3.4.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
