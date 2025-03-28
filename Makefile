@@ -2,6 +2,8 @@ SHELL := /bin/bash
 VERSION ?= latest
 # Image URL to use all building/pushing image targets
 IMG ?= ghcr.io/spotify/flink-operator:$(VERSION)
+# Image platforms to support.
+PLATFORMS ?= linux/amd64,linux/arm64
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:maxDescLen=0,generateEmbeddedObjectMeta=true"
 # The Kubernetes namespace in which the operator will be deployed.
@@ -98,11 +100,15 @@ endif
 run: manifests generate fmt vet tidy ## Run a controller from your host against the configured Kubernetes cluster in ~/.kube/config
 	go run ./main.go
 
-docker-build: test ## Build docker image with the manager.
-	docker build -t ${IMG} --label git-commit=$(shell git rev-parse HEAD) .
+.PHONY: docker-create-builder ## Create makes a new builder instance.
+docker-create-builder:
+	docker buildx create --use
 
-docker-push: docker-build ## Push docker image with the manager.
-	docker push ${IMG}
+docker-build: test docker-create-builder ## Build docker image with the manager.
+	docker buildx build --platform ${PLATFORMS} -t ${IMG} --label git-commit=$(shell git rev-parse HEAD) .
+
+docker-push: test docker-create-builder ## Push docker image with the manager.
+	docker buildx build --push --platform ${PLATFORMS} -t ${IMG} --label git-commit=$(shell git rev-parse HEAD) .
 
 release-manifests: build-overlay build-overlay-sharded ## Build manifests for release.
 	$(KUSTOMIZE) build config/deploy > config/deploy/flink-operator.yaml \
