@@ -107,7 +107,7 @@ docker-create-builder:
 docker-build: test docker-create-builder ## Build docker image with the manager.
 	docker buildx build --platform ${PLATFORMS} -t ${IMG} --label git-commit=$(shell git rev-parse HEAD) .
 
-docker-push: docker-create-builder ## Push docker image with the manager.
+docker-push: test docker-create-builder ## Push docker image with the manager.
 	docker buildx build --push --platform ${PLATFORMS} -t ${IMG} --label git-commit=$(shell git rev-parse HEAD) .
 
 release-manifests: build-overlay build-overlay-sharded ## Build manifests for release.
