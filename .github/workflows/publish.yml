@@ -34,8 +34,6 @@ jobs:
           IMG: ${{ steps.prep.outputs.image }}
       - name: Tag latest
         run: docker buildx imagetools create -t ${DOCKER_REPO}:latest ${{ steps.prep.outputs.image }}
-      - name: Push latest
-        run: docker push ${DOCKER_REPO}:latest
       - name: Push release manifest
         uses: softprops/action-gh-release@v2
         with:
