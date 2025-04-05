@@ -25,6 +25,7 @@ import (
 )
 
 const (
+	DefaultParallelism         = -1
 	DefaultJobManagerReplicas  = 1
 	DefaultTaskManagerReplicas = 3
 )
