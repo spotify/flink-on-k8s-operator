@@ -7,7 +7,7 @@ toolchain go1.24.1
 require (
 	dario.cat/mergo v1.0.2
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
-	github.com/go-logr/logr v1.4.2
+	github.com/go-logr/logr v1.4.3
 	github.com/google/go-cmp v0.7.0
 	github.com/hashicorp/go-version v1.7.0
 	github.com/onsi/ginkgo/v2 v2.23.4
