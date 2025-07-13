@@ -334,10 +334,10 @@ func (v *Validator) validateJobManager(flinkVersion *version.Version, jmSpec *Jo
 
 	fp := field.NewPath("spec.jobManager")
 	if errors := validation.ValidateAnnotations(jmSpec.PodAnnotations, fp.Child("podAnnotations")); len(errors) > 0 {
-		return fmt.Errorf(errors.ToAggregate().Error())
+		return fmt.Errorf("%s", errors.ToAggregate().Error())
 	}
 	if errors := v1validation.ValidateLabels(jmSpec.PodLabels, fp.Child("podLabels")); len(errors) > 0 {
-		return fmt.Errorf(errors.ToAggregate().Error())
+		return fmt.Errorf("%s", errors.ToAggregate().Error())
 	}
 
 	// Ports.
@@ -396,10 +396,10 @@ func (v *Validator) validateTaskManager(flinkVersion *version.Version, tmSpec *T
 
 	fp := field.NewPath("spec.taskManager")
 	if errors := validation.ValidateAnnotations(tmSpec.PodAnnotations, fp.Child("podAnnotations")); len(errors) > 0 {
-		return fmt.Errorf(errors.ToAggregate().Error())
+		return fmt.Errorf("%s", errors.ToAggregate().Error())
 	}
 	if errors := v1validation.ValidateLabels(tmSpec.PodLabels, fp.Child("podLabels")); len(errors) > 0 {
-		return fmt.Errorf(errors.ToAggregate().Error())
+		return fmt.Errorf("%s", errors.ToAggregate().Error())
 	}
 
 	// Ports.
@@ -458,10 +458,10 @@ func (v *Validator) validateJob(jobSpec *JobSpec) error {
 
 	fp := field.NewPath("spec.job")
 	if errors := validation.ValidateAnnotations(jobSpec.PodAnnotations, fp.Child("podAnnotations")); len(errors) > 0 {
-		return fmt.Errorf(errors.ToAggregate().Error())
+		return fmt.Errorf("%s", errors.ToAggregate().Error())
 	}
 	if errors := v1validation.ValidateLabels(jobSpec.PodLabels, fp.Child("podLabels")); len(errors) > 0 {
-		return fmt.Errorf(errors.ToAggregate().Error())
+		return fmt.Errorf("%s", errors.ToAggregate().Error())
 	}
 
 	applicationMode := jobSpec.Mode != nil && *jobSpec.Mode == JobModeApplication
