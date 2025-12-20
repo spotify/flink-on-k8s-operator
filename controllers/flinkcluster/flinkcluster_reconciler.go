@@ -657,13 +657,6 @@ func (reconciler *ClusterReconciler) cancelJob(ctx context.Context) error {
 	return nil
 }
 
-func (reconciler *ClusterReconciler) cancelUnexpectedJobs(
-	ctx context.Context,
-	takeSavepoint bool) error {
-	var unexpectedJobs = reconciler.observed.flinkJob.unexpected
-	return reconciler.cancelJobs(ctx, takeSavepoint, unexpectedJobs)
-}
-
 // Cancel running jobs.
 func (reconciler *ClusterReconciler) cancelRunningJobs(
 	ctx context.Context,
