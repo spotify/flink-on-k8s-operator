@@ -421,7 +421,18 @@ func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Res
 	observedSubmitter := observed.flinkJobSubmitter.job
 
 	if desiredJob != nil && job.IsTerminated(jobSpec) {
-		return ctrl.Result{}, nil
+		// When the job was cancelled as part of an update (savepoint trigger
+		// reason is "update"), don't treat it as terminally done. The operator
+		// needs to proceed with creating a new job submitter to restart the
+		// job from the savepoint taken during the update.
+		savepointStatus := recorded.Savepoint
+		cancelledForUpdate := job.State == v1beta1.JobStateCancelled &&
+			savepointStatus != nil &&
+			savepointStatus.TriggerReason == v1beta1.SavepointReasonUpdate
+		if !cancelledForUpdate {
+			return ctrl.Result{}, nil
+		}
+		log.Info("Job was cancelled for update, proceeding with job resubmission")
 	}
 
 	if wasJobCancelRequested(observed.cluster.Status.Control) {
