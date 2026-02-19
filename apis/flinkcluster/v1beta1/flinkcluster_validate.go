@@ -547,31 +547,6 @@ func (v *Validator) checkDupPorts(ports []NamedPort, component string) error {
 	return nil
 }
 
-func (v *Validator) validateCleanupAction(
-	property string, value CleanupAction) error {
-	switch value {
-	case CleanupActionDeleteCluster:
-	case CleanupActionDeleteTaskManager:
-	case CleanupActionKeepCluster:
-	default:
-		return fmt.Errorf(
-			"invalid %v: %v",
-			property, value)
-	}
-	return nil
-}
-
-func (v *Validator) validateJobMode(property string, value JobMode) error {
-	switch value {
-	case JobModeBlocking:
-	case JobModeApplication:
-	case JobModeDetached:
-	default:
-		return fmt.Errorf("invalid %v: %v", property, value)
-	}
-	return nil
-}
-
 func (v *Validator) validateRatio(ratio *int32, component, property string) error {
 	if ratio == nil || *ratio > 100 || *ratio < 0 {
 		return fmt.Errorf("invalid %v %v, it must be between 0 and 100", component, property)
