@@ -22,6 +22,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"regexp"
 	"strconv"
@@ -186,9 +187,7 @@ func newRevision(cluster *v1beta1.FlinkCluster, revision int64, collisionCount *
 	if cr.Annotations == nil {
 		cr.Annotations = make(map[string]string)
 	}
-	for key, value := range cluster.Annotations {
-		cr.Annotations[key] = value
-	}
+	maps.Copy(cr.Annotations, cluster.Annotations)
 	cr.SetNamespace(cluster.GetNamespace())
 	cr.GetLabels()[history.ControllerRevisionManagedByLabel] = cluster.GetName()
 	return cr, nil
