@@ -17,15 +17,16 @@ limitations under the License.
 package v1beta1
 
 import (
+	"context"
 	"encoding/json"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	"os"
 	"path/filepath"
 	"time"
 
-	"golang.org/x/net/context"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/util/yaml"
+
 	"k8s.io/apimachinery/pkg/types"
 )
 
