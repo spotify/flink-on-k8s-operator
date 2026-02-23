@@ -800,7 +800,7 @@ func newJobSubmitterPodSpec(flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec 
 		jobArgs = append(jobArgs, "--detached")
 	}
 
-	if jobSpec.ClassPath != nil && len(jobSpec.ClassPath) > 0 {
+	if len(jobSpec.ClassPath) > 0 {
 		for _, u := range jobSpec.ClassPath {
 			jobArgs = append(jobArgs, "-C", u)
 		}

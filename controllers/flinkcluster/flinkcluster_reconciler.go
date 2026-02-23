@@ -329,7 +329,7 @@ func (reconciler *ClusterReconciler) reconcileHAConfigMap(ctx context.Context) e
 	if observedHAConfigMap == nil {
 		return nil
 	}
-	if observedHAConfigMap.OwnerReferences == nil || len(observedHAConfigMap.OwnerReferences) == 0 {
+	if len(observedHAConfigMap.OwnerReferences) == 0 {
 		observedHAConfigMap.OwnerReferences = []metav1.OwnerReference{ToOwnerReference(reconciler.observed.cluster)}
 		err := reconciler.updateComponent(ctx, observedHAConfigMap, "HA ConfigMap")
 		if err != nil {
