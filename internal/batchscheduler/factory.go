@@ -25,7 +25,6 @@ import (
 
 var (
 	mutex            sync.Mutex
-	once             = sync.Once{}
 	schedulerPlugins = map[string]schedulerinterface.BatchScheduler{}
 )
 
