@@ -50,6 +50,10 @@ spec:
             - --enable-leader-election
           image: controller:latest
           name: manager
+          ports:
+            - containerPort: 8443
+              name: https
+              protocol: TCP
           securityContext:
             allowPrivilegeEscalation: false
           resources:
