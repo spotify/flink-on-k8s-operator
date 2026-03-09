@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"os"
 
@@ -31,6 +32,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
@@ -44,7 +46,8 @@ var (
 )
 
 var (
-	metricsAddr             = flag.String("metrics-addr", ":8080", "The address the metric endpoint binds to.")
+	metricsAddr             = flag.String("metrics-addr", ":8443", "The address the metric endpoint binds to.")
+	secureMetrics           = flag.Bool("secure-metrics", true, "Serve metrics over HTTPS with authn/authz via controller-runtime.")
 	enableLeaderElection    = flag.Bool("enable-leader-election", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	leaderElectionID        = flag.String("leader-election-id", "flink-operator-lock", "The name that leader election will use for holding the leader lock")
 	watchNamespace          = flag.String("watch-namespace", "", "Watch custom resources in the namespace, ignore other namespaces. If empty, all namespaces will be watched.")
@@ -78,9 +81,22 @@ func main() {
 		defaultNamespaces[*watchNamespace] = cache.Config{}
 	}
 
+	metricsServerOptions := metricsserver.Options{
+		BindAddress:   *metricsAddr,
+		SecureServing: *secureMetrics,
+		TLSOpts: []func(*tls.Config){
+			func(c *tls.Config) {
+				c.MinVersion = tls.VersionTLS13
+			},
+		},
+	}
+	if *secureMetrics {
+		metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:         scheme,
-		Metrics:        metricsserver.Options{BindAddress: *metricsAddr},
+		Metrics:        metricsServerOptions,
 		LeaderElection: *enableLeaderElection,
 		Cache: cache.Options{
 			DefaultNamespaces: defaultNamespaces,
