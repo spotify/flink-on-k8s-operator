@@ -19,7 +19,7 @@ package flink
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"sort"
 	"strings"
@@ -69,7 +69,7 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (res *http.Response, e erro
 
 func parseJson(resp *http.Response, out interface{}) error {
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err == nil {
 		err = json.Unmarshal(body, out)
 	}
