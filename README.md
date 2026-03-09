@@ -5,13 +5,13 @@
 
 # Kubernetes Operator for Apache Flink
 
-[Kubernetes](https://kubernetes.io/) operator for that acts as control plane to manage the complete deployment lifecycle of [Apache Flink](https://flink.apache.org/) applications. This is an open source fork of [GoogleCloudPlatform/flink-on-k8s-operator](https://github.com/GoogleCloudPlatform/flink-on-k8s-operator) with several new features and bug fixes.
+[Kubernetes](https://kubernetes.io/) operator that acts as a control plane to manage the complete deployment lifecycle of [Apache Flink](https://flink.apache.org/) applications. This is an open source fork of [GoogleCloudPlatform/flink-on-k8s-operator](https://github.com/GoogleCloudPlatform/flink-on-k8s-operator) with several new features and bug fixes.
 
 ## Project Status
 
 _Beta_
 
-The operator is under active development, backward compatibility of the APIs is not guaranteed for beta releases.
+The operator is under active development; backward compatibility of the APIs is not guaranteed for beta releases.
 
 ## Prerequisites
 
@@ -53,7 +53,7 @@ clusters and jobs.
 
 ## Installation
 
-The operator is still under active development, there is no Helm chart available yet. You can follow either
+The operator is still under active development; there is no Helm chart available yet. You can follow either
 
 - [User Guide](docs/user_guide.md) to deploy a released operator image on `ghcr.io/spotify/flink-operator` to your Kubernetes
   cluster or
