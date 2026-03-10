@@ -10,5 +10,6 @@ spec:
         - name: manager
           args:
             - "--metrics-addr=127.0.0.1:8080"
+            - "--secure-metrics=false"
             - "--zap-devel=false"
             - "--zap-log-level=error"
