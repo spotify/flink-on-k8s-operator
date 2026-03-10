@@ -46,8 +46,8 @@ var (
 )
 
 var (
-	metricsAddr             = flag.String("metrics-addr", ":8443", "The address the metric endpoint binds to.")
-	secureMetrics           = flag.Bool("secure-metrics", true, "Serve metrics over HTTPS with authn/authz via controller-runtime.")
+	metricsAddr             = flag.String("metrics-addr", ":8080", "The address the metric endpoint binds to.")
+	secureMetrics           = flag.Bool("secure-metrics", false, "Serve metrics over HTTPS with authn/authz via controller-runtime.")
 	enableLeaderElection    = flag.Bool("enable-leader-election", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	leaderElectionID        = flag.String("leader-election-id", "flink-operator-lock", "The name that leader election will use for holding the leader lock")
 	watchNamespace          = flag.String("watch-namespace", "", "Watch custom resources in the namespace, ignore other namespaces. If empty, all namespaces will be watched.")

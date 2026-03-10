@@ -246,7 +246,7 @@ func (rh *realHistory) CreateControllerRevision(parent metav1.Object, revision *
 		err := rh.Create(rh.context, clone)
 		if errors.IsAlreadyExists(err) {
 			//exists, err := rh.client.AppsV1().ControllerRevisions(ns).Get(clone.Name, metav1.GetOptions{})
-			var exists *apps.ControllerRevision
+			exists := &apps.ControllerRevision{}
 			err = rh.Get(rh.context, types.NamespacedName{Namespace: ns, Name: clone.Name}, exists)
 			if err != nil {
 				return nil, err
