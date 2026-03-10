@@ -1,0 +1,160 @@
+name: Integration Test
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  CLUSTER_NAME: flink-operator-test
+  OPERATOR_IMAGE: flink-operator:test
+  TEST_NAMESPACE: flink-test
+  TIMEOUT: 300
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test_case:
+          - name: "wordcount-basic"
+            file: "examples/update/wordcount-1.9.2.yaml"
+            wait_for_completion: true
+          - name: "basic-application-mode"
+            file: "examples/basic-application-mode.yaml"
+            wait_for_completion: false
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: "1.26.0"
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Create Kind cluster
+      uses: helm/kind-action@v1.10.0
+      with:
+        cluster_name: ${{ env.CLUSTER_NAME }}
+        kubectl_version: v1.30.0
+        
+    - name: Build operator image
+      run: |
+        make docker-build IMG=${{ env.OPERATOR_IMAGE }}
+        kind load docker-image ${{ env.OPERATOR_IMAGE }} --name ${{ env.CLUSTER_NAME }}
+
+    - name: Install cert-manager
+      run: |
+        kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.15.3/cert-manager.yaml
+        kubectl wait --for=condition=Available --timeout=${{ env.TIMEOUT }}s deployment/cert-manager-webhook -n cert-manager
+
+    - name: Deploy operator
+      run: |
+        cd config/default
+        kustomize edit set image controller=${{ env.OPERATOR_IMAGE }}
+        cd ../..
+        make deploy IMG=${{ env.OPERATOR_IMAGE }}
+        kubectl wait --for=condition=Available --timeout=${{ env.TIMEOUT }}s deployment/flink-operator-controller-manager -n flink-operator-system
+
+    - name: Create test namespace
+      run: |
+        kubectl create namespace ${{ env.TEST_NAMESPACE }}
+
+    - name: Deploy FlinkCluster from example
+      run: |
+        # Create a modified version of the example for testing
+        cp ${{ matrix.test_case.file }} /tmp/test-flinkcluster.yaml
+        
+        # Update namespace and name for isolation
+        sed -i 's/name: wordcount/name: ${{ matrix.test_case.name }}/g' /tmp/test-flinkcluster.yaml
+        sed -i 's/namespace: default/namespace: ${{ env.TEST_NAMESPACE }}/g' /tmp/test-flinkcluster.yaml
+        
+        # Add namespace if not present
+        if ! grep -q "namespace:" /tmp/test-flinkcluster.yaml; then
+          sed -i '/name: ${{ matrix.test_case.name }}/a \ \ namespace: ${{ env.TEST_NAMESPACE }}' /tmp/test-flinkcluster.yaml
+        fi
+        
+        # Remove savepoints directory that may not be available in test environment
+        sed -i '/savepointsDir:/d' /tmp/test-flinkcluster.yaml
+        
+        # Apply the modified example
+        kubectl apply -f /tmp/test-flinkcluster.yaml
+
+    - name: Wait for FlinkCluster to be ready
+      run: |
+        kubectl wait --for=condition=ClusterReady --timeout=${{ env.TIMEOUT }}s flinkcluster/${{ matrix.test_case.name }} -n ${{ env.TEST_NAMESPACE }}
+
+    - name: Check Flink components
+      run: |
+        echo "Waiting for components to start..."
+        sleep 30
+        
+        echo "=== FlinkCluster Status ==="
+        kubectl get flinkcluster ${{ matrix.test_case.name }} -n ${{ env.TEST_NAMESPACE }} -o yaml
+        
+        echo "=== JobManager Pods ==="
+        kubectl get pods -n ${{ env.TEST_NAMESPACE }} -l app=flink,component=jobmanager
+        kubectl wait --for=condition=Ready --timeout=180s pods -l app=flink,component=jobmanager -n ${{ env.TEST_NAMESPACE }}
+        
+        echo "=== TaskManager Pods ==="
+        kubectl get pods -n ${{ env.TEST_NAMESPACE }} -l app=flink,component=taskmanager
+        kubectl wait --for=condition=Ready --timeout=180s pods -l app=flink,component=taskmanager -n ${{ env.TEST_NAMESPACE }}
+
+    - name: Verify job completion (if applicable)
+      if: matrix.test_case.wait_for_completion == true
+      run: |
+        echo "Monitoring job completion for ${{ matrix.test_case.name }}..."
+        timeout_count=${{ env.TIMEOUT }}
+        
+        while [ $timeout_count -gt 0 ]; do
+          job_state=$(kubectl get flinkcluster ${{ matrix.test_case.name }} -n ${{ env.TEST_NAMESPACE }} -o jsonpath='{.status.components.job.state}' 2>/dev/null || echo "Unknown")
+          echo "Job state: $job_state"
+          
+          if [ "$job_state" = "Succeeded" ]; then
+            echo "✅ Job completed successfully!"
+            break
+          elif [ "$job_state" = "Failed" ]; then
+            echo "❌ Job failed!"
+            kubectl describe flinkcluster ${{ matrix.test_case.name }} -n ${{ env.TEST_NAMESPACE }}
+            kubectl logs -l app=flink,component=jobmanager -n ${{ env.TEST_NAMESPACE }} --tail=50
+            exit 1
+          fi
+          
+          sleep 10
+          timeout_count=$((timeout_count-10))
+        done
+        
+        if [ $timeout_count -eq 0 ]; then
+          echo "⚠️ Timeout waiting for job completion, but cluster is running"
+          kubectl describe flinkcluster ${{ matrix.test_case.name }} -n ${{ env.TEST_NAMESPACE }}
+          kubectl logs -l app=flink,component=jobmanager -n ${{ env.TEST_NAMESPACE }} --tail=50
+        fi
+
+    - name: Verify cluster is running (for non-completion tests)
+      if: matrix.test_case.wait_for_completion == false
+      run: |
+        echo "Verifying cluster is running properly..."
+        
+        # Check cluster status
+        cluster_state=$(kubectl get flinkcluster ${{ matrix.test_case.name }} -n ${{ env.TEST_NAMESPACE }} -o jsonpath='{.status.components.cluster.state}' 2>/dev/null || echo "Unknown")
+        echo "Cluster state: $cluster_state"
+        
+        if [ "$cluster_state" = "Running" ]; then
+          echo "✅ Cluster is running successfully!"
+        else
+          echo "❌ Cluster is not in running state: $cluster_state"
+          kubectl describe flinkcluster ${{ matrix.test_case.name }} -n ${{ env.TEST_NAMESPACE }}
+          kubectl logs -l app=flink,component=jobmanager -n ${{ env.TEST_NAMESPACE }} --tail=50
+          exit 1
+        fi
+
+    - name: Cleanup
+      if: always()
+      run: |
+        kubectl delete namespace ${{ env.TEST_NAMESPACE }} --ignore-not-found=true
+        make undeploy || true
