@@ -164,7 +164,7 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 	}
 
 	// Sync history and observe revision status
-	err = observer.syncRevisionStatus(observed)
+	err = observer.syncRevisionStatus(ctx, observed)
 	if err != nil {
 		log.Error(err, "Failed to sync flinkCluster history")
 		return ctrl.Result{}, err
