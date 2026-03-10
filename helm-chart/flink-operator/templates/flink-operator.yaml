@@ -65,6 +65,7 @@ spec:
               name: https
         - args:
             - --metrics-addr=127.0.0.1:8080
+            - --secure-metrics=false
             - --enable-leader-election
             - --zap-devel=false
             - --watch-namespace={{ .Values.watchNamespace.name }}
