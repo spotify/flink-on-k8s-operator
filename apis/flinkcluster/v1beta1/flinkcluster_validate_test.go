@@ -884,32 +884,32 @@ func TestFlinkClusterValidation(t *testing.T) {
 		{
 			"invalid jm annotations",
 			invalidJobManagerAnnotations,
-			fmt.Sprintf("spec.jobManager.podAnnotations: Invalid value: \"%s\": name part must be no more than 63 characters", longName),
+			fmt.Sprintf("spec.jobManager.podAnnotations: Invalid value: \"%s\": name part must be no more than 63 bytes", longName),
 		},
 		{
 			"invalid jm labels",
 			invalidJobManagerLabels,
-			fmt.Sprintf("spec.jobManager.podLabels: Invalid value: \"%s\": name part must be no more than 63 characters", longName),
+			fmt.Sprintf("spec.jobManager.podLabels: Invalid value: \"%s\": name part must be no more than 63 bytes", longName),
 		},
 		{
 			"invalid tm annotations",
 			invalidTaskManagerAnnotations,
-			fmt.Sprintf("spec.taskManager.podAnnotations: Invalid value: \"%s\": name part must be no more than 63 characters", longName),
+			fmt.Sprintf("spec.taskManager.podAnnotations: Invalid value: \"%s\": name part must be no more than 63 bytes", longName),
 		},
 		{
 			"invalid tm labels",
 			invalidTaskManagerLabels,
-			fmt.Sprintf("spec.taskManager.podLabels: Invalid value: \"%s\": name part must be no more than 63 characters", longName),
+			fmt.Sprintf("spec.taskManager.podLabels: Invalid value: \"%s\": name part must be no more than 63 bytes", longName),
 		},
 		{
 			"invalid job annotations",
 			invalidJobAnnotations,
-			fmt.Sprintf("spec.job.podAnnotations: Invalid value: \"%s\": name part must be no more than 63 characters", longName),
+			fmt.Sprintf("spec.job.podAnnotations: Invalid value: \"%s\": name part must be no more than 63 bytes", longName),
 		},
 		{
 			"invalid job labels",
 			invalidJobLabels,
-			fmt.Sprintf("spec.job.podLabels: Invalid value: \"%s\": name part must be no more than 63 characters", longName),
+			fmt.Sprintf("spec.job.podLabels: Invalid value: \"%s\": name part must be no more than 63 bytes", longName),
 		},
 		{
 			"invalid cluster name",
