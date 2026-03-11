@@ -250,9 +250,10 @@ func (rh *realHistory) CreateControllerRevision(parent metav1.Object, revision *
 			if err != nil {
 				if errors.IsNotFound(err) {
 					// Race condition: revision was deleted between Create and Get.
-					// Increment collisionCount to try a different name and avoid
-					// an infinite loop if the race persists.
-					*collisionCount++
+					// Retry with the same name — the slot is now free.
+					// Do NOT increment collisionCount here: changing the hash
+					// would create a revision with a different name but identical
+					// data, causing IsUpdateTriggered() to be permanently true.
 					continue
 				}
 				return nil, err
