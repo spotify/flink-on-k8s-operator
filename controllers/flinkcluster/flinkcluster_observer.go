@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 
@@ -415,12 +416,10 @@ func (observer *ClusterStateObserver) observeRevisions(
 	observed.revisions = []*appsv1.ControllerRevision{}
 	selector := labels.SelectorFromSet(labels.Set(map[string]string{history.ControllerRevisionManagedByLabel: observed.cluster.GetName()}))
 	controllerRevisions, err := observer.history.ListControllerRevisions(observed.cluster, selector)
-	observed.revisions = append(observed.revisions, controllerRevisions...)
-
-	if client.IgnoreNotFound(err) != nil {
+	if err != nil {
 		return err
 	}
-
+	observed.revisions = append(observed.revisions, controllerRevisions...)
 	return nil
 }
 
@@ -639,11 +638,12 @@ func (observer *ClusterStateObserver) observePersistentVolumeClaims(
 // the operator will only update nextRevision of the FlinkClusterStatus to the name of the ControllerRevision
 // that has the same content, instead of creating new ControllerRevision.
 // Finally, it maintains the number of child ControllerRevision resources according to RevisionHistoryLimit.
-func (observer *ClusterStateObserver) syncRevisionStatus(observed *ObservedClusterState) error {
+func (observer *ClusterStateObserver) syncRevisionStatus(ctx context.Context, observed *ObservedClusterState) error {
 	if observed.cluster == nil {
 		return nil
 	}
 
+	log := logr.FromContextOrDiscard(ctx)
 	var cluster = observed.cluster
 	var revisions = observed.revisions
 	var recorded = cluster.Status
@@ -701,7 +701,12 @@ func (observer *ClusterStateObserver) syncRevisionStatus(observed *ObservedClust
 		}
 	}
 	if currentRevision == nil {
-		return fmt.Errorf("current ControlRevision resoucre not found")
+		// The referenced currentRevision was deleted (e.g. by GC or truncateHistory).
+		// Fall back to nextRevision so the reconciler can self-heal.
+		log.Info("currentRevision not found among listed revisions, falling back to nextRevision",
+			"expectedRevision", getCurrentRevisionName(&recorded.Revision),
+			"revisionCount", len(revisions))
+		currentRevision = nextRevision
 	}
 
 	// Update revision status.
@@ -733,9 +738,26 @@ func (observer *ClusterStateObserver) truncateHistory(observed *ObservedClusterS
 
 	nonLiveHistory := util.GetNonLiveHistory(revisions, historyLimit)
 
+	// Protect referenced revisions from deletion using the just-computed
+	// revision (not the stale persisted status which may differ during rollbacks).
+	var currentName, nextName string
+	if observed.revision.currentRevision != nil {
+		currentName = observed.revision.currentRevision.Name
+	}
+	if observed.revision.nextRevision != nil {
+		nextName = observed.revision.nextRevision.Name
+	}
+
 	// delete any non-live history to maintain the revision limit.
 	for i := 0; i < len(nonLiveHistory); i++ {
+		if nonLiveHistory[i].Name == currentName || nonLiveHistory[i].Name == nextName {
+			continue
+		}
 		if err := observer.history.DeleteControllerRevision(nonLiveHistory[i]); err != nil {
+			if errors.IsNotFound(err) {
+				// Already deleted (e.g. by GC), skip.
+				continue
+			}
 			return err
 		}
 	}

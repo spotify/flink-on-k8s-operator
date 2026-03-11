@@ -245,10 +245,16 @@ func (rh *realHistory) CreateControllerRevision(parent metav1.Object, revision *
 		ns := parent.GetNamespace()
 		err := rh.Create(rh.context, clone)
 		if errors.IsAlreadyExists(err) {
-			//exists, err := rh.client.AppsV1().ControllerRevisions(ns).Get(clone.Name, metav1.GetOptions{})
 			exists := &apps.ControllerRevision{}
 			err = rh.Get(rh.context, types.NamespacedName{Namespace: ns, Name: clone.Name}, exists)
 			if err != nil {
+				if errors.IsNotFound(err) {
+					// Race condition: revision was deleted between Create and Get.
+					// Increment collisionCount to try a different name and avoid
+					// an infinite loop if the race persists.
+					*collisionCount++
+					continue
+				}
 				return nil, err
 			}
 			if bytes.Equal(exists.Data.Raw, clone.Data.Raw) {
