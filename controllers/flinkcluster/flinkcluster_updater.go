@@ -28,6 +28,7 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -941,7 +942,8 @@ func (updater *ClusterStatusUpdater) updateClusterStatus(
 		}
 		err := updater.k8sClient.Get(ctx, lookupKey, cluster)
 		if err != nil {
-			if client.IgnoreNotFound(err) != nil {
+			if errors.IsNotFound(err) {
+				// Cluster was deleted, nothing to update.
 				return nil
 			}
 			return err
