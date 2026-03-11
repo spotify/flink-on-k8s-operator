@@ -949,9 +949,12 @@ func (updater *ClusterStatusUpdater) updateClusterStatus(
 		cluster.Status = status
 
 		err = updater.k8sClient.Status().Update(ctx, cluster)
+		if err != nil {
+			return err
+		}
 		// Clear control annotation after status update is complete.
 		updater.clearControlAnnotation(ctx, status.Control)
-		return err
+		return nil
 	})
 }
 
