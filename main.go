@@ -45,6 +45,11 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
+const (
+	defaultQPS   = float32(20)
+	defaultBurst = 30
+)
+
 var (
 	metricsAddr             = flag.String("metrics-addr", ":8443", "The address the metric endpoint binds to.")
 	secureMetrics           = flag.Bool("secure-metrics", true, "Serve metrics over HTTPS with authn/authz via controller-runtime.")
@@ -52,6 +57,8 @@ var (
 	leaderElectionID        = flag.String("leader-election-id", "flink-operator-lock", "The name that leader election will use for holding the leader lock")
 	watchNamespace          = flag.String("watch-namespace", "", "Watch custom resources in the namespace, ignore other namespaces. If empty, all namespaces will be watched.")
 	maxConcurrentReconciles = flag.Int("max-concurrent-reconciles", 1, "The maximum number of concurrent Reconciles which can be run. Defaults to 1.")
+	qps                     = flag.Float64("kube-api-qps", float64(defaultQPS), "Maximum sustained queries per second to the API server.")
+	burst                   = flag.Int("kube-api-burst", defaultBurst, "Maximum burst queries per second to the API server.")
 )
 
 func init() {
@@ -94,7 +101,14 @@ func main() {
 		metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	// Restore client-side rate limiting.
+	// controller-runtime v0.21.0 changed GetConfigOrDie() to set QPS=-1,
+	// disabling client-side rate limiting in favor of server-side APF.
+	restConfig := ctrl.GetConfigOrDie()
+	restConfig.QPS = float32(*qps)
+	restConfig.Burst = *burst
+
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:         scheme,
 		Metrics:        metricsServerOptions,
 		LeaderElection: *enableLeaderElection,
