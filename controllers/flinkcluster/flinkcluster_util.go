@@ -528,8 +528,20 @@ func shouldUpdateCluster(observed *ObservedClusterState) bool {
 		return observed.updateState == UpdateStateInProgress
 	}
 
+	if observed.updateState != UpdateStateInProgress {
+		return false
+	}
+
+	// With the reactive/adaptive scheduler, the job may bounce back to an active
+	// state before the operator finishes updating components (e.g., recreating the
+	// JM StatefulSet). If a savepoint was triggered for an update, allow the update
+	// to proceed regardless of the current job state.
+	if sp := observed.cluster.Status.Savepoint; sp != nil && sp.TriggerReason == v1beta1.SavepointReasonUpdate {
+		return true
+	}
+
 	var job = observed.cluster.Status.Components.Job
-	return !job.IsActive() && observed.updateState == UpdateStateInProgress
+	return !job.IsActive()
 }
 
 func shouldRecreateOnUpdate(observed *ObservedClusterState) bool {
