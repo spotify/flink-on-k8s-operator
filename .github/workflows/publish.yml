@@ -35,10 +35,10 @@ jobs:
       - name: Tag latest
         run: docker buildx imagetools create -t ${DOCKER_REPO}:latest ${{ steps.prep.outputs.image }}
       - name: Push release manifest
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: config/deploy/flink-operator.yaml
       - name: Push release manifest sharded
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: config/deploy/flink-operator-sharded.yaml
