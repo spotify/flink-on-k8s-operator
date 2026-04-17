@@ -325,8 +325,7 @@ func TestGetUpdateState(t *testing.T) {
 }
 
 func TestShouldUpdateCluster(t *testing.T) {
-	// Active job with update savepoint should return true.
-	t.Run("active job with update savepoint", func(t *testing.T) {
+	t.Run("active job with completed update savepoint", func(t *testing.T) {
 		observed := &ObservedClusterState{
 			updateState: UpdateStateInProgress,
 			cluster: &v1beta1.FlinkCluster{
@@ -339,12 +338,43 @@ func TestShouldUpdateCluster(t *testing.T) {
 					},
 					Savepoint: &v1beta1.SavepointStatus{
 						TriggerReason: v1beta1.SavepointReasonUpdate,
+						State:         v1beta1.SavepointStateSucceeded,
 					},
 				},
 			},
 		}
 		assert.Equal(t, shouldUpdateCluster(observed), true)
 	})
+
+	for _, tc := range []struct {
+		name  string
+		state string
+	}{
+		{name: "active job with failed update savepoint", state: v1beta1.SavepointStateFailed},
+		{name: "active job with trigger failed update savepoint", state: v1beta1.SavepointStateTriggerFailed},
+		{name: "active job with in progress update savepoint", state: v1beta1.SavepointStateInProgress},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			observed := &ObservedClusterState{
+				updateState: UpdateStateInProgress,
+				cluster: &v1beta1.FlinkCluster{
+					Spec: v1beta1.FlinkClusterSpec{
+						Job: &v1beta1.JobSpec{},
+					},
+					Status: v1beta1.FlinkClusterStatus{
+						Components: v1beta1.FlinkClusterComponentsStatus{
+							Job: &v1beta1.JobStatus{State: v1beta1.JobStateRunning},
+						},
+						Savepoint: &v1beta1.SavepointStatus{
+							TriggerReason: v1beta1.SavepointReasonUpdate,
+							State:         tc.state,
+						},
+					},
+				},
+			}
+			assert.Equal(t, shouldUpdateCluster(observed), false)
+		})
+	}
 
 	// Active job without update savepoint should return false.
 	t.Run("active job without update savepoint", func(t *testing.T) {
