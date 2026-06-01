@@ -871,9 +871,8 @@ func (reconciler *ClusterReconciler) triggerSavepoint(
 	var triggerID string
 	var message string
 	var err error
-
 	log.Info(fmt.Sprintf("Trigger savepoint for %s", triggerReason), "jobID", jobID)
-	savepointTriggerID, err = reconciler.flinkClient.TriggerSavepoint(apiBaseURL, jobID, *cluster.Spec.Job.SavepointsDir, cancel)
+	savepointTriggerID, err = reconciler.flinkClient.TriggerSavepoint(apiBaseURL, jobID, *cluster.Spec.Job.SavepointsDir, cancel, string(*cluster.Spec.Job.SavepointFormatType))
 	if err != nil {
 		// limit message size to 1KiB
 		if message = err.Error(); len(message) > 1024 {

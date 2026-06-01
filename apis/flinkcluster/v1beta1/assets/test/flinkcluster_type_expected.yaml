@@ -40,6 +40,7 @@ spec:
   job:
     jarFile: ./examples/streaming/StateMachineExample.jar
     allowNonRestoredState: false
+    savepointFormatType: CANONICAL
     noLoggingToStdout: false
     restartPolicy: Never
     cleanupPolicy:

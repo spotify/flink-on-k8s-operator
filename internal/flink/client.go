@@ -194,12 +194,13 @@ func (c *Client) StopJobWithSavepoint(apiBaseURL string, jobID string, dir strin
 }
 
 // TriggerSavepoint triggers an async savepoint operation.
-func (c *Client) TriggerSavepoint(apiBaseURL string, jobID string, dir string, cancel bool) (*SavepointTriggerID, error) {
+func (c *Client) TriggerSavepoint(apiBaseURL string, jobID string, dir string, cancel bool, formatType string) (*SavepointTriggerID, error) {
 	url := fmt.Sprintf("%s/jobs/%s/savepoints", apiBaseURL, jobID)
 	jsonStr := fmt.Sprintf(`{
 		"target-directory" : "%s",
-		"cancel-job" : %v
-	}`, dir, cancel)
+		"cancel-job" : %v,
+		"formatType" : "%s"
+	}`, dir, cancel, formatType)
 	resp, err := c.httpClient.Post(url, "application/json", strings.NewReader(jsonStr))
 	if err != nil {
 		return nil, err
