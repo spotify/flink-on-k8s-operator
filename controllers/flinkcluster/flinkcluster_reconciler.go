@@ -29,6 +29,7 @@ import (
 	"k8s.io/client-go/util/retry"
 
 	"github.com/go-logr/logr"
+	"github.com/hashicorp/go-version"
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
 	"github.com/spotify/flink-on-k8s-operator/internal/batchscheduler"
 	schedulerTypes "github.com/spotify/flink-on-k8s-operator/internal/batchscheduler/types"
@@ -872,7 +873,7 @@ func (reconciler *ClusterReconciler) triggerSavepoint(
 	var message string
 	var err error
 	log.Info(fmt.Sprintf("Trigger savepoint for %s", triggerReason), "jobID", jobID)
-	savepointTriggerID, err = reconciler.flinkClient.TriggerSavepoint(apiBaseURL, jobID, *cluster.Spec.Job.SavepointsDir, cancel, string(*cluster.Spec.Job.SavepointFormatType))
+	savepointTriggerID, err = reconciler.flinkClient.TriggerSavepoint(apiBaseURL, jobID, *cluster.Spec.Job.SavepointsDir, cancel, savepointFormatType(cluster))
 	if err != nil {
 		// limit message size to 1KiB
 		if message = err.Error(); len(message) > 1024 {
@@ -888,6 +889,19 @@ func (reconciler *ClusterReconciler) triggerSavepoint(
 	newSavepointStatus := reconciler.getNewSavepointStatus(triggerID, triggerReason, message, triggerSuccess)
 
 	return newSavepointStatus, err
+}
+
+// savepointFormatType returns the format type to pass to the Flink REST API,
+// or empty string for Flink < 1.15 which does not support the formatType parameter.
+func savepointFormatType(cluster *v1beta1.FlinkCluster) string {
+	appVersion, _ := version.NewVersion(cluster.Spec.FlinkVersion)
+	if appVersion == nil || appVersion.LessThan(v115) {
+		return ""
+	}
+	if cluster.Spec.Job == nil || cluster.Spec.Job.SavepointFormatType == nil {
+		return ""
+	}
+	return string(*cluster.Spec.Job.SavepointFormatType)
 }
 
 func (reconciler *ClusterReconciler) updateStatus(
