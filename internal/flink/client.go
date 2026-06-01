@@ -177,13 +177,22 @@ func (c *Client) StopJob(
 }
 
 // TriggerSavepoint triggers an async savepoint operation.
+// formatType is optional: pass an empty string to omit it (required for Flink < 1.15).
 func (c *Client) TriggerSavepoint(apiBaseURL string, jobID string, dir string, cancel bool, formatType string) (*SavepointTriggerID, error) {
 	url := fmt.Sprintf("%s/jobs/%s/savepoints", apiBaseURL, jobID)
-	jsonStr := fmt.Sprintf(`{
-		"target-directory" : "%s",
-		"cancel-job" : %v,
-		"formatType" : "%s"
-	}`, dir, cancel, formatType)
+	var jsonStr string
+	if formatType != "" {
+		jsonStr = fmt.Sprintf(`{
+			"target-directory" : "%s",
+			"cancel-job" : %v,
+			"formatType" : "%s"
+		}`, dir, cancel, formatType)
+	} else {
+		jsonStr = fmt.Sprintf(`{
+			"target-directory" : "%s",
+			"cancel-job" : %v
+		}`, dir, cancel)
+	}
 	resp, err := c.httpClient.Post(url, "application/json", strings.NewReader(jsonStr))
 	if err != nil {
 		return nil, err
