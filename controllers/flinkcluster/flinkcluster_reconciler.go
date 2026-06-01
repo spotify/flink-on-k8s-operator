@@ -895,7 +895,7 @@ func (reconciler *ClusterReconciler) triggerSavepoint(
 // or empty string for Flink < 1.15 which does not support the formatType parameter.
 func savepointFormatType(cluster *v1beta1.FlinkCluster) string {
 	appVersion, _ := version.NewVersion(cluster.Spec.FlinkVersion)
-	if appVersion == nil || appVersion.LessThan(v115) {
+	if appVersion != nil && appVersion.LessThan(v115) {
 		return ""
 	}
 	if cluster.Spec.Job == nil || cluster.Spec.Job.SavepointFormatType == nil {
