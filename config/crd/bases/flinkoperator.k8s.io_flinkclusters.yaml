@@ -9727,6 +9727,8 @@ spec:
                   type: object
                 savepoint:
                   properties:
+                    formatType:
+                      type: string
                     jobID:
                       type: string
                     message:
