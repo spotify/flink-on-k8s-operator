@@ -156,6 +156,7 @@ func shouldStopJob(cluster *v1beta1.FlinkCluster) bool {
 	var userControl = cluster.Annotations[v1beta1.ControlAnnotation]
 	var cancelRequested = cluster.Spec.Job.CancelRequested
 	return userControl == v1beta1.ControlNameJobCancel ||
+		userControl == v1beta1.ControlNameJobCancelWithoutSavepoint ||
 		(cancelRequested != nil && *cancelRequested)
 }
 
@@ -577,7 +578,9 @@ func IsApplicationModeCluster(cluster *v1beta1.FlinkCluster) bool {
 
 // checks if job-cancel was requested
 func wasJobCancelRequested(controlStatus *v1beta1.FlinkClusterControlStatus) bool {
-	return controlStatus != nil && controlStatus.Name == v1beta1.ControlNameJobCancel
+	return controlStatus != nil &&
+		(controlStatus.Name == v1beta1.ControlNameJobCancel ||
+			controlStatus.Name == v1beta1.ControlNameJobCancelWithoutSavepoint)
 }
 
 func GenJobId(cluster *v1beta1.FlinkCluster) (string, error) {

@@ -705,7 +705,7 @@ func TestUserControlInvalid(t *testing.T) {
 	}
 	var oldCluster = FlinkCluster{}
 	var err = validator.ValidateUpdate(&oldCluster, &newCluster)
-	var expectedErr = "invalid value for annotation key: flinkclusters.flinkoperator.k8s.io/user-control, value: cancel, available values: savepoint, job-cancel"
+	var expectedErr = "invalid value for annotation key: flinkclusters.flinkoperator.k8s.io/user-control, value: cancel, available values: savepoint, job-cancel, job-cancel-without-savepoint"
 	assert.Equal(t, err.Error(), expectedErr)
 }
 

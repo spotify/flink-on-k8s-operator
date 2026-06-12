@@ -1083,6 +1083,14 @@ func deriveControlStatus(
 				c.Message = "Aborted job cancellation: job is stopped already."
 				c.State = v1beta1.ControlStateFailed
 			}
+		case v1beta1.ControlNameJobCancelWithoutSavepoint:
+			switch {
+			case newJob.State == v1beta1.JobStateCancelled:
+				c.State = v1beta1.ControlStateSucceeded
+			case newJob.IsStopped():
+				c.Message = "Aborted job cancellation: job is stopped already."
+				c.State = v1beta1.ControlStateFailed
+			}
 		case v1beta1.ControlNameSavepoint:
 			if newSavepoint == nil {
 				c.Message = "Aborted: savepoint not defined"
