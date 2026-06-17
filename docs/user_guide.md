@@ -348,10 +348,18 @@ make deploy
 
 If you want to cancel a running Flink job, attach control annotation to your FlinkCluster's metadata:
 
-```
+```yaml
 metadata:
   annotations:
     flinkclusters.flinkoperator.k8s.io/user-control: job-cancel
+```
+
+or
+
+```yaml
+metadata:
+  annotations:
+    flinkclusters.flinkoperator.k8s.io/user-control: job-cancel-without-savepoint
 ```
 
 You can attach the annotation:
@@ -363,6 +371,9 @@ kubectl annotate flinkclusters <CLUSTER-NAME> flinkclusters.flinkoperator.k8s.io
 When canceling, all Pods that make up the Flink cluster are basically terminated.
 If you want to leave the cluster, configure spec.job.cleanupPolicy.afterJobCancelled
 according to the [FlinkCluster Custom Resource Definition](./crd.md).
+
+In streaming mode, if `savepointsDir` is specified, `job-cancel` stops the job with a
+savepoint, `job-cancel-without-savepoint`, cancels the it without one.
 
 When job cancellation is finished, the control annotation disappears and the progress
 can be checked in FlinkCluster status:
