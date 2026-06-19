@@ -23,7 +23,6 @@ import (
 	"net/http"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/go-logr/logr"
 )
@@ -161,7 +160,7 @@ func (c *Client) GetJobsOverview(apiBaseURL string) (*JobsOverview, error) {
 	return jobsOverview, err
 }
 
-// StopJob stops a job.
+// StopJob cancels a job without a savepoint.
 func (c *Client) StopJob(
 	apiBaseURL string, jobID string) error {
 	req, err := http.NewRequest(http.MethodPatch, fmt.Sprintf("%s/jobs/%s?mode=cancel", apiBaseURL, jobID), nil)
@@ -174,6 +173,24 @@ func (c *Client) StopJob(
 	}
 
 	return nil
+}
+
+// StopJobWithSavepoint stops a job with a savepoint atomically.
+func (c *Client) StopJobWithSavepoint(apiBaseURL string, jobID string, dir string) (*SavepointTriggerID, error) {
+	url := fmt.Sprintf("%s/jobs/%s/stop", apiBaseURL, jobID)
+	// TODO: Do we want to allow specifying drain flag?
+	jsonStr := fmt.Sprintf(`{
+		"targetDirectory" : "%s",
+		"drain" : false
+	}`, dir)
+	resp, err := c.httpClient.Post(url, "application/json", strings.NewReader(jsonStr))
+	if err != nil {
+		return nil, err
+	}
+
+	triggerID := &SavepointTriggerID{}
+	err = parseJson(resp, triggerID)
+	return triggerID, err
 }
 
 // TriggerSavepoint triggers an async savepoint operation.
@@ -268,35 +285,6 @@ func (c *Client) GetSavepointStatus(
 		}
 	}
 	return status, err
-}
-
-// TakeSavepoint takes savepoint, blocks until it succeeds or fails.
-func (c *Client) TakeSavepoint(apiBaseURL string, jobID string, dir string) (*SavepointStatus, error) {
-	status := &SavepointStatus{JobID: jobID}
-
-	triggerID, err := c.TriggerSavepoint(apiBaseURL, jobID, dir, false)
-	if err != nil {
-		return nil, err
-	}
-
-	for i := 0; i < 12; i++ {
-		status, err = c.GetSavepointStatus(apiBaseURL, jobID, triggerID.RequestID)
-		if err == nil && status.Completed {
-			return status, nil
-		}
-		time.Sleep(5 * time.Second)
-	}
-
-	return status, err
-}
-
-func (c *Client) TakeSavepointAsync(apiBaseURL string, jobID string, dir string) (string, error) {
-	triggerID, err := c.TriggerSavepoint(apiBaseURL, jobID, dir, false)
-	if err != nil {
-		return "", err
-	}
-
-	return triggerID.RequestID, err
 }
 
 func (c *Client) GetJobExceptions(apiBaseURL string, jobId string) (*JobExceptions, error) {

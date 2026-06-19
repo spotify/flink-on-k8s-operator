@@ -526,7 +526,8 @@ func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Res
 		// Trigger savepoint if required.
 		if len(jobID) > 0 {
 			var savepointReason = reconciler.shouldTakeSavepoint()
-			if savepointReason != "" {
+			// When savepointReason is "job-cancel", the job has already been canceled in cancelRunningJobs.
+			if savepointReason != "" && savepointReason != v1beta1.SavepointReasonJobCancel {
 				newSavepointStatus, err = reconciler.triggerSavepoint(ctx, jobID, savepointReason, false)
 			}
 			// Get new control status when the savepoint reason matches the requested control.
@@ -699,20 +700,77 @@ func (reconciler *ClusterReconciler) cancelJobs(
 	return nil
 }
 
-// Takes a savepoint if possible then stops the job.
+// Stops a Flink job. If takeSavepoint is true and savepoints are configured, uses the /stop
+// endpoint to atomically create a savepoint and stop the job. Otherwise, cancels the job
+// immediately without a savepoint.
 func (reconciler *ClusterReconciler) cancelFlinkJob(ctx context.Context, jobID string, takeSavepoint bool) error {
 	log := logr.FromContextOrDiscard(ctx)
+	var apiBaseURL = getFlinkAPIBaseURL(reconciler.observed.cluster)
+
 	if takeSavepoint && canTakeSavepoint(reconciler.observed.cluster) {
-		log.Info("Taking savepoint before stopping job", "jobID", jobID)
-		var err = reconciler.takeSavepoint(ctx, jobID)
+		log.Info("Stopping job with savepoint", "jobID", jobID)
+		triggerID, err := reconciler.flinkClient.StopJobWithSavepoint(
+			apiBaseURL, jobID, *reconciler.observed.cluster.Spec.Job.SavepointsDir)
 		if err != nil {
 			return err
 		}
+		newSavepointStatus := reconciler.getNewSavepointStatus(triggerID.RequestID, v1beta1.SavepointReasonJobCancel, "", true)
+		var newControlStatus *v1beta1.FlinkClusterControlStatus
+		reconciler.updateStatus(ctx, &newSavepointStatus, &newControlStatus)
+		err = reconciler.waitForSavepointCompleted(ctx, apiBaseURL, jobID, triggerID.RequestID)
+		reconciler.updateFinalSavepointStatus(ctx, newSavepointStatus, err)
+		return err
+	} else {
+		log.Info("Cancelling job", "jobID", jobID)
+		return reconciler.flinkClient.StopJob(apiBaseURL, jobID)
+	}
+}
+
+func (reconciler *ClusterReconciler) waitForSavepointCompleted(ctx context.Context, apiBaseURL string, jobID string, triggerID string) error {
+	log := logr.FromContextOrDiscard(ctx)
+	log.Info("Polling savepoint status", "jobID", jobID, "triggerID", triggerID)
+	var delay = 100 * time.Millisecond
+	const maxDelay = 5 * time.Second
+	const backoffMultiplier = 2
+
+	// Extract savepoint timeout from job configuration.
+	maxWait := 10 * time.Minute
+	if props := reconciler.observed.cluster.Spec.FlinkProperties; props != nil {
+		if v, ok := props["execution.checkpointing.timeout"]; ok {
+			if d, err := parseFlinkDuration(v); err == nil {
+				maxWait = d
+			}
+		}
 	}
 
-	var apiBaseURL = getFlinkAPIBaseURL(reconciler.observed.cluster)
-	log.Info("Stoping job", "jobID", jobID)
-	return reconciler.flinkClient.StopJob(apiBaseURL, jobID)
+	// When using stop-with-savepoint, it may appear that a race condition could occur between
+	// the JobManager shutting down after the savepoint completes and the client polling for the
+	// savepoint status. This is not the case - the JobManager deliberately delays its shutdown
+	// until the result has been queried. Flink maintains a cache (CompletedOperationCache)
+	// for asynchronous results for this purpose, configurable via the rest.async.store-duration
+	// timeout setting (5 minutes).
+	deadline := time.Now().Add(maxWait)
+	for {
+		time.Sleep(delay)
+		if time.Now().After(deadline) {
+			return fmt.Errorf("timed out stopping job %s with savepoint, please configure a larger timeout via 'execution.checkpointing.timeout'", jobID)
+		}
+		status, err := reconciler.flinkClient.GetSavepointStatus(apiBaseURL, jobID, triggerID)
+		if err != nil {
+			return fmt.Errorf("failed to get savepoint status for job %s: %w", jobID, err)
+		}
+		if status.IsFailed() {
+			return fmt.Errorf("savepoint failed for job %s: %s", jobID, status.FailureCause.StackTrace)
+		}
+		if status.IsSuccessful() {
+			log.Info("Savepoint completed", "jobID", jobID, "location", status.Location)
+			return nil
+		}
+		delay = time.Duration(float64(delay) * backoffMultiplier)
+		if delay > maxDelay {
+			delay = maxDelay
+		}
+	}
 }
 
 // canSuspendJob
@@ -829,26 +887,6 @@ func (reconciler *ClusterReconciler) triggerSavepoint(
 	newSavepointStatus := reconciler.getNewSavepointStatus(triggerID, triggerReason, message, triggerSuccess)
 
 	return newSavepointStatus, err
-}
-
-// Takes savepoint for a job then update job status with the info.
-func (reconciler *ClusterReconciler) takeSavepoint(ctx context.Context, jobID string) error {
-	log := logr.FromContextOrDiscard(ctx)
-	apiBaseURL := getFlinkAPIBaseURL(reconciler.observed.cluster)
-
-	log.Info("Taking savepoint.", "jobID", jobID)
-	status, err := reconciler.flinkClient.TakeSavepoint(apiBaseURL, jobID, *reconciler.observed.cluster.Spec.Job.SavepointsDir)
-	log.Info("Savepoint status.", "status", status, "error", err)
-
-	if err == nil && len(status.FailureCause.StackTrace) > 0 {
-		err = fmt.Errorf("%s", status.FailureCause.StackTrace)
-	}
-
-	if err != nil || !status.Completed {
-		log.Info("Failed to take savepoint.", "jobID", jobID)
-	}
-
-	return err
 }
 
 func (reconciler *ClusterReconciler) updateStatus(
@@ -970,6 +1008,23 @@ func (reconciler *ClusterReconciler) getNewSavepointStatus(triggerID string, tri
 		State:         savepointState,
 	}
 	return savepointStatus
+}
+
+func (reconciler *ClusterReconciler) updateFinalSavepointStatus(ctx context.Context, inProgress *v1beta1.SavepointStatus, savepointErr error) {
+	finalStatus := inProgress.DeepCopy()
+	util.SetTimestamp(&finalStatus.UpdateTime)
+	if savepointErr != nil {
+		finalStatus.State = v1beta1.SavepointStateFailed
+		if msg := savepointErr.Error(); len(msg) > 1024 {
+			finalStatus.Message = msg[:1024]
+		} else {
+			finalStatus.Message = msg
+		}
+	} else {
+		finalStatus.State = v1beta1.SavepointStateSucceeded
+	}
+	var nilCS *v1beta1.FlinkClusterControlStatus
+	reconciler.updateStatus(ctx, &finalStatus, &nilCS)
 }
 
 // Convert raw time to object and add `addedSeconds` to it,

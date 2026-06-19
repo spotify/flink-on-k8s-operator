@@ -598,3 +598,59 @@ func GenJobId(cluster *v1beta1.FlinkCluster) (string, error) {
 func isJobInitialising(jobStatus batchv1.JobStatus) bool {
 	return jobStatus.Active == 0 && jobStatus.Succeeded == 0 && jobStatus.Failed == 0
 }
+
+// parseFlinkDuration parses a Flink duration string into a time.Duration.
+// The format is "{length}{unit}", e.g. "123ms", "321 s", "5000".
+// If no unit is specified, milliseconds is assumed.
+//
+// Supported units (matching org.apache.flink.util.TimeUtils):
+//   - DAYS: "d", "day", "days"
+//   - HOURS: "h", "hour", "hours"
+//   - MINUTES: "min", "m", "minute", "minutes"
+//   - SECONDS: "s", "sec", "secs", "second", "seconds"
+//   - MILLISECONDS: "ms", "milli", "millis", "millisecond", "milliseconds"
+//   - MICROSECONDS: "µs", "micro", "micros", "microsecond", "microseconds"
+//   - NANOSECONDS: "ns", "nano", "nanos", "nanosecond", "nanoseconds"
+func parseFlinkDuration(s string) (time.Duration, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, fmt.Errorf("empty duration string")
+	}
+
+	i := 0
+	for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+		i++
+	}
+	if i == 0 {
+		return 0, fmt.Errorf("invalid duration %q: does not start with a number", s)
+	}
+
+	val, err := strconv.ParseInt(s[:i], 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid duration %q: %w", s, err)
+	}
+
+	unit := strings.TrimSpace(s[i:])
+	if unit == "" {
+		return time.Duration(val) * time.Millisecond, nil
+	}
+
+	switch strings.ToLower(unit) {
+	case "d", "day", "days":
+		return time.Duration(val) * 24 * time.Hour, nil
+	case "h", "hour", "hours":
+		return time.Duration(val) * time.Hour, nil
+	case "m", "min", "minute", "minutes":
+		return time.Duration(val) * time.Minute, nil
+	case "s", "sec", "secs", "second", "seconds":
+		return time.Duration(val) * time.Second, nil
+	case "ms", "milli", "millis", "millisecond", "milliseconds":
+		return time.Duration(val) * time.Millisecond, nil
+	case "µs", "micro", "micros", "microsecond", "microseconds":
+		return time.Duration(val) * time.Microsecond, nil
+	case "ns", "nano", "nanos", "nanosecond", "nanoseconds":
+		return time.Duration(val) * time.Nanosecond, nil
+	default:
+		return 0, fmt.Errorf("unknown duration unit %q in %q", unit, s)
+	}
+}

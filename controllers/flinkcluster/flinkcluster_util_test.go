@@ -19,6 +19,7 @@ package flinkcluster
 import (
 	"os"
 	"testing"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -481,4 +482,95 @@ func TestGetFlinkJobSubmitLog(t *testing.T) {
 	// job ID not found
 	submit = getFlinkJobSubmitLogFromString("")
 	assert.Equal(t, submit.jobID, "")
+}
+
+func TestParseFlinkDuration(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected time.Duration
+	}{
+		// Plain milliseconds (no unit)
+		{"5000", 5 * time.Second},
+		{"0", 0},
+		{"100", 100 * time.Millisecond},
+
+		// Days
+		{"1d", 24 * time.Hour},
+		{"2 d", 48 * time.Hour},
+		{"1 day", 24 * time.Hour},
+		{"3 days", 72 * time.Hour},
+
+		// Hours
+		{"1h", time.Hour},
+		{"2 h", 2 * time.Hour},
+		{"1 hour", time.Hour},
+		{"3 hours", 3 * time.Hour},
+
+		// Minutes
+		{"10min", 10 * time.Minute},
+		{"5 min", 5 * time.Minute},
+		{"1m", time.Minute},
+		{"1 minute", time.Minute},
+		{"2 minutes", 2 * time.Minute},
+
+		// Seconds
+		{"30s", 30 * time.Second},
+		{"5 s", 5 * time.Second},
+		{"1 sec", time.Second},
+		{"2 secs", 2 * time.Second},
+		{"1 second", time.Second},
+		{"3 seconds", 3 * time.Second},
+
+		// Milliseconds
+		{"500ms", 500 * time.Millisecond},
+		{"1 milli", time.Millisecond},
+		{"2 millis", 2 * time.Millisecond},
+		{"1 millisecond", time.Millisecond},
+		{"3 milliseconds", 3 * time.Millisecond},
+
+		// Microseconds
+		{"100µs", 100 * time.Microsecond},
+		{"1 micro", time.Microsecond},
+		{"2 micros", 2 * time.Microsecond},
+		{"1 microsecond", time.Microsecond},
+		{"3 microseconds", 3 * time.Microsecond},
+
+		// Nanoseconds
+		{"500ns", 500 * time.Nanosecond},
+		{"1 nano", time.Nanosecond},
+		{"2 nanos", 2 * time.Nanosecond},
+		{"1 nanosecond", time.Nanosecond},
+		{"3 nanoseconds", 3 * time.Nanosecond},
+
+		// Whitespace handling
+		{"  5 s  ", 5 * time.Second},
+		{"10   ms", 10 * time.Millisecond},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got, err := parseFlinkDuration(tt.input)
+			assert.NilError(t, err)
+			assert.Equal(t, got, tt.expected)
+		})
+	}
+}
+
+func TestParseFlinkDuration_Invalid(t *testing.T) {
+	tests := []struct {
+		input string
+	}{
+		{""},
+		{"abc"},
+		{"s"},
+		{"10 foo"},
+		{"10.5 s"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			_, err := parseFlinkDuration(tt.input)
+			assert.Assert(t, err != nil, "expected error for input %q", tt.input)
+		})
+	}
 }
