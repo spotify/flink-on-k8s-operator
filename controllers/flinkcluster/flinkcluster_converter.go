@@ -71,6 +71,7 @@ var (
 		"rest.port":              {},
 	}
 	v10, _ = version.NewVersion("1.10")
+	v20, _ = version.NewVersion("2.0")
 )
 
 // Gets the desired state of a cluster.
@@ -740,7 +741,11 @@ func newConfigMap(flinkCluster *v1beta1.FlinkCluster) *corev1.ConfigMap {
 		flinkProps[k] = v
 	}
 	var configData = getLogConf(flinkCluster.Spec)
-	configData["flink-conf.yaml"] = getFlinkProperties(flinkProps)
+	flinkConfFileName := "flink-conf.yaml"
+	if appVersion != nil && !appVersion.LessThan(v20) {
+		flinkConfFileName = "config.yaml"
+	}
+	configData[flinkConfFileName] = getFlinkProperties(flinkProps)
 	configData["submit-job.sh"] = submitJobScript
 	var configMap = &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
