@@ -407,3 +407,50 @@ func TestGetFlinkJobSubmitLog(t *testing.T) {
 	submit = getFlinkJobSubmitLogFromString("")
 	assert.Equal(t, submit.jobID, "")
 }
+
+func TestCancelShouldTakeSavepoint(t *testing.T) {
+	inProgress := &v1beta1.FlinkClusterControlStatus{
+		Name:  v1beta1.ControlNameJobCancelWithoutSavepoint,
+		State: v1beta1.ControlStateInProgress,
+	}
+
+	cases := []struct {
+		name       string
+		annotation string
+		control    *v1beta1.FlinkClusterControlStatus
+		want       bool
+	}{
+		{
+			name:       "regular cancel takes savepoint",
+			annotation: v1beta1.ControlNameJobCancel,
+			want:       true,
+		},
+		{
+			name:       "cancel-without-savepoint first reconcile",
+			annotation: v1beta1.ControlNameJobCancelWithoutSavepoint,
+			want:       false,
+		},
+		{
+			// Regression: getNewControlRequest returns "" while InProgress,
+			// so reading it instead of the annotation would wrongly return true.
+			name:       "cancel-without-savepoint in-progress reconcile",
+			annotation: v1beta1.ControlNameJobCancelWithoutSavepoint,
+			control:    inProgress,
+			want:       false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cluster := &v1beta1.FlinkCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						v1beta1.ControlAnnotation: tc.annotation,
+					},
+				},
+				Status: v1beta1.FlinkClusterStatus{Control: tc.control},
+			}
+			assert.Equal(t, cancelShouldTakeSavepoint(cluster), tc.want)
+		})
+	}
+}

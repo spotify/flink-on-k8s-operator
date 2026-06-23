@@ -151,6 +151,14 @@ func canTakeSavepoint(cluster *v1beta1.FlinkCluster) bool {
 		(savepointStatus == nil || savepointStatus.State != v1beta1.SavepointStateInProgress)
 }
 
+// cancelShouldTakeSavepoint returns false when the user requested cancellation
+// without a savepoint. It reads the annotation directly so the intent is
+// preserved across reconcile cycles while the control is InProgress
+// (getNewControlRequest returns "" during that window).
+func cancelShouldTakeSavepoint(cluster *v1beta1.FlinkCluster) bool {
+	return cluster.Annotations[v1beta1.ControlAnnotation] != v1beta1.ControlNameJobCancelWithoutSavepoint
+}
+
 // Checks if the job should be stopped because a job-cancel was requested
 func shouldStopJob(cluster *v1beta1.FlinkCluster) bool {
 	var userControl = cluster.Annotations[v1beta1.ControlAnnotation]

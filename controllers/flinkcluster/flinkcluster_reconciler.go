@@ -552,7 +552,7 @@ func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Res
 				newControlStatus = getControlStatus(userControl, v1beta1.ControlStateInProgress)
 			}
 
-			takeSavepoint := userControl != v1beta1.ControlNameJobCancelWithoutSavepoint
+			takeSavepoint := cancelShouldTakeSavepoint(observed.cluster)
 			log.Info("Stopping job", "jobID", jobID)
 			if err := reconciler.cancelRunningJobs(ctx, takeSavepoint); err != nil {
 				return requeueResult, err
