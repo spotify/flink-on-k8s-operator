@@ -438,12 +438,13 @@ func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Res
 	if wasJobCancelRequested(observed.cluster.Status.Control) {
 		log.Info("Force tearing down the job")
 		userControl := getNewControlRequest(observed.cluster)
-		if userControl == v1beta1.ControlNameJobCancel {
+		if userControl == v1beta1.ControlNameJobCancel || userControl == v1beta1.ControlNameJobCancelWithoutSavepoint {
 			newControlStatus = getControlStatus(userControl, v1beta1.ControlStateInProgress)
 		}
 		// cancel all running jobs
 		if job.IsActive() {
-			if err := reconciler.cancelRunningJobs(ctx, true /* takeSavepoint */); err != nil && !errors.IsResourceExpired(err) {
+			takeSavepoint := observed.cluster.Status.Control.Name != v1beta1.ControlNameJobCancelWithoutSavepoint
+			if err := reconciler.cancelRunningJobs(ctx, takeSavepoint); err != nil && !errors.IsResourceExpired(err) {
 				return requeueResult, err
 			}
 		}
@@ -547,12 +548,13 @@ func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Res
 	if desiredJob == nil && (!job.IsStopped() || observedSubmitter != nil) {
 		if job.IsActive() {
 			userControl := getNewControlRequest(observed.cluster)
-			if userControl == v1beta1.ControlNameJobCancel {
+			if userControl == v1beta1.ControlNameJobCancel || userControl == v1beta1.ControlNameJobCancelWithoutSavepoint {
 				newControlStatus = getControlStatus(userControl, v1beta1.ControlStateInProgress)
 			}
 
+			takeSavepoint := cancelShouldTakeSavepoint(observed.cluster)
 			log.Info("Stopping job", "jobID", jobID)
-			if err := reconciler.cancelRunningJobs(ctx, true /* takeSavepoint */); err != nil {
+			if err := reconciler.cancelRunningJobs(ctx, takeSavepoint); err != nil {
 				return requeueResult, err
 			}
 		} else if job.IsStopped() && observedSubmitter != nil {

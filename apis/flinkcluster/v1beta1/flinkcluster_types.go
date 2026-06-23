@@ -112,8 +112,9 @@ const (
 	ControlAnnotation = "flinkclusters.flinkoperator.k8s.io/user-control"
 
 	// control name
-	ControlNameSavepoint = "savepoint"
-	ControlNameJobCancel = "job-cancel"
+	ControlNameSavepoint                 = "savepoint"
+	ControlNameJobCancel                 = "job-cancel"
+	ControlNameJobCancelWithoutSavepoint = "job-cancel-without-savepoint"
 
 	// control state
 	ControlStateRequested  = "Requested"

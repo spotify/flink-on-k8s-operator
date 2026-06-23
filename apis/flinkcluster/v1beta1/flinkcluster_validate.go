@@ -36,7 +36,7 @@ import (
 )
 
 const (
-	InvalidControlAnnMsg           = "invalid value for annotation key: %v, value: %v, available values: savepoint, job-cancel"
+	InvalidControlAnnMsg           = "invalid value for annotation key: %v, value: %v, available values: savepoint, job-cancel, job-cancel-without-savepoint"
 	InvalidJobStateForJobCancelMsg = "job-cancel is not allowed because job is not started yet or already terminated, annotation: %v"
 	InvalidJobStateForSavepointMsg = "savepoint is not allowed because job is not started yet or already stopped, annotation: %v"
 	InvalidSavepointDirMsg         = "savepoint is not allowed without spec.job.savepointsDir, annotation: %v"
@@ -136,10 +136,10 @@ func (v *Validator) checkControlAnnotations(old *FlinkCluster, new *FlinkCluster
 			return fmt.Errorf(ControlChangeWarnMsg, ControlAnnotation)
 		}
 		switch newUserControl {
-		case ControlNameJobCancel:
+		case ControlNameJobCancel, ControlNameJobCancelWithoutSavepoint:
 			var job = old.Status.Components.Job
 			if old.Spec.Job == nil {
-				return fmt.Errorf(SessionClusterWarnMsg, ControlNameJobCancel, ControlAnnotation)
+				return fmt.Errorf(SessionClusterWarnMsg, newUserControl, ControlAnnotation)
 			} else if job == nil || job.IsTerminated(old.Spec.Job) {
 				return errors.NewResourceExpired(fmt.Sprintf(InvalidJobStateForJobCancelMsg, ControlAnnotation))
 			}
