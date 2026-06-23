@@ -11,9 +11,9 @@ require (
 	github.com/onsi/ginkgo/v2 v2.28.2
 	github.com/onsi/gomega v1.39.1
 	gotest.tools/v3 v3.5.2
-	k8s.io/api v0.35.2
+	k8s.io/api v0.36.2
 	k8s.io/apimachinery v0.36.2
-	k8s.io/client-go v0.35.2
+	k8s.io/client-go v0.36.2
 	k8s.io/klog v1.0.0
 	sigs.k8s.io/controller-runtime v0.23.3
 	volcano.sh/apis v0.0.0-20210924061932-d4408f25a528
@@ -27,7 +27,7 @@ require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
+	github.com/emicklei/go-restful/v3 v3.13.0 // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
