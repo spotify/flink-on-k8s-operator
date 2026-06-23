@@ -528,7 +528,8 @@ func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Res
 		// Trigger savepoint if required.
 		if len(jobID) > 0 {
 			var savepointReason = reconciler.shouldTakeSavepoint()
-			if savepointReason != "" {
+			// When savepointReason is "job-cancel", the job has already been canceled in cancelRunningJobs.
+			if savepointReason != "" && savepointReason != v1beta1.SavepointReasonJobCancel {
 				newSavepointStatus, err = reconciler.triggerSavepoint(ctx, jobID, savepointReason, false)
 			}
 			// Get new control status when the savepoint reason matches the requested control.
@@ -849,6 +850,21 @@ func (reconciler *ClusterReconciler) takeSavepoint(ctx context.Context, jobID st
 	if err != nil || !status.Completed {
 		log.Info("Failed to take savepoint.", "jobID", jobID)
 	}
+
+	// TODO: savepoint status is updated only after TakeSavepoint completes -> finish or failure
+	var message string
+	if err != nil {
+		if message = err.Error(); len(message) > 1024 {
+			message = message[:1024] + "..."
+		}
+	}
+	savepointStatus := reconciler.getNewSavepointStatus(status.TriggerID, v1beta1.SavepointReasonJobCancel, message, err == nil && status.Completed)
+	if err == nil && status.Completed {
+		savepointStatus.State = v1beta1.SavepointStateSucceeded
+	}
+
+	var cs *v1beta1.FlinkClusterControlStatus
+	reconciler.updateStatus(ctx, &savepointStatus, &cs)
 
 	return err
 }
