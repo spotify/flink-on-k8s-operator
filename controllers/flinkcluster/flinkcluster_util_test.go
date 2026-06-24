@@ -407,3 +407,65 @@ func TestGetFlinkJobSubmitLog(t *testing.T) {
 	submit = getFlinkJobSubmitLogFromString("")
 	assert.Equal(t, submit.jobID, "")
 }
+
+func TestSavepointFormatType(t *testing.T) {
+	native := v1beta1.SavepointFormatTypeNative
+	canonical := v1beta1.SavepointFormatTypeCanonical
+
+	tests := []struct {
+		name         string
+		flinkVersion string
+		job          *v1beta1.JobSpec
+		expected     string
+	}{
+		{
+			name:         "empty version returns empty",
+			flinkVersion: "",
+			job:          &v1beta1.JobSpec{},
+			expected:     "",
+		},
+		{
+			name:         "unparseable version returns empty",
+			flinkVersion: "latest",
+			job:          &v1beta1.JobSpec{SavepointFormatType: &native},
+			expected:     "",
+		},
+		{
+			name:         "Flink 1.14.6 always returns empty",
+			flinkVersion: "1.14.6",
+			job:          &v1beta1.JobSpec{SavepointFormatType: &canonical},
+			expected:     "",
+		},
+		{
+			name:         "Flink 1.15.0 returns NATIVE",
+			flinkVersion: "1.15.0",
+			job:          &v1beta1.JobSpec{SavepointFormatType: &native},
+			expected:     "NATIVE",
+		},
+		{
+			name:         "Flink 1.15.0 returns CANONICAL",
+			flinkVersion: "1.15.0",
+			job:          &v1beta1.JobSpec{SavepointFormatType: &canonical},
+			expected:     "CANONICAL",
+		},
+		{
+			name:         "Flink 1.15 nil formatType returns empty",
+			flinkVersion: "1.15.0",
+			job:          &v1beta1.JobSpec{},
+			expected:     "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := &v1beta1.FlinkCluster{
+				Spec: v1beta1.FlinkClusterSpec{
+					FlinkVersion: tt.flinkVersion,
+					Job:          tt.job,
+				},
+			}
+			got := savepointFormatType(cluster)
+			assert.Equal(t, got, tt.expected)
+		})
+	}
+}

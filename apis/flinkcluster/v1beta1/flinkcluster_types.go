@@ -137,6 +137,15 @@ const (
 	SavepointReasonUpdate        SavepointReason = "update"
 )
 
+// SavepointFormatType specifies the binary format of a savepoint.
+// +kubebuilder:validation:Enum=CANONICAL;NATIVE
+type SavepointFormatType string
+
+const (
+	SavepointFormatTypeCanonical SavepointFormatType = "CANONICAL"
+	SavepointFormatTypeNative    SavepointFormatType = "NATIVE"
+)
+
 // ImageSpec defines Flink image of JobManager and TaskManager containers.
 type ImageSpec struct {
 	// Flink image name.
@@ -568,6 +577,11 @@ type JobSpec struct {
 	// _(Optional)_ Savepoints dir where to store savepoints of the job.
 	SavepointsDir *string `json:"savepointsDir,omitempty"`
 
+	// _(Optional)_ Savepoint format type, "CANONICAL" or "NATIVE", default: "CANONICAL".
+	// +kubebuilder:validation:Enum=CANONICAL;NATIVE
+	// +kubebuilder:default:=CANONICAL
+	SavepointFormatType *SavepointFormatType `json:"savepointFormatType,omitempty"`
+
 	// _(Optional)_ Should take savepoint before updating job, default: `true`.
 	// If this is set as false, maxStateAgeToRestoreSeconds must be provided to limit the savepoint age to restore.
 	TakeSavepointOnUpdate *bool `json:"takeSavepointOnUpdate,omitempty"`
@@ -945,6 +959,9 @@ type SavepointStatus struct {
 
 	// Savepoint state.
 	State string `json:"state"`
+
+	// Savepoint format type, "CANONICAL" or "NATIVE".
+	FormatType string `json:"formatType,omitempty"`
 
 	// Savepoint message.
 	Message string `json:"message,omitempty"`

@@ -202,6 +202,7 @@ func newRevisionDataPatch(cluster *v1beta1.FlinkCluster) ([]byte, error) {
 		c.Spec.Job.RestartPolicy = nil
 		c.Spec.Job.CancelRequested = nil
 		c.Spec.Job.SavepointGeneration = 0
+		c.Spec.Job.SavepointFormatType = nil
 	} else {
 		c = cluster
 	}

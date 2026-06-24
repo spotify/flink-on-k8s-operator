@@ -29,6 +29,7 @@ import (
 	"k8s.io/client-go/util/retry"
 
 	"github.com/go-logr/logr"
+	"github.com/hashicorp/go-version"
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
 	"github.com/spotify/flink-on-k8s-operator/internal/batchscheduler"
 	schedulerTypes "github.com/spotify/flink-on-k8s-operator/internal/batchscheduler/types"
@@ -812,10 +813,10 @@ func (reconciler *ClusterReconciler) triggerSavepoint(
 	var savepointTriggerID *flink.SavepointTriggerID
 	var triggerID string
 	var message string
+	var formatType = savepointFormatType(cluster)
 	var err error
-
 	log.Info(fmt.Sprintf("Trigger savepoint for %s", triggerReason), "jobID", jobID)
-	savepointTriggerID, err = reconciler.flinkClient.TriggerSavepoint(apiBaseURL, jobID, *cluster.Spec.Job.SavepointsDir, cancel)
+	savepointTriggerID, err = reconciler.flinkClient.TriggerSavepoint(apiBaseURL, jobID, *cluster.Spec.Job.SavepointsDir, cancel, formatType)
 	if err != nil {
 		// limit message size to 1KiB
 		if message = err.Error(); len(message) > 1024 {
@@ -828,7 +829,7 @@ func (reconciler *ClusterReconciler) triggerSavepoint(
 		triggerID = savepointTriggerID.RequestID
 		log.Info("Successfully savepoint triggered", "jobID", jobID, "triggerID", triggerID)
 	}
-	newSavepointStatus := reconciler.getNewSavepointStatus(triggerID, triggerReason, message, triggerSuccess)
+	newSavepointStatus := reconciler.getNewSavepointStatus(triggerID, triggerReason, message, triggerSuccess, formatType)
 
 	return newSavepointStatus, err
 }
@@ -839,7 +840,7 @@ func (reconciler *ClusterReconciler) takeSavepoint(ctx context.Context, jobID st
 	apiBaseURL := getFlinkAPIBaseURL(reconciler.observed.cluster)
 
 	log.Info("Taking savepoint.", "jobID", jobID)
-	status, err := reconciler.flinkClient.TakeSavepoint(apiBaseURL, jobID, *reconciler.observed.cluster.Spec.Job.SavepointsDir)
+	status, err := reconciler.flinkClient.TakeSavepoint(apiBaseURL, jobID, *reconciler.observed.cluster.Spec.Job.SavepointsDir, savepointFormatType(reconciler.observed.cluster))
 	log.Info("Savepoint status.", "status", status, "error", err)
 
 	if err == nil && len(status.FailureCause.StackTrace) > 0 {
@@ -851,6 +852,19 @@ func (reconciler *ClusterReconciler) takeSavepoint(ctx context.Context, jobID st
 	}
 
 	return err
+}
+
+// savepointFormatType returns the format type to pass to the Flink REST API,
+// or empty string for Flink < 1.15 which does not support the formatType parameter.
+func savepointFormatType(cluster *v1beta1.FlinkCluster) string {
+	appVersion, _ := version.NewVersion(cluster.Spec.FlinkVersion)
+	if appVersion == nil || appVersion.LessThan(v115) {
+		return ""
+	}
+	if cluster.Spec.Job == nil || cluster.Spec.Job.SavepointFormatType == nil {
+		return ""
+	}
+	return string(*cluster.Spec.Job.SavepointFormatType)
 }
 
 func (reconciler *ClusterReconciler) updateStatus(
@@ -942,7 +956,7 @@ func (reconciler *ClusterReconciler) updateJobDeployStatus(ctx context.Context) 
 }
 
 // getNewSavepointStatus returns newly triggered savepoint status.
-func (reconciler *ClusterReconciler) getNewSavepointStatus(triggerID string, triggerReason v1beta1.SavepointReason, message string, triggerSuccess bool) *v1beta1.SavepointStatus {
+func (reconciler *ClusterReconciler) getNewSavepointStatus(triggerID string, triggerReason v1beta1.SavepointReason, message string, triggerSuccess bool, formatType string) *v1beta1.SavepointStatus {
 	var jobID = reconciler.getFlinkJobID()
 	var savepointState string
 	var now string
@@ -961,6 +975,7 @@ func (reconciler *ClusterReconciler) getNewSavepointStatus(triggerID string, tri
 		UpdateTime:    now,
 		Message:       message,
 		State:         savepointState,
+		FormatType:    formatType,
 	}
 	return savepointStatus
 }
