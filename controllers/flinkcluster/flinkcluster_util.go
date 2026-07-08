@@ -427,6 +427,8 @@ func isClusterUpdateToDate(observed *ObservedClusterState) bool {
 
 	if !IsApplicationModeCluster(observed.cluster) {
 		components = append(components, observed.jmStatefulSet)
+	} else {
+		components = append(components, observed.flinkJobSubmitter.job)
 	}
 
 	if observed.cluster.Spec.PodDisruptionBudget != nil {

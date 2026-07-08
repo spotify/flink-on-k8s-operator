@@ -21,8 +21,10 @@ import (
 	"testing"
 
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
+	flink "github.com/spotify/flink-on-k8s-operator/internal/flink"
 	"gotest.tools/v3/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -215,4 +217,241 @@ func TestClusterStatus(t *testing.T) {
 		assert.Equal(t, newStatus.State, v1beta1.ClusterStateRunning)
 	})
 
+	t.Run("stopped recovers to running when job is active", func(t *testing.T) {
+		restart := v1beta1.JobRestartPolicyNever
+		replicas := int32(1)
+		observed := ObservedClusterState{
+			jmStatefulSet: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "rev"}},
+				Spec:       appsv1.StatefulSetSpec{Replicas: &replicas},
+				Status:     appsv1.StatefulSetStatus{ReadyReplicas: 1},
+			},
+			jmService: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "rev"}},
+				Spec:       corev1.ServiceSpec{Type: corev1.ServiceTypeClusterIP, ClusterIP: "127.0.0.1"},
+			},
+			tmStatefulSet: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   "tm",
+					Labels: map[string]string{RevisionNameLabel: "rev"},
+				},
+				Spec:   appsv1.StatefulSetSpec{Replicas: &replicas},
+				Status: appsv1.StatefulSetStatus{ReadyReplicas: 1},
+			},
+			configMap: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "rev"}},
+			},
+			tmService: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "rev"}},
+			},
+			revision: Revision{
+				currentRevision: &appsv1.ControllerRevision{Revision: 1},
+				nextRevision:    &appsv1.ControllerRevision{Revision: 1},
+			},
+			flinkJob: FlinkJob{
+				status: &flink.Job{State: "RUNNING", Id: "abc123", Name: "my-job"},
+			},
+			cluster: &v1beta1.FlinkCluster{
+				Spec: v1beta1.FlinkClusterSpec{
+					Job:         &v1beta1.JobSpec{RestartPolicy: &restart},
+					TaskManager: &v1beta1.TaskManagerSpec{DeploymentType: v1beta1.DeploymentTypeStatefulSet},
+				},
+				Status: v1beta1.FlinkClusterStatus{
+					State: v1beta1.ClusterStateStopped,
+					Components: v1beta1.FlinkClusterComponentsStatus{
+						ConfigMap:         &v1beta1.ConfigMapStatus{State: v1beta1.ComponentStateReady},
+						JobManager:        &v1beta1.JobManagerStatus{State: v1beta1.ComponentStateReady},
+						JobManagerService: v1beta1.JobManagerServiceStatus{State: v1beta1.ComponentStateReady},
+						TaskManager:       &v1beta1.TaskManagerStatus{State: v1beta1.ComponentStateReady},
+						Job:               &v1beta1.JobStatus{State: v1beta1.JobStateCancelled},
+					},
+					Revision: v1beta1.RevisionStatus{
+						CurrentRevision: "rev-1",
+						NextRevision:    "rev-1",
+					},
+				},
+			},
+		}
+
+		cluster := observed.cluster.DeepCopy()
+		updater := &ClusterStatusUpdater{observed: observed}
+		newStatus := updater.deriveClusterStatus(context.TODO(), cluster, &observed)
+
+		assert.Equal(t, newStatus.State, v1beta1.ClusterStateRunning,
+			"Stopped cluster should recover to Running when Flink job is active")
+		assert.Equal(t, newStatus.Components.Job.State, v1beta1.JobStateRunning)
+	})
+
+	t.Run("stopped stays stopped when job is not active", func(t *testing.T) {
+		restart := v1beta1.JobRestartPolicyNever
+		replicas := int32(1)
+		observed := ObservedClusterState{
+			jmStatefulSet: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "rev"}},
+				Spec:       appsv1.StatefulSetSpec{Replicas: &replicas},
+				Status:     appsv1.StatefulSetStatus{ReadyReplicas: 1},
+			},
+			jmService: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "rev"}},
+				Spec:       corev1.ServiceSpec{Type: corev1.ServiceTypeClusterIP, ClusterIP: "127.0.0.1"},
+			},
+			tmStatefulSet: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   "tm",
+					Labels: map[string]string{RevisionNameLabel: "rev"},
+				},
+				Spec:   appsv1.StatefulSetSpec{Replicas: &replicas},
+				Status: appsv1.StatefulSetStatus{ReadyReplicas: 1},
+			},
+			configMap: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "rev"}},
+			},
+			tmService: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "rev"}},
+			},
+			revision: Revision{
+				currentRevision: &appsv1.ControllerRevision{Revision: 1},
+				nextRevision:    &appsv1.ControllerRevision{Revision: 1},
+			},
+			cluster: &v1beta1.FlinkCluster{
+				Spec: v1beta1.FlinkClusterSpec{
+					Job:         &v1beta1.JobSpec{RestartPolicy: &restart},
+					TaskManager: &v1beta1.TaskManagerSpec{DeploymentType: v1beta1.DeploymentTypeStatefulSet},
+				},
+				Status: v1beta1.FlinkClusterStatus{
+					State: v1beta1.ClusterStateStopped,
+					Components: v1beta1.FlinkClusterComponentsStatus{
+						ConfigMap:         &v1beta1.ConfigMapStatus{State: v1beta1.ComponentStateReady},
+						JobManager:        &v1beta1.JobManagerStatus{State: v1beta1.ComponentStateReady},
+						JobManagerService: v1beta1.JobManagerServiceStatus{State: v1beta1.ComponentStateReady},
+						TaskManager:       &v1beta1.TaskManagerStatus{State: v1beta1.ComponentStateReady},
+						Job:               &v1beta1.JobStatus{State: v1beta1.JobStateSucceeded},
+					},
+					Revision: v1beta1.RevisionStatus{
+						CurrentRevision: "rev-1",
+						NextRevision:    "rev-1",
+					},
+				},
+			},
+		}
+
+		cluster := observed.cluster.DeepCopy()
+		updater := &ClusterStatusUpdater{observed: observed}
+		newStatus := updater.deriveClusterStatus(context.TODO(), cluster, &observed)
+
+		assert.Equal(t, newStatus.State, v1beta1.ClusterStateStopped,
+			"Stopped cluster should stay Stopped when job is not active")
+	})
+
+}
+
+func TestIsClusterUpdateToDate_applicationMode(t *testing.T) {
+	appMode := v1beta1.JobModeApplication
+	nextRevName := "my-cluster"
+
+	t.Run("not up to date when submitter job missing", func(t *testing.T) {
+		observed := &ObservedClusterState{
+			cluster: &v1beta1.FlinkCluster{
+				Spec: v1beta1.FlinkClusterSpec{
+					Job:         &v1beta1.JobSpec{Mode: &appMode},
+					TaskManager: &v1beta1.TaskManagerSpec{DeploymentType: v1beta1.DeploymentTypeStatefulSet},
+				},
+				Status: v1beta1.FlinkClusterStatus{
+					Revision: v1beta1.RevisionStatus{
+						CurrentRevision: "my-cluster-1",
+						NextRevision:    "my-cluster-2",
+					},
+				},
+			},
+			configMap: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: nextRevName}},
+			},
+			tmService: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: nextRevName}},
+			},
+			jmService: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: nextRevName}},
+			},
+			tmStatefulSet: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: nextRevName}},
+			},
+		}
+
+		assert.Assert(t, !isClusterUpdateToDate(observed),
+			"should not be up to date when submitter Job is nil in application mode")
+	})
+
+	t.Run("up to date when submitter job has next revision", func(t *testing.T) {
+		observed := &ObservedClusterState{
+			cluster: &v1beta1.FlinkCluster{
+				Spec: v1beta1.FlinkClusterSpec{
+					Job:         &v1beta1.JobSpec{Mode: &appMode},
+					TaskManager: &v1beta1.TaskManagerSpec{DeploymentType: v1beta1.DeploymentTypeStatefulSet},
+				},
+				Status: v1beta1.FlinkClusterStatus{
+					Revision: v1beta1.RevisionStatus{
+						CurrentRevision: "my-cluster-1",
+						NextRevision:    "my-cluster-2",
+					},
+				},
+			},
+			configMap: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: nextRevName}},
+			},
+			tmService: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: nextRevName}},
+			},
+			jmService: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: nextRevName}},
+			},
+			tmStatefulSet: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: nextRevName}},
+			},
+			flinkJobSubmitter: FlinkJobSubmitter{
+				job: &batchv1.Job{
+					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: nextRevName}},
+				},
+			},
+		}
+
+		assert.Assert(t, isClusterUpdateToDate(observed),
+			"should be up to date when submitter Job has next revision label")
+	})
+
+	t.Run("not up to date when submitter job has old revision", func(t *testing.T) {
+		observed := &ObservedClusterState{
+			cluster: &v1beta1.FlinkCluster{
+				Spec: v1beta1.FlinkClusterSpec{
+					Job:         &v1beta1.JobSpec{Mode: &appMode},
+					TaskManager: &v1beta1.TaskManagerSpec{DeploymentType: v1beta1.DeploymentTypeStatefulSet},
+				},
+				Status: v1beta1.FlinkClusterStatus{
+					Revision: v1beta1.RevisionStatus{
+						CurrentRevision: "my-cluster-1",
+						NextRevision:    "my-cluster-2",
+					},
+				},
+			},
+			configMap: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: nextRevName}},
+			},
+			tmService: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: nextRevName}},
+			},
+			jmService: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: nextRevName}},
+			},
+			tmStatefulSet: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: nextRevName}},
+			},
+			flinkJobSubmitter: FlinkJobSubmitter{
+				job: &batchv1.Job{
+					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: "old-revision"}},
+				},
+			},
+		}
+
+		assert.Assert(t, !isClusterUpdateToDate(observed),
+			"should not be up to date when submitter Job has old revision label")
+	})
 }

@@ -455,8 +455,10 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 		}
 	}
 
-	// Derive the new cluster state.
-	var jobStatus = recorded.Components.Job
+	// Derive job status first so the state machine below uses fresh data
+	// instead of the stale recorded status.
+	status.Components.Job = updater.deriveJobStatus(ctx)
+	var jobStatus = status.Components.Job
 	switch recorded.State {
 	case "", v1beta1.ClusterStateCreating:
 		if runningComponents < totalComponents {
@@ -526,18 +528,18 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 			status.State = v1beta1.ClusterStateStopping
 		}
 	case v1beta1.ClusterStateStopped:
-		if recorded.Revision.IsUpdateTriggered() {
+		if shouldUpdateCluster(observed) {
 			status.State = v1beta1.ClusterStateUpdating
+		} else if recorded.Revision.IsUpdateTriggered() {
+			status.State = v1beta1.ClusterStateUpdating
+		} else if jobStatus.IsActive() {
+			status.State = v1beta1.ClusterStateRunning
 		} else {
 			status.State = v1beta1.ClusterStateStopped
 		}
 	default:
 		panic(fmt.Sprintf("Unknown cluster state: %v", recorded.State))
 	}
-
-	// (Optional) Job.
-	// Update job status.
-	status.Components.Job = updater.deriveJobStatus(ctx)
 
 	// (Optional) Savepoint.
 	// Update savepoint status if it is in progress or requested.
@@ -667,6 +669,14 @@ func (updater *ClusterStatusUpdater) deriveJobStatus(ctx context.Context) *v1bet
 		// When a new job is deploying, update the job state to deploying.
 		if observedSubmitter.job != nil && (observedSubmitter.job.Status.Active == 1 || isJobInitialising(observedSubmitter.job.Status)) {
 			newJobState = v1beta1.JobStateDeploying
+		} else if observedFlinkJob != nil {
+			if observedFlinkJob.Id != "" {
+				newJob.ID = observedFlinkJob.Id
+			}
+			if observedFlinkJob.Name != "" {
+				newJob.Name = observedFlinkJob.Name
+			}
+			newJobState = getFlinkJobDeploymentState(observedFlinkJob.State)
 		} else {
 			newJobState = oldJob.State
 		}
