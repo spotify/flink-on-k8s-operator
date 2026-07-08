@@ -222,6 +222,10 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 	var status = v1beta1.FlinkClusterStatus{}
 	var runningComponents = 0
 
+	// Derive the job first so aggregate cluster state reflects the current observation.
+	var jobStatus = updater.deriveJobStatus(ctx)
+	status.Components.Job = jobStatus
+
 	// ConfigMap.
 	var observedConfigMap = observed.configMap
 	cmStatus := &status.Components.ConfigMap
@@ -456,7 +460,6 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 	}
 
 	// Derive the new cluster state.
-	var jobStatus = recorded.Components.Job
 	switch recorded.State {
 	case "", v1beta1.ClusterStateCreating:
 		if runningComponents < totalComponents {
@@ -528,16 +531,18 @@ func (updater *ClusterStatusUpdater) deriveClusterStatus(
 	case v1beta1.ClusterStateStopped:
 		if recorded.Revision.IsUpdateTriggered() {
 			status.State = v1beta1.ClusterStateUpdating
+		} else if jobStatus.IsActive() {
+			if runningComponents < totalComponents {
+				status.State = v1beta1.ClusterStateReconciling
+			} else {
+				status.State = v1beta1.ClusterStateRunning
+			}
 		} else {
 			status.State = v1beta1.ClusterStateStopped
 		}
 	default:
 		panic(fmt.Sprintf("Unknown cluster state: %v", recorded.State))
 	}
-
-	// (Optional) Job.
-	// Update job status.
-	status.Components.Job = updater.deriveJobStatus(ctx)
 
 	// (Optional) Savepoint.
 	// Update savepoint status if it is in progress or requested.
