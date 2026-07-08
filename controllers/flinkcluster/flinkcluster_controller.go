@@ -195,55 +195,10 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 	log.Info("---------- 3. Compute the desired state ----------")
 
 	*desired = *getDesiredClusterState(observed)
-	if desired.ConfigMap != nil {
-		log = log.WithValues("ConfigMap", *desired.ConfigMap)
-	} else {
-		log = log.WithValues("ConfigMap", "nil")
+	log.Info("Desired state", "state", logDesiredClusterStateSummary(desired))
+	if debugLog := log.V(1); debugLog.Enabled() {
+		debugLog.Info("Desired state full", "state", logDesiredClusterStateFull(desired))
 	}
-	if desired.PodDisruptionBudget != nil {
-		log = log.WithValues("PodDisruptionBudget", *desired.PodDisruptionBudget)
-	} else {
-		log = log.WithValues("PodDisruptionBudget", "nil")
-	}
-	if desired.TmService != nil {
-		log = log.WithValues("TaskManager Service", *desired.TmService)
-	} else {
-		log = log.WithValues("TaskManager Service", "nil")
-	}
-	if desired.JmStatefulSet != nil {
-		log = log.WithValues("JobManager StatefulSet", *desired.JmStatefulSet)
-	} else {
-		log = log.WithValues("JobManager StatefulSet", "nil")
-	}
-	if desired.JmService != nil {
-		log = log.WithValues("JobManager service", *desired.JmService)
-	} else {
-		log = log.WithValues("JobManager service", "nil")
-	}
-	if desired.JmIngress != nil {
-		log = log.WithValues("JobManager ingress", *desired.JmIngress)
-	} else {
-		log = log.WithValues("JobManager ingress", "nil")
-	}
-	if desired.TmStatefulSet != nil {
-		log = log.WithValues("TaskManager StatefulSet", *desired.TmStatefulSet)
-	} else if desired.TmDeployment != nil {
-		log = log.WithValues("TaskManager Deployment", *desired.TmDeployment)
-	} else {
-		log = log.WithValues("TaskManager", "nil")
-	}
-	if desired.HorizontalPodAutoscaler != nil {
-		log = log.WithValues("HorizontalPodAutoscaler", *desired.HorizontalPodAutoscaler)
-	} else {
-		log = log.WithValues("HorizontalPodAutoscaler", "nil")
-	}
-
-	if desired.Job != nil {
-		log = log.WithValues("Job", *desired.Job)
-	} else {
-		log = log.WithValues("Job", "nil")
-	}
-	log.Info("Desired state")
 
 	log.Info("---------- 4. Take actions ----------")
 

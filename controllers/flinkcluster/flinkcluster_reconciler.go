@@ -252,47 +252,41 @@ func (reconciler *ClusterReconciler) reconcileTaskManagerService(ctx context.Con
 
 func (reconciler *ClusterReconciler) createComponent(
 	ctx context.Context, obj client.Object, component string) error {
-	log := logr.FromContextOrDiscard(ctx).
-		WithValues("component", component).
-		WithValues("object", obj)
+	log := logr.FromContextOrDiscard(ctx).WithValues("component", component)
 
 	if err := reconciler.k8sClient.Create(ctx, obj); err != nil {
-		log.Error(err, "Failed to create")
+		log.Error(err, "Failed to create", "object", logObjectSummary(obj))
 		return err
 	}
 
-	log.Info("Created")
+	log.Info("Created", "object", logObjectSummary(obj))
 	return nil
 }
 
 func (reconciler *ClusterReconciler) updateComponent(ctx context.Context, desired client.Object, component string) error {
-	log := logr.FromContextOrDiscard(ctx).
-		WithValues("component", component).
-		WithValues("object", desired)
+	log := logr.FromContextOrDiscard(ctx).WithValues("component", component)
 	var k8sClient = reconciler.k8sClient
 
 	if err := k8sClient.Update(ctx, desired); err != nil {
-		log.Error(err, "Failed to update component for update")
+		log.Error(err, "Failed to update component for update", "object", logObjectSummary(desired))
 		return err
 	}
 
-	log.Info("Updated")
+	log.Info("Updated", "object", logObjectSummary(desired))
 	return nil
 }
 
 func (reconciler *ClusterReconciler) deleteComponent(
 	ctx context.Context, obj client.Object, component string) error {
-	log := logr.FromContextOrDiscard(ctx).
-		WithValues("component", component).
-		WithValues("object", obj)
+	log := logr.FromContextOrDiscard(ctx).WithValues("component", component)
 	var k8sClient = reconciler.k8sClient
 
 	var err = k8sClient.Delete(ctx, obj)
 	if client.IgnoreNotFound(err) != nil {
-		log.Error(err, "Failed to delete", component, obj)
+		log.Error(err, "Failed to delete", "object", logObjectSummary(obj))
 	}
 
-	log.Info("Deleted")
+	log.Info("Deleted", "object", logObjectSummary(obj))
 	return nil
 }
 
@@ -580,7 +574,7 @@ func (reconciler *ClusterReconciler) createJob(ctx context.Context, job *batchv1
 	log := logr.FromContextOrDiscard(ctx)
 	var k8sClient = reconciler.k8sClient
 
-	log.Info("Creating job submitter", "resource", *job)
+	log.Info("Creating job submitter", "job", logObjectSummary(job))
 	var err = k8sClient.Create(ctx, job)
 	if err != nil {
 		log.Info("Failed to created job submitter", "error", err)
@@ -598,7 +592,7 @@ func (reconciler *ClusterReconciler) deleteJob(ctx context.Context, job *batchv1
 	var deletePolicy = metav1.DeletePropagationBackground
 	var deleteOption = client.DeleteOptions{PropagationPolicy: &deletePolicy}
 
-	log.Info("Deleting job submitter", "job", job)
+	log.Info("Deleting job submitter", "job", logObjectSummary(job))
 	var err = k8sClient.Delete(ctx, job, &deleteOption)
 	err = client.IgnoreNotFound(err)
 	if err != nil {
@@ -647,7 +641,7 @@ func (reconciler *ClusterReconciler) cancelJob(ctx context.Context) error {
 	log := logr.FromContextOrDiscard(ctx)
 	var observedFlinkJob = reconciler.observed.flinkJob.status
 
-	log.Info("Stopping Flink job", "", observedFlinkJob)
+	log.Info("Stopping Flink job", "job", logFlinkJobSummary(observedFlinkJob))
 	var err = reconciler.cancelRunningJobs(ctx, false /* takeSavepoint */)
 	if err != nil {
 		log.Info("Failed to stop Flink job")
@@ -886,7 +880,10 @@ func (reconciler *ClusterReconciler) updateStatus(
 			newStatus.Control = controlStatus
 		}
 		util.SetTimestamp(&newStatus.LastUpdateTime)
-		log.Info("Updating cluster status", "clusterClone", clusterClone, "newStatus", newStatus)
+		log.Info(
+			"Updating cluster status",
+			"cluster", logFlinkClusterSummary(clusterClone),
+			"newStatus", logClusterStatusSummary(newStatus))
 		statusUpdateErr = reconciler.k8sClient.Status().Update(ctx, clusterClone)
 		if statusUpdateErr == nil {
 			return nil
