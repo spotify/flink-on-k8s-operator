@@ -18,8 +18,6 @@ package flinkcluster
 
 import (
 	"context"
-	"fmt"
-	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -774,74 +772,9 @@ func (observer *ClusterStateObserver) observeObject(ctx context.Context, name st
 
 func (observer *ClusterStateObserver) logObservedState(ctx context.Context, observed *ObservedClusterState) error {
 	log := logr.FromContextOrDiscard(ctx)
-
-	if observed.cluster == nil {
-		log = log.WithValues("cluster", "nil")
-	} else {
-		log = log.WithValues("cluster", *observed.cluster)
-
-		var b strings.Builder
-		for _, cr := range observed.revisions {
-			fmt.Fprintf(&b, "{name: %v, revision: %v},", cr.Name, cr.Revision)
-		}
-		log = log.WithValues("controllerRevisions", fmt.Sprintf("[%v]", b.String()))
-		if observed.configMap != nil {
-			log = log.WithValues("configMap", *observed.configMap)
-		} else {
-			log = log.WithValues("configMap", "nil")
-		}
-		if observed.podDisruptionBudget != nil {
-			log = log.WithValues("podDisruptionBudget", *observed.podDisruptionBudget)
-		} else {
-			log = log.WithValues("podDisruptionBudget", "nil")
-		}
-		if observed.jmStatefulSet != nil {
-			log = log.WithValues("jmStatefulSet", *observed.jmStatefulSet)
-		} else {
-			log = log.WithValues("jmStatefulSet", "nil")
-		}
-		if observed.jmService != nil {
-			log = log.WithValues("jmService", *observed.jmService)
-		} else {
-			log = log.WithValues("jmService", "nil")
-		}
-		if observed.jmIngress != nil {
-			log = log.WithValues("jmIngress", *observed.jmIngress)
-		} else {
-			log = log.WithValues("jmIngress", "nil")
-		}
-		if observed.tmStatefulSet != nil {
-			log = log.WithValues("tmStatefulSet", *observed.tmStatefulSet)
-		} else {
-			log = log.WithValues("tmStatefulSet", "nil")
-		}
-		if observed.tmDeployment != nil {
-			log = log.WithValues("tmDeployment", *observed.tmDeployment)
-		} else {
-			log = log.WithValues("tmDeployment", "nil")
-		}
-		if observed.tmService != nil {
-			log = log.WithValues("tmService", *observed.tmService)
-		} else {
-			log = log.WithValues("tmService", "nil")
-		}
-		if observed.horizontalPodAutoscaler != nil {
-			log = log.WithValues("horizontalPodAutoscaler", *observed.horizontalPodAutoscaler)
-		} else {
-			log = log.WithValues("horizontalPodAutoscaler", "nil")
-		}
-		if observed.savepoint.status != nil {
-			log = log.WithValues("savepoint", *observed.savepoint.status)
-		} else {
-			log = log.WithValues("savepoint", "nil")
-		}
-		if observed.persistentVolumeClaims != nil {
-			log = log.WithValues("persistentVolumeClaims", len(observed.persistentVolumeClaims.Items))
-		} else {
-			log = log.WithValues("persistentVolumeClaims", "nil")
-		}
-
+	log.Info("Observed state", "state", logObservedClusterStateSummary(observed))
+	if debugLog := log.V(1); debugLog.Enabled() {
+		debugLog.Info("Observed state full", "state", logObservedClusterStateFull(observed))
 	}
-	log.Info("Observed state")
 	return nil
 }
