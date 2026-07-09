@@ -363,9 +363,15 @@ func (observer *ClusterStateObserver) observeFlinkJobStatus(ctx context.Context,
 	flinkJob.unexpected = flinkJobsUnexpected
 
 	log.Info("Observed Flink job",
-		"submitted job status", flinkJob.status,
-		"all job list", flinkJob.list,
-		"unexpected job list", flinkJob.unexpected)
+		"job", logFlinkJobSummary(flinkJob.status),
+		"jobs", logFlinkJobCount(flinkJob.list),
+		"unexpectedJobs", flinkJob.unexpected)
+	if debugLog := log.V(1); debugLog.Enabled() {
+		debugLog.Info("Observed Flink job full",
+			"job", logFullObject(flinkJob.status),
+			"jobs", logFullObject(flinkJob.list),
+			"unexpectedJobs", flinkJob.unexpected)
+	}
 	if len(flinkJobsUnexpected) > 0 {
 		log.Info("More than one unexpected Flink job were found!")
 	}
