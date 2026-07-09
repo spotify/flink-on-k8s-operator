@@ -87,9 +87,14 @@ func (updater *ClusterStatusUpdater) updateStatusIfChanged(ctx context.Context) 
 	if changed {
 		log.Info(
 			"Status changed",
-			"old",
-			updater.observed.cluster.Status,
-			"new", newStatus)
+			"old", logClusterStatusSummary(&oldStatus),
+			"new", logClusterStatusSummary(&newStatus))
+		if debugLog := log.V(1); debugLog.Enabled() {
+			debugLog.Info(
+				"Status changed full",
+				"old", logFullObject(&oldStatus),
+				"new", logFullObject(&newStatus))
+		}
 		updater.createStatusChangeEvents(oldStatus, newStatus)
 		var tc = &util.TimeConverter{}
 		newStatus.LastUpdateTime = tc.ToString(time.Now())

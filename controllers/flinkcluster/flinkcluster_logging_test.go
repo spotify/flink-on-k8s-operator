@@ -2,6 +2,7 @@ package flinkcluster
 
 import (
 	"encoding/json"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -286,6 +287,192 @@ func TestLogDesiredClusterStateFullIncludesFullObjects(t *testing.T) {
 	}
 }
 
+func TestLogClusterStatusSummaryDoesNotIncludeFullObjects(t *testing.T) {
+	bigValue := strings.Repeat("x", 20_000)
+	status := &v1beta1.FlinkClusterStatus{
+		State: v1beta1.ClusterStateRunning,
+		Components: v1beta1.FlinkClusterComponentsStatus{
+			ConfigMap: &v1beta1.ConfigMapStatus{
+				Name:  "test-config",
+				State: v1beta1.ComponentStateReady,
+			},
+			JobManager: &v1beta1.JobManagerStatus{
+				Name:          "test-jm",
+				State:         v1beta1.ComponentStateReady,
+				Replicas:      1,
+				ReadyReplicas: 1,
+				Ready:         "true",
+			},
+			JobManagerService: v1beta1.JobManagerServiceStatus{
+				Name:                "test-jm-service",
+				State:               v1beta1.ComponentStateReady,
+				NodePort:            30081,
+				LoadBalancerIngress: []corev1.LoadBalancerIngress{{Hostname: bigValue}},
+			},
+			JobManagerIngress: &v1beta1.JobManagerIngressStatus{
+				Name:  "test-ingress",
+				State: v1beta1.ComponentStateReady,
+				URLs:  []string{"https://jm.example.com", bigValue},
+			},
+			TaskManager: &v1beta1.TaskManagerStatus{
+				Name:          "test-tm",
+				State:         v1beta1.ComponentStateReady,
+				Replicas:      4,
+				ReadyReplicas: 3,
+				Ready:         "3/4",
+				Selector:      bigValue,
+			},
+			Job: &v1beta1.JobStatus{
+				ID:                  "flink-job-id",
+				Name:                "test-job",
+				SubmitterName:       "submitter",
+				SubmitterExitCode:   0,
+				State:               v1beta1.JobStateRunning,
+				FromSavepoint:       bigValue,
+				SavepointGeneration: 2,
+				SavepointLocation:   bigValue,
+				FinalSavepoint:      true,
+				RestartCount:        1,
+				FailureReasons:      []string{bigValue, "short reason"},
+			},
+		},
+		Control: &v1beta1.FlinkClusterControlStatus{
+			Name:       v1beta1.ControlNameSavepoint,
+			Details:    map[string]string{"large": bigValue, "small": "value"},
+			State:      v1beta1.ControlStateRequested,
+			Message:    bigValue,
+			UpdateTime: "2026-07-08T00:00:00Z",
+		},
+		Savepoint: &v1beta1.SavepointStatus{
+			JobID:         "flink-job-id",
+			TriggerID:     "trigger-id",
+			TriggerTime:   "2026-07-08T00:00:01Z",
+			TriggerReason: v1beta1.SavepointReasonUserRequested,
+			UpdateTime:    "2026-07-08T00:00:02Z",
+			State:         v1beta1.SavepointStateSucceeded,
+			Message:       bigValue,
+		},
+		Revision: v1beta1.RevisionStatus{
+			CurrentRevision: "current-revision",
+			NextRevision:    "next-revision",
+		},
+	}
+
+	summary := mustMap(t, logClusterStatusSummary(status))
+	assertEqual(t, summary["state"], v1beta1.ClusterStateRunning)
+	assertEqual(t, mustMap(t, summary["configMap"])["name"], "test-config")
+	assertEqual(t, mustMap(t, summary["jobManager"])["readyReplicas"], int32(1))
+	assertEqual(t, mustMap(t, summary["jobManagerService"])["name"], "test-jm-service")
+	assertEqual(t, mustMap(t, summary["jobManagerIngress"])["urlCount"], 2)
+	assertEqual(t, mustMap(t, summary["taskManager"])["replicas"], int32(4))
+	assertEqual(t, mustMap(t, summary["job"])["failureReasonCount"], 2)
+	assertEqual(t, mustMap(t, summary["job"])["hasSavepointLocation"], true)
+	assertEqual(t, mustMap(t, summary["job"])["hasFromSavepoint"], true)
+	assertEqual(t, mustMap(t, summary["control"])["detailCount"], 2)
+	assertEqual(t, mustMap(t, summary["control"])["hasMessage"], true)
+	assertEqual(t, mustMap(t, summary["savepoint"])["reason"], v1beta1.SavepointReasonUserRequested)
+	assertEqual(t, mustMap(t, summary["savepoint"])["hasMessage"], true)
+	assertEqual(t, mustMap(t, summary["revision"])["currentRevision"], "current-revision")
+
+	payload := mustMarshalLogSummary(t, summary)
+	payloadString := string(payload)
+	if strings.Contains(payloadString, bigValue[:100]) {
+		t.Fatalf("status summary leaked full object content")
+	}
+	if len(payload) > 5_000 {
+		t.Fatalf("status summary is unexpectedly large: %d bytes", len(payload))
+	}
+}
+
+func TestLogClusterStatusSummaryHandlesNilFields(t *testing.T) {
+	status := &v1beta1.FlinkClusterStatus{
+		State: v1beta1.ClusterStateCreating,
+	}
+
+	summary := mustMap(t, logClusterStatusSummary(status))
+	assertEqual(t, summary["configMap"], logNilValue)
+	assertEqual(t, summary["jobManager"], logNilValue)
+	assertEqual(t, mustMap(t, summary["jobManagerService"])["name"], "")
+	assertEqual(t, summary["jobManagerIngress"], logNilValue)
+	assertEqual(t, summary["taskManager"], logNilValue)
+	assertEqual(t, summary["job"], logNilValue)
+	assertEqual(t, summary["control"], logNilValue)
+	assertEqual(t, summary["savepoint"], logNilValue)
+}
+
+func TestLogFlinkSavepointSummaryBranches(t *testing.T) {
+	err := errors.New("savepoint failed")
+	status := &flink.SavepointStatus{
+		JobID:     "flink-job-id",
+		TriggerID: "trigger-id",
+		Completed: true,
+		Location:  "s3://bucket/savepoint",
+	}
+
+	tests := []struct {
+		name   string
+		status *flink.SavepointStatus
+		err    error
+		want   map[string]any
+	}{
+		{
+			name:   "neither status nor error",
+			status: nil,
+			err:    nil,
+			want:   nil,
+		},
+		{
+			name:   "status only",
+			status: status,
+			err:    nil,
+			want: map[string]any{
+				"jobID":       "flink-job-id",
+				"triggerID":   "trigger-id",
+				"completed":   true,
+				"hasLocation": true,
+			},
+		},
+		{
+			name:   "error only",
+			status: nil,
+			err:    err,
+			want: map[string]any{
+				"error": "savepoint failed",
+			},
+		},
+		{
+			name:   "status and error",
+			status: status,
+			err:    err,
+			want: map[string]any{
+				"jobID":       "flink-job-id",
+				"triggerID":   "trigger-id",
+				"completed":   true,
+				"hasLocation": true,
+				"error":       "savepoint failed",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := logFlinkSavepointSummary(tt.status, tt.err)
+			if tt.want == nil {
+				assertEqual(t, got, logNilValue)
+				return
+			}
+
+			gotMap := mustMap(t, got)
+			for key, value := range tt.want {
+				assertEqual(t, gotMap[key], value)
+			}
+			if len(gotMap) != len(tt.want) {
+				t.Fatalf("unexpected summary keys: got %#v, want %#v", gotMap, tt.want)
+			}
+		})
+	}
+}
+
 func mustMarshalLogSummary(t *testing.T, summary any) []byte {
 	t.Helper()
 	payload, err := json.Marshal(summary)
@@ -293,4 +480,20 @@ func mustMarshalLogSummary(t *testing.T, summary any) []byte {
 		t.Fatalf("failed to marshal summary: %v", err)
 	}
 	return payload
+}
+
+func mustMap(t *testing.T, summary any) map[string]any {
+	t.Helper()
+	summaryMap, ok := summary.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map[string]any, got %T (%#v)", summary, summary)
+	}
+	return summaryMap
+}
+
+func assertEqual(t *testing.T, got any, want any) {
+	t.Helper()
+	if got != want {
+		t.Fatalf("got %#v (%T), want %#v (%T)", got, got, want, want)
+	}
 }
