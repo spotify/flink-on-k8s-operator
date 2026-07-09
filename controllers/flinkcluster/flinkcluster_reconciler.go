@@ -281,9 +281,9 @@ func (reconciler *ClusterReconciler) deleteComponent(
 	log := logr.FromContextOrDiscard(ctx).WithValues("component", component)
 	var k8sClient = reconciler.k8sClient
 
-	var err = k8sClient.Delete(ctx, obj)
-	if client.IgnoreNotFound(err) != nil {
+	if err := client.IgnoreNotFound(k8sClient.Delete(ctx, obj)); err != nil {
 		log.Error(err, "Failed to delete", "object", logObjectSummary(obj))
+		return err
 	}
 
 	log.Info("Deleted", "object", logObjectSummary(obj))
