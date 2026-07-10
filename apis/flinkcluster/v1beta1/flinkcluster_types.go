@@ -138,7 +138,6 @@ const (
 )
 
 // SavepointFormatType specifies the binary format of a savepoint.
-// +kubebuilder:validation:Enum=CANONICAL;NATIVE
 type SavepointFormatType string
 
 const (
