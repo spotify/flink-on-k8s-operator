@@ -150,6 +150,36 @@ func TestNewRevision(t *testing.T) {
 		expectedRevision)
 }
 
+func TestNewRevisionDataPatchExcludesSavepointFormatType(t *testing.T) {
+	native := v1beta1.SavepointFormatTypeNative
+	canonical := v1beta1.SavepointFormatTypeCanonical
+	savepointDir := "/savepoint_dir"
+
+	baseCluster := func(ft *v1beta1.SavepointFormatType) *v1beta1.FlinkCluster {
+		return &v1beta1.FlinkCluster{
+			ObjectMeta: metav1.ObjectMeta{Name: "mycluster", Namespace: "default"},
+			Spec: v1beta1.FlinkClusterSpec{
+				Job: &v1beta1.JobSpec{
+					SavepointsDir:       &savepointDir,
+					SavepointFormatType: ft,
+				},
+			},
+		}
+	}
+
+	patchNil, err := newRevisionDataPatch(baseCluster(nil))
+	assert.NilError(t, err)
+	patchCanonical, err := newRevisionDataPatch(baseCluster(&canonical))
+	assert.NilError(t, err)
+	patchNative, err := newRevisionDataPatch(baseCluster(&native))
+	assert.NilError(t, err)
+
+	assert.Equal(t, string(patchNil), string(patchCanonical),
+		"nil vs CANONICAL should produce the same revision patch")
+	assert.Equal(t, string(patchNil), string(patchNative),
+		"nil vs NATIVE should produce the same revision patch")
+}
+
 func TestCanTakeSavepoint(t *testing.T) {
 	// session cluster
 	var cluster = v1beta1.FlinkCluster{
