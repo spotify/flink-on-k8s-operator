@@ -17,6 +17,7 @@ limitations under the License.
 package flinkcluster
 
 import (
+	"encoding/json"
 	"os"
 	"testing"
 
@@ -321,6 +322,145 @@ func TestGetUpdateState(t *testing.T) {
 	}
 	state = getUpdateState(&observed)
 	assert.Equal(t, state, UpdateStateFinished)
+}
+
+func TestShouldUpdateCluster(t *testing.T) {
+	t.Run("active job with completed update savepoint", func(t *testing.T) {
+		observed := &ObservedClusterState{
+			updateState: UpdateStateInProgress,
+			cluster: &v1beta1.FlinkCluster{
+				Spec: v1beta1.FlinkClusterSpec{
+					Job: &v1beta1.JobSpec{},
+				},
+				Status: v1beta1.FlinkClusterStatus{
+					Components: v1beta1.FlinkClusterComponentsStatus{
+						Job: &v1beta1.JobStatus{State: v1beta1.JobStateRunning},
+					},
+					Savepoint: &v1beta1.SavepointStatus{
+						TriggerReason: v1beta1.SavepointReasonUpdate,
+						State:         v1beta1.SavepointStateSucceeded,
+					},
+				},
+			},
+		}
+		assert.Equal(t, shouldUpdateCluster(observed), true)
+	})
+
+	for _, tc := range []struct {
+		name  string
+		state string
+	}{
+		{name: "active job with failed update savepoint", state: v1beta1.SavepointStateFailed},
+		{name: "active job with trigger failed update savepoint", state: v1beta1.SavepointStateTriggerFailed},
+		{name: "active job with in progress update savepoint", state: v1beta1.SavepointStateInProgress},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			observed := &ObservedClusterState{
+				updateState: UpdateStateInProgress,
+				cluster: &v1beta1.FlinkCluster{
+					Spec: v1beta1.FlinkClusterSpec{
+						Job: &v1beta1.JobSpec{},
+					},
+					Status: v1beta1.FlinkClusterStatus{
+						Components: v1beta1.FlinkClusterComponentsStatus{
+							Job: &v1beta1.JobStatus{State: v1beta1.JobStateRunning},
+						},
+						Savepoint: &v1beta1.SavepointStatus{
+							TriggerReason: v1beta1.SavepointReasonUpdate,
+							State:         tc.state,
+						},
+					},
+				},
+			}
+			assert.Equal(t, shouldUpdateCluster(observed), false)
+		})
+	}
+
+	// Active job without update savepoint should return false.
+	t.Run("active job without update savepoint", func(t *testing.T) {
+		observed := &ObservedClusterState{
+			updateState: UpdateStateInProgress,
+			cluster: &v1beta1.FlinkCluster{
+				Spec: v1beta1.FlinkClusterSpec{
+					Job: &v1beta1.JobSpec{},
+				},
+				Status: v1beta1.FlinkClusterStatus{
+					Components: v1beta1.FlinkClusterComponentsStatus{
+						Job: &v1beta1.JobStatus{State: v1beta1.JobStateRunning},
+					},
+				},
+			},
+		}
+		assert.Equal(t, shouldUpdateCluster(observed), false)
+	})
+
+	// Inactive job without savepoint should return true.
+	t.Run("inactive job without savepoint", func(t *testing.T) {
+		observed := &ObservedClusterState{
+			updateState: UpdateStateInProgress,
+			cluster: &v1beta1.FlinkCluster{
+				Spec: v1beta1.FlinkClusterSpec{
+					Job: &v1beta1.JobSpec{},
+				},
+				Status: v1beta1.FlinkClusterStatus{
+					Components: v1beta1.FlinkClusterComponentsStatus{
+						Job: &v1beta1.JobStatus{State: v1beta1.JobStateCancelled},
+					},
+				},
+			},
+		}
+		assert.Equal(t, shouldUpdateCluster(observed), true)
+	})
+
+	// Update not in progress should return false.
+	t.Run("update not in progress", func(t *testing.T) {
+		observed := &ObservedClusterState{
+			updateState: UpdateStateFinished,
+			cluster: &v1beta1.FlinkCluster{
+				Spec: v1beta1.FlinkClusterSpec{
+					Job: &v1beta1.JobSpec{},
+				},
+				Status: v1beta1.FlinkClusterStatus{
+					Components: v1beta1.FlinkClusterComponentsStatus{
+						Job: &v1beta1.JobStatus{State: v1beta1.JobStateCancelled},
+					},
+				},
+			},
+		}
+		assert.Equal(t, shouldUpdateCluster(observed), false)
+	})
+
+	// Scale update bypasses job state and savepoint checks.
+	t.Run("scale update with active job", func(t *testing.T) {
+		revisions := []*appsv1.ControllerRevision{
+			{Revision: 1, Data: runtime.RawExtension{Raw: mustMarshal(t, map[string]any{"spec": map[string]any{"taskManager": map[string]any{"replicas": float64(2)}}})}},
+			{Revision: 2, Data: runtime.RawExtension{Raw: mustMarshal(t, map[string]any{"spec": map[string]any{"taskManager": map[string]any{"replicas": float64(4)}}})}},
+		}
+		observed := &ObservedClusterState{
+			updateState: UpdateStateInProgress,
+			revisions:   revisions,
+			cluster: &v1beta1.FlinkCluster{
+				Spec: v1beta1.FlinkClusterSpec{
+					Job: &v1beta1.JobSpec{},
+				},
+				Status: v1beta1.FlinkClusterStatus{
+					Components: v1beta1.FlinkClusterComponentsStatus{
+						Job: &v1beta1.JobStatus{State: v1beta1.JobStateRunning},
+					},
+				},
+			},
+		}
+		assert.Equal(t, shouldUpdateCluster(observed), true)
+	})
+}
+
+func mustMarshal(t *testing.T, v any) []byte {
+	t.Helper()
+	data, err := json.Marshal(v)
+	if err != nil {
+		t.Fatalf("failed to marshal: %v", err)
+	}
+	return data
 }
 
 func TestHasTimeElapsed(t *testing.T) {
