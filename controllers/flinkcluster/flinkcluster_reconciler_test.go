@@ -157,3 +157,145 @@ func TestReconcileJobDeletesSubmitterOlderThanCurrentRevision(t *testing.T) {
 	)
 	assert.Assert(t, apierrors.IsNotFound(err))
 }
+
+func TestReconcileJobDeletesCompletedSubmitterForDetachedJobRestart(t *testing.T) {
+	var scheme = runtime.NewScheme()
+	assert.NilError(t, v1beta1.AddToScheme(scheme))
+	assert.NilError(t, batchv1.AddToScheme(scheme))
+
+	var detachedMode = v1beta1.JobModeDetached
+	var restartPolicy = v1beta1.JobRestartPolicyFromSavepointOnFailure
+	var cluster = &v1beta1.FlinkCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "cluster", Namespace: "default"},
+		Spec: v1beta1.FlinkClusterSpec{
+			Job: &v1beta1.JobSpec{
+				Mode:          &detachedMode,
+				RestartPolicy: &restartPolicy,
+			},
+		},
+		Status: v1beta1.FlinkClusterStatus{
+			Components: v1beta1.FlinkClusterComponentsStatus{
+				Job: &v1beta1.JobStatus{State: v1beta1.JobStateFailed},
+			},
+			Revision: v1beta1.RevisionStatus{
+				CurrentRevision: "cluster-current-1",
+				NextRevision:    "cluster-current-1",
+			},
+		},
+	}
+	var completedSubmitter = &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cluster-jobmanager",
+			Namespace: cluster.Namespace,
+			Labels: map[string]string{
+				RevisionNameLabel: "cluster-current",
+			},
+		},
+		Status: batchv1.JobStatus{Succeeded: 1},
+	}
+	var desiredJob = &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      completedSubmitter.Name,
+			Namespace: completedSubmitter.Namespace,
+			Labels: map[string]string{
+				RevisionNameLabel: "cluster-current",
+			},
+		},
+		Spec: batchv1.JobSpec{Template: corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{Containers: []corev1.Container{{Args: []string{"run"}}}},
+		}},
+	}
+	var fakeClient = fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(cluster).
+		WithObjects(cluster, completedSubmitter).
+		Build()
+	var reconciler = &ClusterReconciler{
+		k8sClient: fakeClient,
+		observed: ObservedClusterState{
+			cluster: cluster,
+			flinkJobSubmitter: FlinkJobSubmitter{
+				job: completedSubmitter,
+			},
+		},
+		desired: model.DesiredClusterState{Job: desiredJob},
+	}
+
+	_, err := reconciler.reconcileJob(context.Background())
+	assert.NilError(t, err)
+
+	var submitter batchv1.Job
+	err = fakeClient.Get(
+		context.Background(),
+		types.NamespacedName{Name: completedSubmitter.Name, Namespace: completedSubmitter.Namespace},
+		&submitter,
+	)
+	assert.Assert(t, apierrors.IsNotFound(err))
+}
+
+func TestReconcileJobKeepsSubmitterAtNextRevision(t *testing.T) {
+	var scheme = runtime.NewScheme()
+	assert.NilError(t, v1beta1.AddToScheme(scheme))
+	assert.NilError(t, batchv1.AddToScheme(scheme))
+
+	var applicationMode = v1beta1.JobModeApplication
+	var cluster = &v1beta1.FlinkCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "cluster", Namespace: "default"},
+		Spec: v1beta1.FlinkClusterSpec{
+			Job: &v1beta1.JobSpec{Mode: &applicationMode},
+		},
+		Status: v1beta1.FlinkClusterStatus{
+			Components: v1beta1.FlinkClusterComponentsStatus{
+				Job: &v1beta1.JobStatus{State: v1beta1.JobStateUpdating},
+			},
+			Revision: v1beta1.RevisionStatus{
+				CurrentRevision: "cluster-current-1",
+				NextRevision:    "cluster-next-2",
+			},
+		},
+	}
+	var nextRevisionSubmitter = &batchv1.Job{ObjectMeta: metav1.ObjectMeta{
+		Name:      "cluster-jobmanager",
+		Namespace: cluster.Namespace,
+		Labels: map[string]string{
+			RevisionNameLabel: "cluster-next",
+		},
+	}}
+	var desiredJob = &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nextRevisionSubmitter.Name,
+			Namespace: nextRevisionSubmitter.Namespace,
+			Labels: map[string]string{
+				RevisionNameLabel: "cluster-next",
+			},
+		},
+		Spec: batchv1.JobSpec{Template: corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{Containers: []corev1.Container{{Args: []string{"standalone-job"}}}},
+		}},
+	}
+	var fakeClient = fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(cluster).
+		WithObjects(cluster, nextRevisionSubmitter).
+		Build()
+	var reconciler = &ClusterReconciler{
+		k8sClient: fakeClient,
+		observed: ObservedClusterState{
+			cluster: cluster,
+			flinkJobSubmitter: FlinkJobSubmitter{
+				job: nextRevisionSubmitter,
+			},
+		},
+		desired: model.DesiredClusterState{Job: desiredJob},
+	}
+
+	_, err := reconciler.reconcileJob(context.Background())
+	assert.NilError(t, err)
+
+	var submitter batchv1.Job
+	assert.NilError(t, fakeClient.Get(
+		context.Background(),
+		types.NamespacedName{Name: nextRevisionSubmitter.Name, Namespace: nextRevisionSubmitter.Namespace},
+		&submitter,
+	))
+}

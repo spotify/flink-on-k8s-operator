@@ -482,7 +482,12 @@ func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Res
 		}
 
 		if observedSubmitter != nil {
-			if !isComponentUpdated(observedSubmitter, observed.cluster) {
+			var shouldDeleteForRestart bool
+			if !recorded.Revision.IsUpdateTriggered() && recorded.Revision.CurrentRevision != "" {
+				shouldDeleteForRestart = observedSubmitter.Labels[RevisionNameLabel] ==
+					getCurrentRevisionName(&recorded.Revision)
+			}
+			if !isComponentUpdated(observedSubmitter, observed.cluster) || shouldDeleteForRestart {
 				log.Info("Found old job submitter")
 				err = reconciler.deleteJob(ctx, observedSubmitter)
 				if err != nil {
