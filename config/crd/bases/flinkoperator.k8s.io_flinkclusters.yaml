@@ -1540,14 +1540,10 @@ spec:
                         - FromSavepointOnFailure
                       type: string
                     savepointFormatType:
-                      allOf:
-                        - enum:
-                            - CANONICAL
-                            - NATIVE
-                        - enum:
-                            - CANONICAL
-                            - NATIVE
                       default: CANONICAL
+                      enum:
+                        - CANONICAL
+                        - NATIVE
                       type: string
                     savepointGeneration:
                       format: int32
