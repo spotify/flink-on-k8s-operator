@@ -614,7 +614,7 @@ func TestSavepointFormatType(t *testing.T) {
 		name         string
 		flinkVersion string
 		job          *v1beta1.JobSpec
-		expected     string
+		expected     v1beta1.SavepointFormatType
 	}{
 		{
 			name:         "empty version returns empty",
@@ -638,13 +638,13 @@ func TestSavepointFormatType(t *testing.T) {
 			name:         "Flink 1.15.0 returns NATIVE",
 			flinkVersion: "1.15.0",
 			job:          &v1beta1.JobSpec{SavepointFormatType: &native},
-			expected:     "NATIVE",
+			expected:     native,
 		},
 		{
 			name:         "Flink 1.15.0 returns CANONICAL",
 			flinkVersion: "1.15.0",
 			job:          &v1beta1.JobSpec{SavepointFormatType: &canonical},
-			expected:     "CANONICAL",
+			expected:     canonical,
 		},
 		{
 			name:         "Flink 1.15 nil formatType returns empty",

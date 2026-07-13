@@ -959,8 +959,8 @@ type SavepointStatus struct {
 	// Savepoint state.
 	State string `json:"state"`
 
-	// Savepoint format type, "CANONICAL" or "NATIVE".
-	FormatType string `json:"formatType,omitempty"`
+	// Savepoint format type.
+	FormatType SavepointFormatType `json:"formatType,omitempty"`
 
 	// Savepoint message.
 	Message string `json:"message,omitempty"`

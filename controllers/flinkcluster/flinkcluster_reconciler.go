@@ -874,7 +874,7 @@ func (reconciler *ClusterReconciler) triggerSavepoint(
 	var formatType = savepointFormatType(cluster)
 	var err error
 	log.Info(fmt.Sprintf("Trigger savepoint for %s", triggerReason), "jobID", jobID)
-	savepointTriggerID, err = reconciler.flinkClient.TriggerSavepoint(apiBaseURL, jobID, *cluster.Spec.Job.SavepointsDir, cancel, formatType)
+	savepointTriggerID, err = reconciler.flinkClient.TriggerSavepoint(apiBaseURL, jobID, *cluster.Spec.Job.SavepointsDir, cancel, string(formatType))
 	if err != nil {
 		// limit message size to 1KiB
 		if message = err.Error(); len(message) > 1024 {
@@ -893,8 +893,8 @@ func (reconciler *ClusterReconciler) triggerSavepoint(
 }
 
 // savepointFormatType returns the format type to pass to the Flink REST API,
-// or empty string for Flink < 1.15 which does not support the formatType parameter.
-func savepointFormatType(cluster *v1beta1.FlinkCluster) string {
+// or empty for Flink < 1.15 which does not support the formatType parameter.
+func savepointFormatType(cluster *v1beta1.FlinkCluster) v1beta1.SavepointFormatType {
 	appVersion, _ := version.NewVersion(cluster.Spec.FlinkVersion)
 	if appVersion == nil || appVersion.LessThan(v115) {
 		return ""
@@ -902,7 +902,7 @@ func savepointFormatType(cluster *v1beta1.FlinkCluster) string {
 	if cluster.Spec.Job == nil || cluster.Spec.Job.SavepointFormatType == nil {
 		return ""
 	}
-	return string(*cluster.Spec.Job.SavepointFormatType)
+	return *cluster.Spec.Job.SavepointFormatType
 }
 
 func (reconciler *ClusterReconciler) updateStatus(
@@ -1014,7 +1014,7 @@ func (reconciler *ClusterReconciler) updateJobDeployStatus(ctx context.Context) 
 }
 
 // getNewSavepointStatus returns newly triggered savepoint status.
-func (reconciler *ClusterReconciler) getNewSavepointStatus(triggerID string, triggerReason v1beta1.SavepointReason, message string, triggerSuccess bool, formatType string) *v1beta1.SavepointStatus {
+func (reconciler *ClusterReconciler) getNewSavepointStatus(triggerID string, triggerReason v1beta1.SavepointReason, message string, triggerSuccess bool, formatType v1beta1.SavepointFormatType) *v1beta1.SavepointStatus {
 	var jobID = reconciler.getFlinkJobID()
 	var savepointState string
 	var now string
