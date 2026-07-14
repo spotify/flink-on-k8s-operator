@@ -323,6 +323,81 @@ func TestGetUpdateState(t *testing.T) {
 	assert.Equal(t, state, UpdateStateFinished)
 }
 
+func TestGetUpdateStateApplicationModeRequiresNextRevisionJob(t *testing.T) {
+	var applicationMode = v1beta1.JobModeApplication
+	var currentRevision = "cluster-current-2"
+	var nextRevision = "cluster-next-3"
+	var nextRevisionLabel = "cluster-next"
+	var observed = ObservedClusterState{
+		cluster: &v1beta1.FlinkCluster{
+			Spec: v1beta1.FlinkClusterSpec{
+				TaskManager: &v1beta1.TaskManagerSpec{DeploymentType: v1beta1.DeploymentTypeDeployment},
+				Job:         &v1beta1.JobSpec{Mode: &applicationMode},
+			},
+			Status: v1beta1.FlinkClusterStatus{
+				Components: v1beta1.FlinkClusterComponentsStatus{
+					Job: &v1beta1.JobStatus{State: v1beta1.JobStateUpdating, FinalSavepoint: true},
+				},
+				Revision: v1beta1.RevisionStatus{
+					CurrentRevision: currentRevision,
+					NextRevision:    nextRevision,
+				},
+			},
+		},
+		flinkJobSubmitter: FlinkJobSubmitter{job: &batchv1.Job{ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{RevisionNameLabel: "cluster-before-hpa-scale"},
+		}}},
+		configMap: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: nextRevisionLabel}}},
+		tmService: &corev1.Service{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: nextRevisionLabel}}},
+		jmService: &corev1.Service{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: nextRevisionLabel}}},
+		tmDeployment: &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+			RevisionNameLabel: nextRevisionLabel,
+		}}},
+	}
+
+	assert.Equal(t, getUpdateState(&observed), UpdateStateInProgress)
+
+	observed.flinkJobSubmitter.job.Labels[RevisionNameLabel] = nextRevisionLabel
+	assert.Equal(t, getUpdateState(&observed), UpdateStateFinished)
+}
+
+func TestGetUpdateStateApplicationModeScaleDoesNotRequireNewJob(t *testing.T) {
+	var applicationMode = v1beta1.JobModeApplication
+	var nextRevisionLabel = "cluster-scale"
+	var observed = ObservedClusterState{
+		cluster: &v1beta1.FlinkCluster{
+			Spec: v1beta1.FlinkClusterSpec{
+				TaskManager: &v1beta1.TaskManagerSpec{DeploymentType: v1beta1.DeploymentTypeDeployment},
+				Job:         &v1beta1.JobSpec{Mode: &applicationMode},
+			},
+			Status: v1beta1.FlinkClusterStatus{
+				Components: v1beta1.FlinkClusterComponentsStatus{
+					Job: &v1beta1.JobStatus{State: v1beta1.JobStateRunning},
+				},
+				Revision: v1beta1.RevisionStatus{
+					CurrentRevision: "cluster-before-scale-1",
+					NextRevision:    "cluster-scale-2",
+				},
+			},
+		},
+		revisions: []*appsv1.ControllerRevision{
+			{Revision: 1, Data: runtime.RawExtension{Raw: []byte(`{"spec":{"taskManager":{"replicas":1}}}`)}},
+			{Revision: 2, Data: runtime.RawExtension{Raw: []byte(`{"spec":{"taskManager":{"replicas":4}}}`)}},
+		},
+		flinkJobSubmitter: FlinkJobSubmitter{job: &batchv1.Job{ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{RevisionNameLabel: "cluster-before-scale"},
+		}}},
+		configMap: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: nextRevisionLabel}}},
+		tmService: &corev1.Service{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: nextRevisionLabel}}},
+		jmService: &corev1.Service{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: nextRevisionLabel}}},
+		tmDeployment: &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+			RevisionNameLabel: nextRevisionLabel,
+		}}},
+	}
+
+	assert.Equal(t, getUpdateState(&observed), UpdateStateFinished)
+}
+
 func TestHasTimeElapsed(t *testing.T) {
 	var tc = &util.TimeConverter{}
 	var timeToCheckStr = "2020-01-01T00:00:00+00:00"

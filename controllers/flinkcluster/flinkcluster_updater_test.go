@@ -23,6 +23,7 @@ import (
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
 	"gotest.tools/v3/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -215,4 +216,62 @@ func TestClusterStatus(t *testing.T) {
 		assert.Equal(t, newStatus.State, v1beta1.ClusterStateRunning)
 	})
 
+}
+
+func TestStoppedApplicationClusterRecoversFromActiveJob(t *testing.T) {
+	var applicationMode = v1beta1.JobModeApplication
+	var replicas int32 = 1
+
+	for _, test := range []struct {
+		name                 string
+		readyReplicas        int32
+		expectedClusterState v1beta1.ClusterState
+	}{
+		{name: "ready components", readyReplicas: 1, expectedClusterState: v1beta1.ClusterStateRunning},
+		{name: "unready components", readyReplicas: 0, expectedClusterState: v1beta1.ClusterStateReconciling},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var cluster = &v1beta1.FlinkCluster{
+				Spec: v1beta1.FlinkClusterSpec{
+					TaskManager: &v1beta1.TaskManagerSpec{DeploymentType: v1beta1.DeploymentTypeDeployment},
+					Job:         &v1beta1.JobSpec{Mode: &applicationMode},
+				},
+				Status: v1beta1.FlinkClusterStatus{
+					State: v1beta1.ClusterStateStopped,
+					Components: v1beta1.FlinkClusterComponentsStatus{
+						Job: &v1beta1.JobStatus{State: v1beta1.JobStateSucceeded},
+					},
+					Revision: v1beta1.RevisionStatus{
+						CurrentRevision: "cluster-current-1",
+						NextRevision:    "cluster-current-1",
+					},
+				},
+			}
+			var observed = ObservedClusterState{
+				cluster: cluster,
+				flinkJobSubmitter: FlinkJobSubmitter{
+					job: &batchv1.Job{Status: batchv1.JobStatus{Active: 1}},
+					pod: &corev1.Pod{},
+				},
+				jmService: &corev1.Service{Spec: corev1.ServiceSpec{
+					Type:      corev1.ServiceTypeClusterIP,
+					ClusterIP: "127.0.0.1",
+				}},
+				tmDeployment: &appsv1.Deployment{
+					Spec:   appsv1.DeploymentSpec{Replicas: &replicas},
+					Status: appsv1.DeploymentStatus{ReadyReplicas: test.readyReplicas},
+				},
+				revision: Revision{
+					currentRevision: &appsv1.ControllerRevision{ObjectMeta: metav1.ObjectMeta{Name: "cluster-current"}, Revision: 1},
+					nextRevision:    &appsv1.ControllerRevision{ObjectMeta: metav1.ObjectMeta{Name: "cluster-current"}, Revision: 1},
+				},
+			}
+
+			var updater = &ClusterStatusUpdater{observed: observed}
+			var status = updater.deriveClusterStatus(context.Background(), cluster, &observed)
+
+			assert.Equal(t, status.Components.Job.State, v1beta1.JobStateDeploying)
+			assert.Equal(t, status.State, test.expectedClusterState)
+		})
+	}
 }

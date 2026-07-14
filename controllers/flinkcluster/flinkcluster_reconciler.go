@@ -475,9 +475,13 @@ func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Res
 			return requeueResult, err
 		}
 
-		cr := getCurrentRevisionName(&observed.cluster.Status.Revision)
 		if observedSubmitter != nil {
-			if observedSubmitter.Labels[RevisionNameLabel] == cr {
+			var shouldDeleteForRestart bool
+			if !recorded.Revision.IsUpdateTriggered() && recorded.Revision.CurrentRevision != "" {
+				shouldDeleteForRestart = observedSubmitter.Labels[RevisionNameLabel] ==
+					getCurrentRevisionName(&recorded.Revision)
+			}
+			if !isComponentUpdated(observedSubmitter, observed.cluster) || shouldDeleteForRestart {
 				log.Info("Found old job submitter")
 				err = reconciler.deleteJob(ctx, observedSubmitter)
 				if err != nil {
@@ -906,29 +910,35 @@ func (reconciler *ClusterReconciler) updateJobDeployStatus(ctx context.Context) 
 	var log = logr.FromContextOrDiscard(ctx)
 	var observedCluster = reconciler.observed.cluster
 	var desiredJobSubmitter = reconciler.desired.Job
-	var err error
+	var newJob *v1beta1.JobStatus
+	var key = types.NamespacedName{Namespace: observedCluster.Namespace, Name: observedCluster.Name}
 
-	var clusterClone = observedCluster.DeepCopy()
-	var newJob = clusterClone.Status.Components.Job
+	var err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		var cluster v1beta1.FlinkCluster
+		if getErr := reconciler.k8sClient.Get(ctx, key, &cluster); getErr != nil {
+			return getErr
+		}
 
-	// Reset running job information.
-	// newJob.ID = ""
-	newJob.StartTime = ""
-	newJob.CompletionTime = nil
+		newJob = cluster.Status.Components.Job
 
-	// Mark as job submitter is deployed.
-	util.SetTimestamp(&newJob.DeployTime)
-	util.SetTimestamp(&clusterClone.Status.LastUpdateTime)
+		// Reset running job information.
+		// newJob.ID = ""
+		newJob.StartTime = ""
+		newJob.CompletionTime = nil
 
-	// Latest savepoint location should be fromSavepoint.
-	var fromSavepoint = getFromSavepoint(desiredJobSubmitter.Spec)
-	newJob.FromSavepoint = fromSavepoint
-	if newJob.SavepointLocation != "" {
-		newJob.SavepointLocation = fromSavepoint
-	}
+		// Mark as job submitter is deployed.
+		util.SetTimestamp(&newJob.DeployTime)
+		util.SetTimestamp(&cluster.Status.LastUpdateTime)
 
-	// Update job status.
-	err = reconciler.k8sClient.Status().Update(ctx, clusterClone)
+		// Latest savepoint location should be fromSavepoint.
+		var fromSavepoint = getFromSavepoint(desiredJobSubmitter.Spec)
+		newJob.FromSavepoint = fromSavepoint
+		if newJob.SavepointLocation != "" {
+			newJob.SavepointLocation = fromSavepoint
+		}
+
+		return reconciler.k8sClient.Status().Update(ctx, &cluster)
+	})
 	if err != nil {
 		log.Error(
 			err, "Failed to update job status for new job submitter", "error", err)
