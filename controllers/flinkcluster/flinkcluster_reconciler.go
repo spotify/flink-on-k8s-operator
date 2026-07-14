@@ -886,7 +886,7 @@ func (reconciler *ClusterReconciler) updateStatus(
 		util.SetTimestamp(&newStatus.LastUpdateTime)
 		log.Info(
 			"Updating cluster status",
-			"cluster", logFlinkClusterSummary(clusterClone),
+			"cluster", v1beta1.FlinkClusterLogSummary(clusterClone),
 			"newStatus", logClusterStatusSummary(newStatus))
 		statusUpdateErr = reconciler.k8sClient.Status().Update(ctx, clusterClone)
 		if statusUpdateErr == nil {

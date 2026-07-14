@@ -38,47 +38,13 @@ func logObjectSummary(obj client.Object) any {
 	return summary
 }
 
-func logFlinkClusterSummary(cluster *v1beta1.FlinkCluster) any {
-	if cluster == nil {
-		return logNilValue
-	}
-
-	summary := map[string]any{
-		"kind":            logObjectKind(cluster),
-		"namespace":       cluster.Namespace,
-		"name":            cluster.Name,
-		"generation":      cluster.Generation,
-		"resourceVersion": cluster.ResourceVersion,
-		"flinkVersion":    cluster.Spec.FlinkVersion,
-		"image":           cluster.Spec.Image.Name,
-		"state":           cluster.Status.State,
-		"revision":        logRevisionStatusSummary(cluster.Status.Revision),
-	}
-	if cluster.Spec.Job != nil {
-		summary["jobClass"] = cluster.Spec.Job.ClassName
-	}
-	if cluster.Spec.TaskManager != nil && cluster.Spec.TaskManager.Replicas != nil {
-		summary["taskManagerReplicas"] = *cluster.Spec.TaskManager.Replicas
-	}
-	if cluster.Status.Components.Job != nil {
-		summary["job"] = logJobStatusSummary(cluster.Status.Components.Job)
-	}
-	if cluster.Status.Savepoint != nil {
-		summary["savepoint"] = logSavepointStatusSummary(cluster.Status.Savepoint)
-	}
-	if cluster.Status.Control != nil {
-		summary["control"] = logControlStatusSummary(cluster.Status.Control)
-	}
-	return summary
-}
-
 func logObservedClusterStateSummary(observed *ObservedClusterState) map[string]any {
 	if observed == nil {
 		return map[string]any{"cluster": logNilValue}
 	}
 
 	summary := map[string]any{
-		"cluster":                 logFlinkClusterSummary(observed.cluster),
+		"cluster":                 v1beta1.FlinkClusterLogSummary(observed.cluster),
 		"controllerRevisions":     logControllerRevisionsSummary(observed.revisions),
 		"configMap":               logObjectSummary(observed.configMap),
 		"haConfigMap":             logObjectSummary(observed.haConfigMap),
@@ -207,10 +173,10 @@ func logClusterStatusSummary(status *v1beta1.FlinkClusterStatus) any {
 		"jobManagerService": logJobManagerServiceStatusSummary(status.Components.JobManagerService),
 		"jobManagerIngress": logJobManagerIngressStatusSummary(status.Components.JobManagerIngress),
 		"taskManager":       logTaskManagerStatusSummary(status.Components.TaskManager),
-		"job":               logJobStatusSummary(status.Components.Job),
-		"control":           logControlStatusSummary(status.Control),
-		"savepoint":         logSavepointStatusSummary(status.Savepoint),
-		"revision":          logRevisionStatusSummary(status.Revision),
+		"job":               v1beta1.JobStatusLogSummary(status.Components.Job),
+		"control":           v1beta1.ControlStatusLogSummary(status.Control),
+		"savepoint":         v1beta1.SavepointStatusLogSummary(status.Savepoint),
+		"revision":          v1beta1.RevisionStatusLogSummary(status.Revision),
 	}
 }
 
@@ -265,60 +231,6 @@ func logTaskManagerStatusSummary(status *v1beta1.TaskManagerStatus) any {
 		"replicas":      status.Replicas,
 		"readyReplicas": status.ReadyReplicas,
 		"ready":         status.Ready,
-	}
-}
-
-func logJobStatusSummary(status *v1beta1.JobStatus) any {
-	if status == nil {
-		return logNilValue
-	}
-	return map[string]any{
-		"id":                   status.ID,
-		"name":                 status.Name,
-		"submitterName":        status.SubmitterName,
-		"submitterExitCode":    status.SubmitterExitCode,
-		"state":                status.State,
-		"savepointGeneration":  status.SavepointGeneration,
-		"finalSavepoint":       status.FinalSavepoint,
-		"restartCount":         status.RestartCount,
-		"failureReasonCount":   len(status.FailureReasons),
-		"hasSavepointLocation": status.SavepointLocation != "",
-		"hasFromSavepoint":     status.FromSavepoint != "",
-	}
-}
-
-func logControlStatusSummary(status *v1beta1.FlinkClusterControlStatus) any {
-	if status == nil {
-		return logNilValue
-	}
-	return map[string]any{
-		"name":        status.Name,
-		"state":       status.State,
-		"detailCount": len(status.Details),
-		"hasMessage":  status.Message != "",
-		"updateTime":  status.UpdateTime,
-	}
-}
-
-func logSavepointStatusSummary(status *v1beta1.SavepointStatus) any {
-	if status == nil {
-		return logNilValue
-	}
-	return map[string]any{
-		"jobID":       status.JobID,
-		"triggerID":   status.TriggerID,
-		"reason":      status.TriggerReason,
-		"state":       status.State,
-		"hasMessage":  status.Message != "",
-		"triggerTime": status.TriggerTime,
-		"updateTime":  status.UpdateTime,
-	}
-}
-
-func logRevisionStatusSummary(status v1beta1.RevisionStatus) map[string]any {
-	return map[string]any{
-		"currentRevision": status.CurrentRevision,
-		"nextRevision":    status.NextRevision,
 	}
 }
 

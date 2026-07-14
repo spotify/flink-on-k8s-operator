@@ -27,9 +27,54 @@ func TestFlinkClusterLogSummaryDoesNotIncludeFullObject(t *testing.T) {
 				"log4j-console.properties": bigValue,
 			},
 		},
+		Status: FlinkClusterStatus{
+			Components: FlinkClusterComponentsStatus{
+				Job: &JobStatus{
+					ID:             "job-id",
+					State:          JobStateRunning,
+					FailureReasons: []string{bigValue},
+				},
+			},
+			Control: &FlinkClusterControlStatus{
+				Name:    "control",
+				Message: bigValue,
+			},
+			Savepoint: &SavepointStatus{
+				JobID:   "job-id",
+				Message: bigValue,
+			},
+			Revision: RevisionStatus{
+				CurrentRevision: "revision-1",
+				NextRevision:    "revision-2",
+			},
+		},
 	}
 
-	payload, err := json.Marshal(flinkClusterLogSummary(cluster))
+	summary := mustLogSummaryMap(t, FlinkClusterLogSummary(cluster))
+	if summary["kind"] != "FlinkCluster" {
+		t.Fatalf("summary has unexpected kind: %#v", summary["kind"])
+	}
+	job := mustLogSummaryMap(t, summary["job"])
+	if job["id"] != "job-id" || job["state"] != JobStateRunning {
+		t.Fatalf("summary has unexpected nested job: %#v", job)
+	}
+	if mustLogSummaryMap(t, summary["revision"])["currentRevision"] != "revision-1" {
+		t.Fatalf("summary lost revision: %#v", summary["revision"])
+	}
+	if mustLogSummaryMap(t, summary["savepoint"])["jobID"] != "job-id" {
+		t.Fatalf("summary lost savepoint: %#v", summary["savepoint"])
+	}
+	if mustLogSummaryMap(t, summary["control"])["name"] != "control" {
+		t.Fatalf("summary lost control: %#v", summary["control"])
+	}
+	if _, found := summary["jobID"]; found {
+		t.Fatalf("summary retained deprecated flat jobID key: %#v", summary)
+	}
+	if _, found := summary["jobState"]; found {
+		t.Fatalf("summary retained deprecated flat jobState key: %#v", summary)
+	}
+
+	payload, err := json.Marshal(summary)
 	if err != nil {
 		t.Fatalf("failed to marshal summary: %v", err)
 	}
@@ -37,10 +82,25 @@ func TestFlinkClusterLogSummaryDoesNotIncludeFullObject(t *testing.T) {
 	if strings.Contains(payloadString, bigValue[:100]) {
 		t.Fatalf("summary leaked full object content")
 	}
-	if len(payload) > 1_000 {
+	if len(payload) > 2_000 {
 		t.Fatalf("summary is unexpectedly large: %d bytes", len(payload))
 	}
 	if !strings.Contains(payloadString, "test-cluster") {
 		t.Fatalf("summary lost object identity: %s", payloadString)
 	}
+}
+
+func TestFlinkClusterLogSummaryHandlesNilCluster(t *testing.T) {
+	if got := FlinkClusterLogSummary(nil); got != logNilValue {
+		t.Fatalf("got %#v, want %#v", got, logNilValue)
+	}
+}
+
+func mustLogSummaryMap(t *testing.T, value any) map[string]any {
+	t.Helper()
+	summary, ok := value.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map[string]any, got %T (%#v)", value, value)
+	}
+	return summary
 }

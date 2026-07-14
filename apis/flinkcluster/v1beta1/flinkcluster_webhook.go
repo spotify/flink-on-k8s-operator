@@ -29,33 +29,6 @@ import (
 
 var log = logf.Log.WithName("webhook")
 
-func flinkClusterLogSummary(cluster *FlinkCluster) any {
-	if cluster == nil {
-		return "nil"
-	}
-
-	summary := map[string]any{
-		"namespace":       cluster.Namespace,
-		"name":            cluster.Name,
-		"generation":      cluster.Generation,
-		"resourceVersion": cluster.ResourceVersion,
-		"flinkVersion":    cluster.Spec.FlinkVersion,
-		"image":           cluster.Spec.Image.Name,
-		"state":           cluster.Status.State,
-	}
-	if cluster.Spec.Job != nil {
-		summary["jobClass"] = cluster.Spec.Job.ClassName
-	}
-	if cluster.Spec.TaskManager != nil && cluster.Spec.TaskManager.Replicas != nil {
-		summary["taskManagerReplicas"] = *cluster.Spec.TaskManager.Replicas
-	}
-	if cluster.Status.Components.Job != nil {
-		summary["jobState"] = cluster.Status.Components.Job.State
-		summary["jobID"] = cluster.Status.Components.Job.ID
-	}
-	return summary
-}
-
 // flinkClusterDefaulter implements admission.CustomDefaulter for FlinkCluster.
 type flinkClusterDefaulter struct{}
 
@@ -82,9 +55,9 @@ The meaning of each marker can be found [here](/reference/markers/webhook.md).
 
 // Default implements admission.Defaulter[*FlinkCluster].
 func (d *flinkClusterDefaulter) Default(ctx context.Context, cluster *FlinkCluster) error {
-	log.Info("default", "cluster", flinkClusterLogSummary(cluster), "phase", "original")
+	log.Info("default", "cluster", FlinkClusterLogSummary(cluster), "phase", "original")
 	_SetDefault(cluster)
-	log.Info("default", "cluster", flinkClusterLogSummary(cluster), "phase", "augmented")
+	log.Info("default", "cluster", FlinkClusterLogSummary(cluster), "phase", "augmented")
 	return nil
 }
 
