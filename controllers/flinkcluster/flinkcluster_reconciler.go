@@ -720,10 +720,10 @@ func (reconciler *ClusterReconciler) cancelFlinkJob(ctx context.Context, jobID s
 		err = reconciler.waitForSavepointCompleted(ctx, apiBaseURL, jobID, triggerID.RequestID)
 		reconciler.updateFinalSavepointStatus(ctx, newSavepointStatus, err)
 		return err
-	} else {
-		log.Info("Cancelling job", "jobID", jobID)
-		return reconciler.flinkClient.StopJob(apiBaseURL, jobID)
 	}
+
+	log.Info("Cancelling job", "jobID", jobID)
+	return reconciler.flinkClient.StopJob(apiBaseURL, jobID)
 }
 
 func (reconciler *ClusterReconciler) waitForSavepointCompleted(ctx context.Context, apiBaseURL string, jobID string, triggerID string) error {
