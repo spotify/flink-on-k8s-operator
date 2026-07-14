@@ -717,8 +717,8 @@ func (reconciler *ClusterReconciler) cancelFlinkJob(ctx context.Context, jobID s
 		newSavepointStatus := reconciler.getNewSavepointStatus(triggerID.RequestID, v1beta1.SavepointReasonJobCancel, "", true)
 		var newControlStatus *v1beta1.FlinkClusterControlStatus
 		reconciler.updateStatus(ctx, &newSavepointStatus, &newControlStatus)
-		err = reconciler.waitForSavepointCompleted(ctx, apiBaseURL, jobID, triggerID.RequestID)
-		reconciler.updateFinalSavepointStatus(ctx, newSavepointStatus, err)
+		location, err := reconciler.waitForSavepointCompleted(ctx, apiBaseURL, jobID, triggerID.RequestID)
+		reconciler.updateFinalSavepointStatus(ctx, newSavepointStatus, location, err)
 		return err
 	}
 
@@ -726,7 +726,9 @@ func (reconciler *ClusterReconciler) cancelFlinkJob(ctx context.Context, jobID s
 	return reconciler.flinkClient.StopJob(apiBaseURL, jobID)
 }
 
-func (reconciler *ClusterReconciler) waitForSavepointCompleted(ctx context.Context, apiBaseURL string, jobID string, triggerID string) error {
+// waitForSavepointCompleted polls the savepoint status until it succeeds, fails, or times out.
+// On success, it returns the savepoint location.
+func (reconciler *ClusterReconciler) waitForSavepointCompleted(ctx context.Context, apiBaseURL string, jobID string, triggerID string) (string, error) {
 	log := logr.FromContextOrDiscard(ctx)
 	log.Info("Polling savepoint status", "jobID", jobID, "triggerID", triggerID)
 	var delay = 100 * time.Millisecond
@@ -753,18 +755,18 @@ func (reconciler *ClusterReconciler) waitForSavepointCompleted(ctx context.Conte
 	for {
 		time.Sleep(delay)
 		if time.Now().After(deadline) {
-			return fmt.Errorf("timed out stopping job %s with savepoint, please configure a larger timeout via 'execution.checkpointing.timeout'", jobID)
+			return "", fmt.Errorf("timed out stopping job %s with savepoint, please configure a larger timeout via 'execution.checkpointing.timeout'", jobID)
 		}
 		status, err := reconciler.flinkClient.GetSavepointStatus(apiBaseURL, jobID, triggerID)
 		if err != nil {
-			return fmt.Errorf("failed to get savepoint status for job %s: %w", jobID, err)
+			return "", fmt.Errorf("failed to get savepoint status for job %s: %w", jobID, err)
 		}
 		if status.IsFailed() {
-			return fmt.Errorf("savepoint failed for job %s: %s", jobID, status.FailureCause.StackTrace)
+			return "", fmt.Errorf("savepoint failed for job %s: %s", jobID, status.FailureCause.StackTrace)
 		}
 		if status.IsSuccessful() {
 			log.Info("Savepoint completed", "jobID", jobID, "location", status.Location)
-			return nil
+			return status.Location, nil
 		}
 		delay = time.Duration(float64(delay) * backoffMultiplier)
 		if delay > maxDelay {
@@ -891,12 +893,20 @@ func (reconciler *ClusterReconciler) triggerSavepoint(
 
 func (reconciler *ClusterReconciler) updateStatus(
 	ctx context.Context, ss **v1beta1.SavepointStatus, cs **v1beta1.FlinkClusterControlStatus) {
+	reconciler.updateStatusWithJob(ctx, ss, cs, nil)
+}
+
+// updateStatusWithJob behaves like updateStatus, and additionally applies jobUpdate to the
+// recorded job status as part of the same status update, when jobUpdate is non-nil and a job
+// is recorded.
+func (reconciler *ClusterReconciler) updateStatusWithJob(
+	ctx context.Context, ss **v1beta1.SavepointStatus, cs **v1beta1.FlinkClusterControlStatus, jobUpdate func(*v1beta1.JobStatus)) {
 	log := logr.FromContextOrDiscard(ctx)
 
 	var savepointStatus = *ss
 	var controlStatus = *cs
 
-	if savepointStatus == nil && controlStatus == nil {
+	if savepointStatus == nil && controlStatus == nil && jobUpdate == nil {
 		return
 	}
 
@@ -920,6 +930,9 @@ func (reconciler *ClusterReconciler) updateStatus(
 		}
 		if controlStatus != nil {
 			newStatus.Control = controlStatus
+		}
+		if jobUpdate != nil && newStatus.Components.Job != nil {
+			jobUpdate(newStatus.Components.Job)
 		}
 		util.SetTimestamp(&newStatus.LastUpdateTime)
 		log.Info(
@@ -1010,7 +1023,7 @@ func (reconciler *ClusterReconciler) getNewSavepointStatus(triggerID string, tri
 	return savepointStatus
 }
 
-func (reconciler *ClusterReconciler) updateFinalSavepointStatus(ctx context.Context, inProgress *v1beta1.SavepointStatus, savepointErr error) {
+func (reconciler *ClusterReconciler) updateFinalSavepointStatus(ctx context.Context, inProgress *v1beta1.SavepointStatus, location string, savepointErr error) {
 	finalStatus := inProgress.DeepCopy()
 	util.SetTimestamp(&finalStatus.UpdateTime)
 	if savepointErr != nil {
@@ -1024,7 +1037,16 @@ func (reconciler *ClusterReconciler) updateFinalSavepointStatus(ctx context.Cont
 		finalStatus.State = v1beta1.SavepointStateSucceeded
 	}
 	var nilCS *v1beta1.FlinkClusterControlStatus
-	reconciler.updateStatus(ctx, &finalStatus, &nilCS)
+	var jobUpdate func(*v1beta1.JobStatus)
+	if savepointErr == nil {
+		jobUpdate = func(job *v1beta1.JobStatus) {
+			job.SavepointGeneration++
+			job.SavepointLocation = location
+			job.FinalSavepoint = true
+			util.SetTimestamp(&job.SavepointTime)
+		}
+	}
+	reconciler.updateStatusWithJob(ctx, &finalStatus, &nilCS, jobUpdate)
 }
 
 // Convert raw time to object and add `addedSeconds` to it,

@@ -359,6 +359,15 @@ func TestCancelFlinkJob_StopWithSavepoint_Success(t *testing.T) {
 	if sp.TriggerID != "trigger-abc" {
 		t.Errorf("expected trigger ID %q, got %q", "trigger-abc", sp.TriggerID)
 	}
+
+	// and: the job status records the savepoint location as the job's final savepoint
+	job := requireJobStatus(t, reconciler, cluster)
+	if job.SavepointLocation != "s3://bucket/sp-1" {
+		t.Errorf("expected job savepoint location %q, got %q", "s3://bucket/sp-1", job.SavepointLocation)
+	}
+	if !job.FinalSavepoint {
+		t.Error("expected job final savepoint to be true")
+	}
 }
 
 func TestCancelFlinkJob_StopWithSavepoint_SavepointFails(t *testing.T) {
@@ -634,6 +643,19 @@ func requireSavepointStatus(t *testing.T, reconciler *ClusterReconciler, cluster
 		t.Fatal("expected savepoint status to be set")
 	}
 	return updated.Status.Savepoint
+}
+
+func requireJobStatus(t *testing.T, reconciler *ClusterReconciler, cluster *v1beta1.FlinkCluster) *v1beta1.JobStatus {
+	t.Helper()
+	updated := &v1beta1.FlinkCluster{}
+	if err := reconciler.k8sClient.Get(context.Background(),
+		types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, updated); err != nil {
+		t.Fatalf("failed to get cluster: %v", err)
+	}
+	if updated.Status.Components.Job == nil {
+		t.Fatal("expected job status to be set")
+	}
+	return updated.Status.Components.Job
 }
 
 func assertNoSavepointStatus(t *testing.T, reconciler *ClusterReconciler, cluster *v1beta1.FlinkCluster) {
