@@ -2,15 +2,18 @@ package flinkcluster
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
+	"github.com/spotify/flink-on-k8s-operator/internal/flink"
 	"github.com/spotify/flink-on-k8s-operator/internal/model"
 )
 
@@ -20,6 +23,51 @@ func TestLogObjectSummaryHandlesTypedNil(t *testing.T) {
 
 	if got := logObjectSummary(obj); got != logNilValue {
 		t.Fatalf("expected typed nil object to summarize as %q, got %#v", logNilValue, got)
+	}
+}
+
+func TestIsNilClientObjectHandlesNonPointerKinds(t *testing.T) {
+	var nilChan chan struct{}
+	var nilFunc func()
+	var nilMap map[string]string
+	var nilSlice []string
+
+	for name, value := range map[string]any{
+		"chan":  nilChan,
+		"func":  nilFunc,
+		"map":   nilMap,
+		"slice": nilSlice,
+	} {
+		t.Run(name+" nil", func(t *testing.T) {
+			if !isNilClientObject(value) {
+				t.Fatalf("expected nil %s to be detected", name)
+			}
+		})
+	}
+
+	for name, value := range map[string]any{
+		"chan":    make(chan struct{}),
+		"func":    func() {},
+		"map":     map[string]string{},
+		"slice":   []string{},
+		"default": 1,
+	} {
+		t.Run(name+" non-nil", func(t *testing.T) {
+			if isNilClientObject(value) {
+				t.Fatalf("expected non-nil %s not to be detected as nil", name)
+			}
+		})
+	}
+
+	// reflect.ValueOf unwraps an interface to its dynamic value, so exercise the
+	// interface branch with an addressable interface value directly.
+	var nilInterface any
+	if !isNilReflectValue(reflect.ValueOf(&nilInterface).Elem()) {
+		t.Fatal("expected nil interface to be detected")
+	}
+	nonNilInterface := any("value")
+	if isNilReflectValue(reflect.ValueOf(&nonNilInterface).Elem()) {
+		t.Fatal("expected non-nil interface not to be detected as nil")
 	}
 }
 
@@ -67,9 +115,19 @@ func TestLogObservedClusterStateSummaryDoesNotIncludeFullObjects(t *testing.T) {
 			"large": bigValue,
 		},
 	}
+	haConfigMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-ha-config",
+			Namespace: "test-namespace",
+		},
+		Data: map[string]string{
+			"large": bigValue,
+		},
+	}
 	observed := &ObservedClusterState{
-		cluster:   cluster,
-		configMap: configMap,
+		cluster:     cluster,
+		configMap:   configMap,
+		haConfigMap: haConfigMap,
 		revisions: []*appsv1.ControllerRevision{
 			{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-cluster-abc-1"},
@@ -88,6 +146,10 @@ func TestLogObservedClusterStateSummaryDoesNotIncludeFullObjects(t *testing.T) {
 	}
 	if !strings.Contains(payloadString, "test-cluster") {
 		t.Fatalf("summary lost object identity: %s", payloadString)
+	}
+	haConfigMapSummary, ok := logObservedClusterStateSummary(observed)["haConfigMap"].(map[string]any)
+	if !ok || haConfigMapSummary["name"] != "test-ha-config" {
+		t.Fatalf("summary lost HA ConfigMap identity: %#v", haConfigMapSummary)
 	}
 }
 
@@ -116,15 +178,57 @@ func TestLogObservedClusterStateFullIncludesFullObjects(t *testing.T) {
 			"large": bigValue,
 		},
 	}
+	haConfigMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-ha-config"},
+		Data:       map[string]string{"ha-marker": bigValue},
+	}
 	observed := &ObservedClusterState{
-		cluster:   cluster,
-		configMap: configMap,
+		cluster:     cluster,
+		configMap:   configMap,
+		haConfigMap: haConfigMap,
+		flinkJob: FlinkJob{
+			status: &flink.Job{Id: "submitted-job-id", Name: "submitted-job-marker"},
+			list: &flink.JobsOverview{Jobs: []flink.Job{
+				{Id: "listed-job-id", Name: "listed-job-marker"},
+			}},
+			exceptions: &flink.JobExceptions{Exceptions: []flink.JobException{
+				{Exception: "exception-marker", Location: "exception-location"},
+			}},
+			unexpected: []string{"unexpected-job-marker"},
+		},
+		flinkJobSubmitter: FlinkJobSubmitter{
+			job: &batchv1.Job{ObjectMeta: metav1.ObjectMeta{
+				Name:        "submitter-job-marker",
+				Annotations: map[string]string{"large": bigValue},
+			}},
+			pod: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+				Name:        "submitter-pod-marker",
+				Annotations: map[string]string{"large": bigValue},
+			}},
+			log: &SubmitterLog{jobID: "submitter-log-job-id", message: "submitter-log-message-marker"},
+		},
 	}
 
-	payload := mustMarshalLogSummary(t, logObservedClusterStateFull(observed))
+	full := logObservedClusterStateFull(observed)
+	for _, key := range []string{
+		"haConfigMap", "flinkJob", "flinkJobList", "flinkJobExceptions",
+		"unexpectedFlinkJobs", "jobSubmitter", "jobSubmitterPod", "jobSubmitterLog",
+	} {
+		if _, ok := full[key]; !ok {
+			t.Errorf("full observed state log is missing %q", key)
+		}
+	}
+
+	payload := mustMarshalLogSummary(t, full)
 	payloadString := string(payload)
-	if !strings.Contains(payloadString, bigValue[:100]) {
-		t.Fatalf("full observed state log did not include full object content")
+	for _, marker := range []string{
+		bigValue[:100], "test-ha-config", "submitted-job-marker", "listed-job-marker",
+		"exception-marker", "unexpected-job-marker", "submitter-job-marker",
+		"submitter-pod-marker", "submitter-log-message-marker",
+	} {
+		if !strings.Contains(payloadString, marker) {
+			t.Errorf("full observed state log did not include marker %q", marker)
+		}
 	}
 	if len(payload) < 20_000 {
 		t.Fatalf("full observed state log is unexpectedly small: %d bytes", len(payload))

@@ -81,6 +81,7 @@ func logObservedClusterStateSummary(observed *ObservedClusterState) map[string]a
 		"cluster":                 logFlinkClusterSummary(observed.cluster),
 		"controllerRevisions":     logControllerRevisionsSummary(observed.revisions),
 		"configMap":               logObjectSummary(observed.configMap),
+		"haConfigMap":             logObjectSummary(observed.haConfigMap),
 		"podDisruptionBudget":     logObjectSummary(observed.podDisruptionBudget),
 		"jobManagerStatefulSet":   logObjectSummary(observed.jmStatefulSet),
 		"jobManagerService":       logObjectSummary(observed.jmService),
@@ -134,6 +135,7 @@ func logObservedClusterStateFull(observed *ObservedClusterState) map[string]any 
 		"cluster":                 logFullObject(observed.cluster),
 		"controllerRevisions":     observed.revisions,
 		"configMap":               logFullObject(observed.configMap),
+		"haConfigMap":             logFullObject(observed.haConfigMap),
 		"podDisruptionBudget":     logFullObject(observed.podDisruptionBudget),
 		"jobManagerStatefulSet":   logFullObject(observed.jmStatefulSet),
 		"jobManagerService":       logFullObject(observed.jmService),
@@ -142,6 +144,13 @@ func logObservedClusterStateFull(observed *ObservedClusterState) map[string]any 
 		"taskManagerDeployment":   logFullObject(observed.tmDeployment),
 		"taskManagerService":      logFullObject(observed.tmService),
 		"horizontalPodAutoscaler": logFullObject(observed.horizontalPodAutoscaler),
+		"flinkJob":                logFullObject(observed.flinkJob.status),
+		"flinkJobList":            logFullObject(observed.flinkJob.list),
+		"flinkJobExceptions":      logFullObject(observed.flinkJob.exceptions),
+		"unexpectedFlinkJobs":     observed.flinkJob.unexpected,
+		"jobSubmitter":            logFullObject(observed.flinkJobSubmitter.job),
+		"jobSubmitterPod":         logFullObject(observed.flinkJobSubmitter.pod),
+		"jobSubmitterLog":         logSubmitterLogFull(observed.flinkJobSubmitter.log),
 		"savepoint":               logFullObject(observed.savepoint.status),
 	}
 	if observed.persistentVolumeClaims != nil {
@@ -365,6 +374,16 @@ func logSubmitterLogSummary(submitterLog *SubmitterLog) any {
 	}
 }
 
+func logSubmitterLogFull(submitterLog *SubmitterLog) any {
+	if submitterLog == nil {
+		return logNilValue
+	}
+	return map[string]any{
+		"jobID":   submitterLog.jobID,
+		"message": submitterLog.message,
+	}
+}
+
 func logFlinkSavepointSummary(status *flink.SavepointStatus, err error) any {
 	if status == nil && err == nil {
 		return logNilValue
@@ -404,12 +423,15 @@ func logObjectAPIVersion(obj client.Object) string {
 	return gvk.GroupVersion().String()
 }
 
-func isNilClientObject(obj client.Object) bool {
+func isNilClientObject(obj any) bool {
 	if obj == nil {
 		return true
 	}
 
-	value := reflect.ValueOf(obj)
+	return isNilReflectValue(reflect.ValueOf(obj))
+}
+
+func isNilReflectValue(value reflect.Value) bool {
 	switch value.Kind() {
 	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
 		return value.IsNil()
