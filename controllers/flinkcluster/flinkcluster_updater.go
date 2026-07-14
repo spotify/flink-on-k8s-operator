@@ -1093,6 +1093,7 @@ func deriveControlStatus(
 				newSavepoint != nil &&
 				newSavepoint.State == v1beta1.SavepointStateSucceeded &&
 				newSavepoint.TriggerReason == v1beta1.SavepointReasonJobCancel:
+				newJob.State = v1beta1.JobStateCancelled
 				c.State = v1beta1.ControlStateSucceeded
 			case newJob.IsStopped():
 				c.Message = "Aborted job cancellation: job is stopped already."

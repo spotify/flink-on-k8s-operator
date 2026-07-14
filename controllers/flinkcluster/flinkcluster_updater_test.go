@@ -215,7 +215,28 @@ func TestClusterStatus(t *testing.T) {
 		assert.Assert(t, updater.isStatusChanged(context.TODO(), oldStatus, newStatus))
 		assert.Equal(t, newStatus.State, v1beta1.ClusterStateRunning)
 	})
+}
 
+func TestDeriveControlStatus_StopWithSavepointCancel(t *testing.T) {
+	t.Run("job stopped via job-cancel annotation has state Cancelled", func(t *testing.T) {
+		var recordedControl = &v1beta1.FlinkClusterControlStatus{
+			Name:  v1beta1.ControlNameJobCancel,
+			State: v1beta1.ControlStateInProgress,
+		}
+		var cluster = &v1beta1.FlinkCluster{
+			Status: v1beta1.FlinkClusterStatus{Control: recordedControl},
+		}
+		var newSavepoint = &v1beta1.SavepointStatus{
+			State:         v1beta1.SavepointStateSucceeded,
+			TriggerReason: v1beta1.SavepointReasonJobCancel,
+		}
+		var newJob = &v1beta1.JobStatus{State: v1beta1.JobStateSucceeded}
+
+		var c = deriveControlStatus(cluster, newSavepoint, newJob, recordedControl)
+
+		assert.Equal(t, newJob.State, v1beta1.JobStateCancelled)
+		assert.Equal(t, c.State, v1beta1.ControlStateSucceeded)
+	})
 }
 
 func TestStoppedApplicationClusterRecoversFromActiveJob(t *testing.T) {
