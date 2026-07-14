@@ -508,10 +508,10 @@ func TestCancelFlinkJob_StopWithSavepoint_Timeout(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// and: a running cluster with a 5s checkpointing timeout
+	// and: a running cluster with a short checkpointing timeout
 	savepointsDir := "s3://bucket/savepoints"
 	cluster := newTestClusterWithJob(&savepointsDir, map[string]string{
-		"execution.checkpointing.timeout": "5 s",
+		"execution.checkpointing.timeout": "500ms",
 	})
 	reconciler := newTestReconciler(cluster, newRedirectingHTTPClient(server.URL))
 

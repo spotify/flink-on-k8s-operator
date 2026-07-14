@@ -565,6 +565,7 @@ func TestParseFlinkDuration_Invalid(t *testing.T) {
 		{"s"},
 		{"10 foo"},
 		{"10.5 s"},
+		{"100s0"},
 	}
 
 	for _, tt := range tests {
