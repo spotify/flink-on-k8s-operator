@@ -70,8 +70,9 @@ var (
 		"query.server.port":      {},
 		"rest.port":              {},
 	}
-	v10, _ = version.NewVersion("1.10")
-	v20, _ = version.NewVersion("2.0")
+	v10, _  = version.NewVersion("1.10")
+	v115, _ = version.NewVersion("1.15")
+	v20, _  = version.NewVersion("2.0")
 )
 
 // Gets the desired state of a cluster.

@@ -241,3 +241,24 @@ Note that
 
 Usually you want to store savepoints in remote storages, see this [doc](../images/flink/README.md) on how you can store
 savepoints in GCS.
+
+## Savepoint format
+
+Flink supports two savepoint formats: `CANONICAL` and `NATIVE`. You can control which format is used by setting the
+`savepointFormatType` property in the job spec. If not specified, Flink uses the canonical format by default. This option
+requires Flink 1.15 or later; for older or unparseable Flink versions, the operator omits the format parameter.
+
+For more details on the differences between the two formats and when to use each, see the
+[Flink documentation on savepoint formats](https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/savepoints/#savepoint-format).
+
+```yaml
+apiVersion: flinkoperator.k8s.io/v1beta1
+kind: FlinkCluster
+metadata:
+  name: flinkjobcluster-sample
+spec:
+  ...
+  job:
+    savepointFormatType: NATIVE
+    ...
+```
