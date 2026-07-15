@@ -163,7 +163,7 @@ envtest: ## Download envtest-setup locally if necessary.
 
 CRD_REF_DOCS = $(shell pwd)/bin/crd-ref-docs
 crd-ref-docs:
-	$(call go-get-tool,$(CRD_REF_DOCS),github.com/elastic/crd-ref-docs@master)
+	$(call go-get-tool,$(CRD_REF_DOCS),github.com/elastic/crd-ref-docs@v0.3.0)
 
 # go-get-tool will 'go install' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
