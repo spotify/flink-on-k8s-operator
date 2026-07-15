@@ -1332,6 +1332,12 @@ spec:
                         - Never
                         - FromSavepointOnFailure
                       type: string
+                    savepointFormatType:
+                      default: CANONICAL
+                      enum:
+                        - CANONICAL
+                        - NATIVE
+                      type: string
                     savepointGeneration:
                       format: int32
                       type: integer
@@ -8498,6 +8504,8 @@ spec:
                   type: object
                 savepoint:
                   properties:
+                    formatType:
+                      type: string
                     jobID:
                       type: string
                     message:
