@@ -748,7 +748,7 @@ type FlinkClusterSpec struct {
 	// [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#configure-all-key-value-pairs-in-a-configmap-as-container-environment-variables)
 	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty"`
 
-	// _(Optional)_ Flink properties which are appened to flink-conf.yaml / config.yaml.
+	// _(Optional)_ Flink properties which are appended to `flink-conf.yaml` (Flink 1.X) or `config.yaml` (Flink 2.X).
 	FlinkProperties map[string]string `json:"flinkProperties,omitempty"`
 
 	// _(Optional)_ Config for Hadoop.
