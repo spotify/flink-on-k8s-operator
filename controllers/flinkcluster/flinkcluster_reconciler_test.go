@@ -2,13 +2,15 @@ package flinkcluster
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"sync/atomic"
-	"testing"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
+	"testing"
 
 	"github.com/go-logr/logr"
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
@@ -310,9 +312,13 @@ func TestReconcileJobKeepsSubmitterAtNextRevision(t *testing.T) {
 func TestCancelFlinkJob_StopWithSavepoint_Success(t *testing.T) {
 	// given: Flink REST API that completes savepoint after 2 in-progress polls
 	var pollCount atomic.Int32
+	var stopBody map[string]interface{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == http.MethodPost && r.URL.Path == "/jobs/job-123/stop":
+			body, err := io.ReadAll(r.Body)
+			assert.NilError(t, err)
+			assert.NilError(t, json.Unmarshal(body, &stopBody))
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, `{"request-id": "trigger-abc"}`)
 
@@ -332,9 +338,12 @@ func TestCancelFlinkJob_StopWithSavepoint_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// and: a running cluster with savepoints configured
+	// and: a running Flink 1.15 cluster with native savepoints configured
 	savepointsDir := "s3://bucket/savepoints"
+	formatType := v1beta1.SavepointFormatTypeNative
 	cluster := newTestClusterWithJob(&savepointsDir, nil)
+	cluster.Spec.FlinkVersion = "1.15.0"
+	cluster.Spec.Job.SavepointFormatType = &formatType
 	reconciler := newTestReconciler(cluster, newRedirectingHTTPClient(server.URL))
 
 	// when: cancelFlinkJob is called with takeSavepoint=true
@@ -359,6 +368,14 @@ func TestCancelFlinkJob_StopWithSavepoint_Success(t *testing.T) {
 	if sp.TriggerID != "trigger-abc" {
 		t.Errorf("expected trigger ID %q, got %q", "trigger-abc", sp.TriggerID)
 	}
+	if sp.FormatType != v1beta1.SavepointFormatTypeNative {
+		t.Errorf("expected format type %q, got %q", v1beta1.SavepointFormatTypeNative, sp.FormatType)
+	}
+	assert.DeepEqual(t, stopBody, map[string]interface{}{
+		"targetDirectory": savepointsDir,
+		"drain":           false,
+		"formatType":      "NATIVE",
+	})
 
 	// and: the job status records the savepoint location as the job's final savepoint
 	job := requireJobStatus(t, reconciler, cluster)

@@ -710,12 +710,13 @@ func (reconciler *ClusterReconciler) cancelFlinkJob(ctx context.Context, jobID s
 
 	if takeSavepoint && canTakeSavepoint(reconciler.observed.cluster) {
 		log.Info("Stopping job with savepoint", "jobID", jobID)
+		formatType := savepointFormatType(reconciler.observed.cluster)
 		triggerID, err := reconciler.flinkClient.StopJobWithSavepoint(
-			apiBaseURL, jobID, *reconciler.observed.cluster.Spec.Job.SavepointsDir)
+			apiBaseURL, jobID, *reconciler.observed.cluster.Spec.Job.SavepointsDir, string(formatType))
 		if err != nil {
 			return err
 		}
-		newSavepointStatus := reconciler.getNewSavepointStatus(triggerID.RequestID, v1beta1.SavepointReasonJobCancel, "", true)
+		newSavepointStatus := reconciler.getNewSavepointStatus(triggerID.RequestID, v1beta1.SavepointReasonJobCancel, "", true, formatType)
 		var newControlStatus *v1beta1.FlinkClusterControlStatus
 		reconciler.updateStatus(ctx, &newSavepointStatus, &newControlStatus)
 		location, err := reconciler.waitForSavepointCompleted(ctx, apiBaseURL, jobID, triggerID.RequestID)

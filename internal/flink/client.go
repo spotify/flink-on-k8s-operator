@@ -176,13 +176,23 @@ func (c *Client) StopJob(
 }
 
 // StopJobWithSavepoint stops a job with a savepoint atomically.
-func (c *Client) StopJobWithSavepoint(apiBaseURL string, jobID string, dir string) (*SavepointTriggerID, error) {
+// formatType is optional: pass an empty string to omit it (required for Flink < 1.15).
+func (c *Client) StopJobWithSavepoint(apiBaseURL string, jobID string, dir string, formatType string) (*SavepointTriggerID, error) {
 	url := fmt.Sprintf("%s/jobs/%s/stop", apiBaseURL, jobID)
 	// TODO: Do we want to allow specifying drain flag?
-	jsonStr := fmt.Sprintf(`{
-		"targetDirectory" : "%s",
-		"drain" : false
-	}`, dir)
+	var jsonStr string
+	if formatType != "" {
+		jsonStr = fmt.Sprintf(`{
+			"targetDirectory" : "%s",
+			"drain" : false,
+			"formatType" : "%s"
+		}`, dir, formatType)
+	} else {
+		jsonStr = fmt.Sprintf(`{
+			"targetDirectory" : "%s",
+			"drain" : false
+		}`, dir)
+	}
 	resp, err := c.httpClient.Post(url, "application/json", strings.NewReader(jsonStr))
 	if err != nil {
 		return nil, err

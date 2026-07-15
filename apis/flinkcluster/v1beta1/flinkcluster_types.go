@@ -576,7 +576,7 @@ type JobSpec struct {
 	// _(Optional)_ Savepoints dir where to store savepoints of the job.
 	SavepointsDir *string `json:"savepointsDir,omitempty"`
 
-	// _(Optional)_ Savepoint format type, "CANONICAL" or "NATIVE", default: "CANONICAL".
+	// _(Optional)_ Savepoint format type, "CANONICAL" or "NATIVE", default: "CANONICAL". Requires Flink 1.15 or later.
 	// +kubebuilder:validation:Enum=CANONICAL;NATIVE
 	// +kubebuilder:default:=CANONICAL
 	SavepointFormatType *SavepointFormatType `json:"savepointFormatType,omitempty"`

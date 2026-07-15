@@ -76,3 +76,61 @@ func TestTriggerSavepointPayload(t *testing.T) {
 		})
 	}
 }
+
+func TestStopJobWithSavepointPayload(t *testing.T) {
+	tests := []struct {
+		name         string
+		formatType   string
+		expectedBody map[string]interface{}
+	}{
+		{
+			name:       "with formatType NATIVE",
+			formatType: "NATIVE",
+			expectedBody: map[string]interface{}{
+				"targetDirectory": "/savepoints",
+				"drain":           false,
+				"formatType":      "NATIVE",
+			},
+		},
+		{
+			name:       "with formatType CANONICAL",
+			formatType: "CANONICAL",
+			expectedBody: map[string]interface{}{
+				"targetDirectory": "/savepoints",
+				"drain":           false,
+				"formatType":      "CANONICAL",
+			},
+		},
+		{
+			name:       "without formatType",
+			formatType: "",
+			expectedBody: map[string]interface{}{
+				"targetDirectory": "/savepoints",
+				"drain":           false,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var capturedBody map[string]interface{}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.URL.Path, "/jobs/job-1/stop")
+				body, err := io.ReadAll(r.Body)
+				assert.NilError(t, err)
+				assert.NilError(t, json.Unmarshal(body, &capturedBody))
+				w.Header().Set("Content-Type", "application/json")
+				_, err = w.Write([]byte(`{"request-id": "abc123"}`))
+				assert.NilError(t, err)
+			}))
+			defer server.Close()
+
+			client := NewClient(logr.Discard(), server.Client())
+			triggerID, err := client.StopJobWithSavepoint(server.URL, "job-1", "/savepoints", tt.formatType)
+
+			assert.NilError(t, err)
+			assert.Equal(t, triggerID.RequestID, "abc123")
+			assert.DeepEqual(t, capturedBody, tt.expectedBody)
+		})
+	}
+}
