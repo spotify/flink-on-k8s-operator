@@ -513,7 +513,7 @@ _Appears in:_
 | `fromSavepoint` _string_ | _(Optional)_ FromSavepoint where to restore the job from<br />Savepoint where to restore the job from (e.g., gs://my-savepoint/1234).<br />If flink job must be restored from the latest available savepoint when Flink job updating, this field must be unspecified. |  |  |
 | `allowNonRestoredState` _boolean_ | Allow non-restored state, default: `false`. | false |  |
 | `savepointsDir` _string_ | _(Optional)_ Savepoints dir where to store savepoints of the job. |  |  |
-| `savepointFormatType` _[SavepointFormatType](#savepointformattype)_ | _(Optional)_ Savepoint format type, "CANONICAL" or "NATIVE", default: "CANONICAL". Requires Flink 1.15 or later. | CANONICAL | Enum: [CANONICAL NATIVE] <br /> |
+| `savepointFormatType` _[SavepointFormatType](#savepointformattype)_ | _(Optional)_ Savepoint format type, "CANONICAL" or "NATIVE". Requires Flink 1.15 or later. |  | Enum: [CANONICAL NATIVE] <br /> |
 | `takeSavepointOnUpdate` _boolean_ | _(Optional)_ Should take savepoint before updating job, default: `true`.<br />If this is set as false, maxStateAgeToRestoreSeconds must be provided to limit the savepoint age to restore. |  |  |
 | `maxStateAgeToRestoreSeconds` _integer_ | _(Optional)_ Maximum age of the savepoint that allowed to restore state.<br />This is applied to auto restart on failure, update from stopped state and update without taking savepoint.<br />If nil, job can be restarted only when the latest savepoint is the final job state (created by "stop with savepoint")<br />- that is, only when job can be resumed from the suspended state. |  | Minimum: 0 <br /> |
 | `autoSavepointSeconds` _integer_ | _(Optional)_ Automatically take a savepoint to the `savepointsDir` every n seconds. |  |  |
