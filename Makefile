@@ -52,6 +52,24 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 generate-crd-docs: crd-ref-docs ## Generate CRD documentation to docs/crd.md
 	$(CRD_REF_DOCS) --source-path=./apis/flinkcluster/v1beta1 --config=docs/config.yaml --renderer=markdown --output-path=docs/crd.md
 
+.PHONY: verify-helm-crd-schema
+verify-helm-crd-schema: kustomize ## Verify the Helm CRD schema matches the generated CRD.
+	@set -euo pipefail; \
+	tmp_dir=$$(mktemp -d); \
+	trap 'rm -rf "$$tmp_dir"' EXIT; \
+	$(KUSTOMIZE) build config/default | \
+		yq -o=json -I=2 'select(.kind == "CustomResourceDefinition" and .metadata.name == "flinkclusters.flinkoperator.k8s.io") | .spec.versions[] | select(.name == "v1beta1") | .schema.openAPIV3Schema | sort_keys(..)' - > "$$tmp_dir/generated.json"; \
+	sed -E 's/\{\{[^}]+\}\}/helm-value/g' helm-chart/flink-operator/templates/flink-cluster-crd.yaml | \
+		yq -o=json -I=2 '.spec.versions[] | select(.name == "v1beta1") | .schema.openAPIV3Schema | sort_keys(..)' - > "$$tmp_dir/helm.json"; \
+	grep -q '^{' "$$tmp_dir/generated.json" && grep -q '^{' "$$tmp_dir/helm.json" || { \
+		echo "Failed to extract the v1beta1 OpenAPI schema for comparison." >&2; \
+		exit 1; \
+	}; \
+	diff -u "$$tmp_dir/generated.json" "$$tmp_dir/helm.json" || { \
+		echo "Helm CRD schema is out of sync. Run 'cd helm-chart/flink-operator && ./update_template.sh' and commit the refreshed CRD template." >&2; \
+		exit 1; \
+	}
+
 tidy: ## Run go mod tidy
 	go mod tidy
 
@@ -63,6 +81,7 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: manifests generate fmt vet tidy kustomize envtest ## Run tests.
+	$(MAKE) verify-helm-crd-schema
 	rm -rf config/test && mkdir -p config/test/crd
 	$(KUSTOMIZE) build config/crd > config/test/crd/flinkoperator.k8s.io_flinkclusters.yaml
 	KUBEBUILDER_ASSETS=$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path) go test ./... -coverprofile cover.out

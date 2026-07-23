@@ -245,8 +245,12 @@ savepoints in GCS.
 ## Savepoint format
 
 Flink supports two savepoint formats: `CANONICAL` and `NATIVE`. You can control which format is used by setting the
-`savepointFormatType` property in the job spec. If not specified, Flink uses the canonical format by default. This option
-requires Flink 1.15 or later; for older or unparseable Flink versions, the operator omits the format parameter.
+`savepointFormatType` property in the job spec. If it is omitted, the operator omits the REST format parameter and
+`status.savepoint.formatType`, allowing Flink to choose its own default (currently canonical). The operator also omits
+this parameter for Flink versions before 1.15 or when the Flink version cannot be parsed.
+
+Removing the CRD default is not retroactive. Clusters created while an older CRD defaulted this field may retain an
+explicit `CANONICAL` value in their stored spec until the field is removed or changed.
 
 For more details on the differences between the two formats and when to use each, see the
 [Flink documentation on savepoint formats](https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/savepoints/#savepoint-format).
