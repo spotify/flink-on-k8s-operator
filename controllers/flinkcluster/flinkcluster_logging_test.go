@@ -116,19 +116,23 @@ func TestLogObservedClusterStateSummaryDoesNotIncludeFullObjects(t *testing.T) {
 			"large": bigValue,
 		},
 	}
-	haConfigMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-ha-config",
-			Namespace: "test-namespace",
-		},
-		Data: map[string]string{
-			"large": bigValue,
+	flinkNativeConfigMaps := &corev1.ConfigMapList{
+		Items: []corev1.ConfigMap{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-ha-config",
+					Namespace: "test-namespace",
+				},
+				Data: map[string]string{
+					"large": bigValue,
+				},
+			},
 		},
 	}
 	observed := &ObservedClusterState{
-		cluster:     cluster,
-		configMap:   configMap,
-		haConfigMap: haConfigMap,
+		cluster:               cluster,
+		configMap:             configMap,
+		flinkNativeConfigMaps: flinkNativeConfigMaps,
 		revisions: []*appsv1.ControllerRevision{
 			{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-cluster-abc-1"},
@@ -148,9 +152,9 @@ func TestLogObservedClusterStateSummaryDoesNotIncludeFullObjects(t *testing.T) {
 	if !strings.Contains(payloadString, "test-cluster") {
 		t.Fatalf("summary lost object identity: %s", payloadString)
 	}
-	haConfigMapSummary, ok := logObservedClusterStateSummary(observed)["haConfigMap"].(map[string]any)
-	if !ok || haConfigMapSummary["name"] != "test-ha-config" {
-		t.Fatalf("summary lost HA ConfigMap identity: %#v", haConfigMapSummary)
+	summary := logObservedClusterStateSummary(observed)
+	if count, ok := summary["flinkNativeConfigMapCount"].(int); !ok || count != 1 {
+		t.Fatalf("summary lost Flink-native ConfigMap count: %#v", summary["flinkNativeConfigMapCount"])
 	}
 }
 
@@ -179,14 +183,18 @@ func TestLogObservedClusterStateFullIncludesFullObjects(t *testing.T) {
 			"large": bigValue,
 		},
 	}
-	haConfigMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-ha-config"},
-		Data:       map[string]string{"ha-marker": bigValue},
+	flinkNativeConfigMaps := &corev1.ConfigMapList{
+		Items: []corev1.ConfigMap{
+			{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-ha-config"},
+				Data:       map[string]string{"ha-marker": bigValue},
+			},
+		},
 	}
 	observed := &ObservedClusterState{
-		cluster:     cluster,
-		configMap:   configMap,
-		haConfigMap: haConfigMap,
+		cluster:               cluster,
+		configMap:             configMap,
+		flinkNativeConfigMaps: flinkNativeConfigMaps,
 		flinkJob: FlinkJob{
 			status: &flink.Job{Id: "submitted-job-id", Name: "submitted-job-marker"},
 			list: &flink.JobsOverview{Jobs: []flink.Job{
@@ -212,7 +220,7 @@ func TestLogObservedClusterStateFullIncludesFullObjects(t *testing.T) {
 
 	full := logObservedClusterStateFull(observed)
 	for _, key := range []string{
-		"haConfigMap", "flinkJob", "flinkJobList", "flinkJobExceptions",
+		"flinkNativeConfigMaps", "flinkJob", "flinkJobList", "flinkJobExceptions",
 		"unexpectedFlinkJobs", "jobSubmitter", "jobSubmitterPod", "jobSubmitterLog",
 	} {
 		if _, ok := full[key]; !ok {
@@ -495,5 +503,32 @@ func assertEqual(t *testing.T, got any, want any) {
 	t.Helper()
 	if got != want {
 		t.Fatalf("got %#v (%T), want %#v (%T)", got, got, want, want)
+	}
+}
+
+func TestLogFlinkNativeConfigMapCount(t *testing.T) {
+	assertEqual(t, logFlinkNativeConfigMapCount(nil), logNilValue)
+	assertEqual(t, logFlinkNativeConfigMapCount(&corev1.ConfigMapList{}), 0)
+	assertEqual(t, logFlinkNativeConfigMapCount(&corev1.ConfigMapList{
+		Items: []corev1.ConfigMap{{ObjectMeta: metav1.ObjectMeta{Name: "a"}}, {ObjectMeta: metav1.ObjectMeta{Name: "b"}}},
+	}), 2)
+}
+
+func TestLogFlinkNativeConfigMapNames(t *testing.T) {
+	assertEqual(t, logFlinkNativeConfigMapNames(nil), logNilValue)
+
+	names := logFlinkNativeConfigMapNames(&corev1.ConfigMapList{}).([]string)
+	if len(names) != 0 {
+		t.Fatalf("expected empty slice, got %v", names)
+	}
+
+	names = logFlinkNativeConfigMapNames(&corev1.ConfigMapList{
+		Items: []corev1.ConfigMap{
+			{ObjectMeta: metav1.ObjectMeta{Name: "cm-a"}},
+			{ObjectMeta: metav1.ObjectMeta{Name: "cm-b"}},
+		},
+	}).([]string)
+	if len(names) != 2 || names[0] != "cm-a" || names[1] != "cm-b" {
+		t.Fatalf("expected [cm-a cm-b], got %v", names)
 	}
 }

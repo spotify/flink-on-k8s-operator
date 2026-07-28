@@ -155,3 +155,103 @@ func TestShouldRestartJob(t *testing.T) {
 	restart = jobStatus.ShouldRestart(&jobSpec)
 	assert.Equal(t, restart, false)
 }
+
+func TestIsHighAvailabilityEnabled(t *testing.T) {
+	tests := []struct {
+		name       string
+		properties map[string]string
+		want       bool
+	}{
+		{
+			name:       "nil properties",
+			properties: nil,
+			want:       false,
+		},
+		{
+			name:       "empty properties",
+			properties: map[string]string{},
+			want:       false,
+		},
+		{
+			name: "deprecated high-availability property",
+			properties: map[string]string{
+				"high-availability":            "kubernetes",
+				"kubernetes.cluster-id":        "my-cluster",
+				"high-availability.storageDir": "s3://bucket/ha",
+			},
+			want: true,
+		},
+		{
+			name: "new high-availability.type property",
+			properties: map[string]string{
+				"high-availability.type":       "kubernetes",
+				"kubernetes.cluster-id":        "my-cluster",
+				"high-availability.storageDir": "s3://bucket/ha",
+			},
+			want: true,
+		},
+		{
+			name: "high-availability set to none",
+			properties: map[string]string{
+				"high-availability":            "NONE",
+				"kubernetes.cluster-id":        "my-cluster",
+				"high-availability.storageDir": "s3://bucket/ha",
+			},
+			want: false,
+		},
+		{
+			name: "missing cluster-id",
+			properties: map[string]string{
+				"high-availability":            "kubernetes",
+				"high-availability.storageDir": "s3://bucket/ha",
+			},
+			want: false,
+		},
+		{
+			name: "missing storageDir",
+			properties: map[string]string{
+				"high-availability":     "kubernetes",
+				"kubernetes.cluster-id": "my-cluster",
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fc := &FlinkCluster{Spec: FlinkClusterSpec{FlinkProperties: tt.properties}}
+			assert.Equal(t, fc.IsHighAvailabilityEnabled(), tt.want)
+		})
+	}
+}
+
+func TestGetKubernetesClusterID(t *testing.T) {
+	tests := []struct {
+		name       string
+		properties map[string]string
+		want       string
+	}{
+		{
+			name:       "returns cluster-id when HA enabled",
+			properties: map[string]string{"high-availability": "kubernetes", "kubernetes.cluster-id": "my-id", "high-availability.storageDir": "s3://bucket"},
+			want:       "my-id",
+		},
+		{
+			name:       "returns cluster-id with new HA property",
+			properties: map[string]string{"high-availability.type": "kubernetes", "kubernetes.cluster-id": "my-id", "high-availability.storageDir": "s3://bucket"},
+			want:       "my-id",
+		},
+		{
+			name:       "returns empty when HA disabled",
+			properties: nil,
+			want:       "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fc := &FlinkCluster{Spec: FlinkClusterSpec{FlinkProperties: tt.properties}}
+			assert.Equal(t, fc.GetKubernetesClusterID(), tt.want)
+		})
+	}
+}

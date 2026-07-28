@@ -84,7 +84,7 @@ func (reconciler *ClusterReconciler) reconcile(ctx context.Context) (ctrl.Result
 		return ctrl.Result{}, err
 	}
 
-	err = reconciler.reconcileHAConfigMap(ctx)
+	err = reconciler.reconcileFlinkNativeConfigMaps(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -318,17 +318,19 @@ func (reconciler *ClusterReconciler) reconcileConfigMap(ctx context.Context) err
 	return reconciler.reconcileComponent(ctx, "ConfigMap", desiredConfigMap, observedConfigMap)
 }
 
-// Set the owner reference of the cluster to the HA ConfigMap (if it doesn't already have one)
-func (reconciler *ClusterReconciler) reconcileHAConfigMap(ctx context.Context) error {
-	var observedHAConfigMap = reconciler.observed.haConfigMap
-	if observedHAConfigMap == nil {
+// Set the owner reference of the cluster to the ConfigMaps (if they don't already have one)
+func (reconciler *ClusterReconciler) reconcileFlinkNativeConfigMaps(ctx context.Context) error {
+	observed := reconciler.observed.flinkNativeConfigMaps
+	if observed == nil {
 		return nil
 	}
-	if len(observedHAConfigMap.OwnerReferences) == 0 {
-		observedHAConfigMap.OwnerReferences = []metav1.OwnerReference{ToOwnerReference(reconciler.observed.cluster)}
-		err := reconciler.updateComponent(ctx, observedHAConfigMap, "HA ConfigMap")
-		if err != nil {
-			return err
+	for i := range observed.Items {
+		cm := &observed.Items[i]
+		if len(cm.OwnerReferences) == 0 {
+			cm.OwnerReferences = []metav1.OwnerReference{ToOwnerReference(reconciler.observed.cluster)}
+			if err := reconciler.updateComponent(ctx, cm, "Flink-native ConfigMap"); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

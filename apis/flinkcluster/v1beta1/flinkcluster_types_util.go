@@ -11,6 +11,7 @@ import (
 
 const (
 	haConfigType       = "high-availability"
+	haConfigTypeNew    = "high-availability.type"
 	haConfigStorageDir = "high-availability.storageDir"
 	haConfigClusterId  = "kubernetes.cluster-id"
 )
@@ -133,6 +134,9 @@ func (fc *FlinkCluster) IsHighAvailabilityEnabled() bool {
 		return false
 	}
 	v, ok := fc.Spec.FlinkProperties[haConfigType]
+	if !ok {
+		v, ok = fc.Spec.FlinkProperties[haConfigTypeNew]
+	}
 	if !ok || strings.ToLower(v) == "none" {
 		return false
 	}
@@ -147,9 +151,17 @@ func (fc *FlinkCluster) IsHighAvailabilityEnabled() bool {
 	return true
 }
 
-func (fc *FlinkCluster) GetHAConfigMapName() string {
+func (fc *FlinkCluster) GetKubernetesClusterID() string {
 	if !fc.IsHighAvailabilityEnabled() {
 		return ""
 	}
-	return fmt.Sprintf("%s-cluster-config-map", fc.Spec.FlinkProperties[haConfigClusterId])
+	return fc.Spec.FlinkProperties[haConfigClusterId]
+}
+
+func (fc *FlinkCluster) GetHAConfigMapName() string {
+	id := fc.GetKubernetesClusterID()
+	if id == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s-cluster-config-map", id)
 }

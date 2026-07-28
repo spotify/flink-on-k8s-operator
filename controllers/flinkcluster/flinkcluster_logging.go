@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -44,26 +45,26 @@ func logObservedClusterStateSummary(observed *ObservedClusterState) map[string]a
 	}
 
 	summary := map[string]any{
-		"cluster":                 v1beta1.FlinkClusterLogSummary(observed.cluster),
-		"controllerRevisions":     logControllerRevisionsSummary(observed.revisions),
-		"configMap":               logObjectSummary(observed.configMap),
-		"haConfigMap":             logObjectSummary(observed.haConfigMap),
-		"podDisruptionBudget":     logObjectSummary(observed.podDisruptionBudget),
-		"jobManagerStatefulSet":   logObjectSummary(observed.jmStatefulSet),
-		"jobManagerService":       logObjectSummary(observed.jmService),
-		"jobManagerIngress":       logObjectSummary(observed.jmIngress),
-		"taskManagerStatefulSet":  logObjectSummary(observed.tmStatefulSet),
-		"taskManagerDeployment":   logObjectSummary(observed.tmDeployment),
-		"taskManagerService":      logObjectSummary(observed.tmService),
-		"horizontalPodAutoscaler": logObjectSummary(observed.horizontalPodAutoscaler),
-		"flinkJob":                logFlinkJobSummary(observed.flinkJob.status),
-		"flinkJobCount":           logFlinkJobCount(observed.flinkJob.list),
-		"flinkJobExceptionCount":  logFlinkJobExceptionCount(observed.flinkJob.exceptions),
-		"unexpectedFlinkJobCount": len(observed.flinkJob.unexpected),
-		"jobSubmitter":            logObjectSummary(observed.flinkJobSubmitter.job),
-		"jobSubmitterPod":         logObjectSummary(observed.flinkJobSubmitter.pod),
-		"jobSubmitterLog":         logSubmitterLogSummary(observed.flinkJobSubmitter.log),
-		"savepoint":               logFlinkSavepointSummary(observed.savepoint.status, observed.savepoint.error),
+		"cluster":                   v1beta1.FlinkClusterLogSummary(observed.cluster),
+		"controllerRevisions":       logControllerRevisionsSummary(observed.revisions),
+		"configMap":                 logObjectSummary(observed.configMap),
+		"flinkNativeConfigMapCount": logFlinkNativeConfigMapCount(observed.flinkNativeConfigMaps),
+		"podDisruptionBudget":       logObjectSummary(observed.podDisruptionBudget),
+		"jobManagerStatefulSet":     logObjectSummary(observed.jmStatefulSet),
+		"jobManagerService":         logObjectSummary(observed.jmService),
+		"jobManagerIngress":         logObjectSummary(observed.jmIngress),
+		"taskManagerStatefulSet":    logObjectSummary(observed.tmStatefulSet),
+		"taskManagerDeployment":     logObjectSummary(observed.tmDeployment),
+		"taskManagerService":        logObjectSummary(observed.tmService),
+		"horizontalPodAutoscaler":   logObjectSummary(observed.horizontalPodAutoscaler),
+		"flinkJob":                  logFlinkJobSummary(observed.flinkJob.status),
+		"flinkJobCount":             logFlinkJobCount(observed.flinkJob.list),
+		"flinkJobExceptionCount":    logFlinkJobExceptionCount(observed.flinkJob.exceptions),
+		"unexpectedFlinkJobCount":   len(observed.flinkJob.unexpected),
+		"jobSubmitter":              logObjectSummary(observed.flinkJobSubmitter.job),
+		"jobSubmitterPod":           logObjectSummary(observed.flinkJobSubmitter.pod),
+		"jobSubmitterLog":           logSubmitterLogSummary(observed.flinkJobSubmitter.log),
+		"savepoint":                 logFlinkSavepointSummary(observed.savepoint.status, observed.savepoint.error),
 	}
 	if observed.persistentVolumeClaims != nil {
 		summary["persistentVolumeClaimCount"] = len(observed.persistentVolumeClaims.Items)
@@ -101,7 +102,7 @@ func logObservedClusterStateFull(observed *ObservedClusterState) map[string]any 
 		"cluster":                 logFullObject(observed.cluster),
 		"controllerRevisions":     observed.revisions,
 		"configMap":               logFullObject(observed.configMap),
-		"haConfigMap":             logFullObject(observed.haConfigMap),
+		"flinkNativeConfigMaps":   logFlinkNativeConfigMapNames(observed.flinkNativeConfigMaps),
 		"podDisruptionBudget":     logFullObject(observed.podDisruptionBudget),
 		"jobManagerStatefulSet":   logFullObject(observed.jmStatefulSet),
 		"jobManagerService":       logFullObject(observed.jmService),
@@ -144,6 +145,24 @@ func logDesiredClusterStateFull(desired *model.DesiredClusterState) map[string]a
 		"horizontalPodAutoscaler": logFullObject(desired.HorizontalPodAutoscaler),
 		"job":                     logFullObject(desired.Job),
 	}
+}
+
+func logFlinkNativeConfigMapCount(cms *corev1.ConfigMapList) any {
+	if cms == nil {
+		return logNilValue
+	}
+	return len(cms.Items)
+}
+
+func logFlinkNativeConfigMapNames(cms *corev1.ConfigMapList) any {
+	if cms == nil {
+		return logNilValue
+	}
+	names := make([]string, len(cms.Items))
+	for i, cm := range cms.Items {
+		names[i] = cm.Name
+	}
+	return names
 }
 
 func logFullObject(obj any) any {

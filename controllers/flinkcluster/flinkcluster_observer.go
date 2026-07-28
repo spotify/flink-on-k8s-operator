@@ -58,7 +58,7 @@ type ObservedClusterState struct {
 	cluster                 *v1beta1.FlinkCluster
 	revisions               []*appsv1.ControllerRevision
 	configMap               *corev1.ConfigMap
-	haConfigMap             *corev1.ConfigMap
+	flinkNativeConfigMaps   *corev1.ConfigMapList
 	jmStatefulSet           *appsv1.StatefulSet
 	jmService               *corev1.Service
 	jmIngress               *networkingv1.Ingress
@@ -154,9 +154,9 @@ func (observer *ClusterStateObserver) observe(ctx context.Context, observed *Obs
 			return err
 		}
 
-		// HA ConfigMap.
-		if err := observer.observeHAConfigMap(ctx, observed); err != nil {
-			log.Error(err, "Failed to get HA configMap")
+		// Flink-native ConfigMaps (HA cluster + per-job checkpoint ConfigMaps).
+		if err := observer.observeFlinkNativeConfigMaps(ctx, observed); err != nil {
+			log.Error(err, "Failed to list Flink-native configMaps")
 			return err
 		}
 
@@ -473,21 +473,27 @@ func (observer *ClusterStateObserver) observeConfigMap(
 	return nil
 }
 
-func (observer *ClusterStateObserver) observeHAConfigMap(
+func (observer *ClusterStateObserver) observeFlinkNativeConfigMaps(
 	ctx context.Context,
 	observed *ObservedClusterState) error {
 	var fc = observed.cluster
-	observed.haConfigMap = nil
-	haConfigMapName := fc.GetHAConfigMapName()
-	if haConfigMapName == "" {
+	clusterID := fc.GetKubernetesClusterID()
+	if clusterID == "" {
 		return nil
 	}
-	observed.haConfigMap = new(corev1.ConfigMap)
-	if err := observer.observeObject(ctx, haConfigMapName, observed.haConfigMap); err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			return err
-		}
-		observed.haConfigMap = nil
+	var clusterNamespace = observer.request.Namespace
+	var selector = labels.SelectorFromSet(map[string]string{
+		"app":  clusterID,
+		"type": "flink-native-kubernetes",
+	})
+	observed.flinkNativeConfigMaps = new(corev1.ConfigMapList)
+	err := observer.k8sClient.List(
+		ctx,
+		observed.flinkNativeConfigMaps,
+		client.InNamespace(clusterNamespace),
+		client.MatchingLabelsSelector{Selector: selector})
+	if client.IgnoreNotFound(err) != nil {
+		return err
 	}
 	return nil
 }
