@@ -1410,9 +1410,9 @@ log4j.logger.org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannel
 // TODO: Wouldn't it be better to create a file, put it in an operator image, and read from them?.
 // Provide logging profiles
 func getLogConf(spec v1beta1.FlinkClusterSpec) map[string]string {
-	result := spec.LogConfig
-	if result == nil {
-		result = make(map[string]string, 2)
+	result := make(map[string]string)
+	for k, v := range spec.LogConfig {
+		result[k] = v
 	}
 	if _, isPresent := result["log4j-console.properties"]; !isPresent {
 		result["log4j-console.properties"] = DefaultLog4jConfig

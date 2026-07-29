@@ -1553,6 +1553,22 @@ func Test_getLogConf(t *testing.T) {
 	}
 }
 
+func TestGetLogConfDoesNotMutateSpecLogConfig(t *testing.T) {
+	original := map[string]string{
+		"log4j-console.properties": "user-provided",
+	}
+	spec := v1beta1.FlinkClusterSpec{LogConfig: original}
+
+	result := getLogConf(spec)
+	result["log4j-cli.properties"] = "should not leak"
+	result["config.yaml"] = "should not leak"
+
+	want := map[string]string{"log4j-console.properties": "user-provided"}
+	if !reflect.DeepEqual(spec.LogConfig, want) {
+		t.Errorf("spec.LogConfig was mutated by getLogConf/its caller: got %v, want %v", spec.LogConfig, want)
+	}
+}
+
 func TestClassPath(t *testing.T) {
 	var jmRPCPort int32 = 6123
 	var jmBlobPort int32 = 6124
