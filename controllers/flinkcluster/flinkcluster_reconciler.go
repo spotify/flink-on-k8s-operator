@@ -42,7 +42,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
+
+// jobManagerShutdownFinalizer prevents a FlinkCluster CR from being deleted until the JobManager
+// has actually terminated. It's needed because Flink's HA leader election (running in the JM pod
+// during graceful termination) recreates the HA ConfigMap without owner references if K8S GC
+// deletes it while the JM is still alive.
+const jobManagerShutdownFinalizer = "flinkoperator.k8s.io/jobmanager-shutdown"
 
 // ClusterReconciler takes actions to drive the observed state towards the
 // desired state.
@@ -68,6 +75,16 @@ func (reconciler *ClusterReconciler) reconcile(ctx context.Context) (ctrl.Result
 	if reconciler.observed.cluster == nil {
 		log.Info("The cluster has been deleted, no action to take")
 		return ctrl.Result{}, nil
+	}
+
+	if reconciler.observed.cluster.IsHighAvailabilityEnabled() {
+		if err := reconciler.ensureFinalizer(ctx); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	if reconciler.observed.cluster.DeletionTimestamp != nil {
+		return reconciler.reconcileDeletion(ctx)
 	}
 
 	if shouldUpdateCluster(&reconciler.observed) {
@@ -140,6 +157,81 @@ func (reconciler *ClusterReconciler) reconcile(ctx context.Context) (ctrl.Result
 	}
 
 	return result, nil
+}
+
+// reconcileDeletion waits for the JobManager to actually terminate, then removes the finalizer so
+// deletion of the FlinkCluster can complete. It's a no-op if the finalizer isn't present (e.g.
+// non-HA clusters).
+func (reconciler *ClusterReconciler) reconcileDeletion(ctx context.Context) (ctrl.Result, error) {
+	log := logr.FromContextOrDiscard(ctx)
+	cluster := reconciler.observed.cluster
+
+	if !controllerutil.ContainsFinalizer(cluster, jobManagerShutdownFinalizer) {
+		return ctrl.Result{}, nil
+	}
+
+	// Claim ownership of any Flink-native ConfigMaps discovered while waiting for the JobManager
+	// to terminate, so ones created after deletion started aren't left orphaned once the
+	// finalizer is removed and the cluster is garbage collected.
+	if err := reconciler.reconcileFlinkNativeConfigMaps(ctx); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if IsApplicationModeCluster(cluster) {
+		if job := reconciler.observed.flinkJobSubmitter.job; job != nil {
+			if err := reconciler.deleteJob(ctx, job); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	} else {
+		if jm := reconciler.observed.jmStatefulSet; jm != nil {
+			if err := reconciler.deleteComponent(ctx, jm, "JobManager StatefulSet"); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	}
+
+	podsRemaining, err := reconciler.jobManagerPodsRemaining(ctx)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if podsRemaining {
+		log.Info("Waiting for JobManager pods to terminate before allowing cluster deletion to complete")
+		return requeueResult, nil
+	}
+
+	controllerutil.RemoveFinalizer(cluster, jobManagerShutdownFinalizer)
+	if err := reconciler.k8sClient.Update(ctx, cluster); err != nil {
+		log.Error(err, "Failed to remove JobManager shutdown finalizer")
+		return ctrl.Result{}, err
+	}
+
+	return ctrl.Result{}, nil
+}
+
+func (reconciler *ClusterReconciler) jobManagerPodsRemaining(ctx context.Context) (bool, error) {
+	cluster := reconciler.observed.cluster
+	var podList corev1.PodList
+	if err := reconciler.k8sClient.List(
+		ctx,
+		&podList,
+		client.InNamespace(cluster.Namespace),
+		client.MatchingLabels{"cluster": cluster.Name, "component": "jobmanager"},
+	); err != nil {
+		return false, err
+	}
+	return len(podList.Items) > 0, nil
+}
+
+// ensureFinalizer adds the JobManager shutdown finalizer to HA-enabled clusters that don't already
+// have it.
+func (reconciler *ClusterReconciler) ensureFinalizer(ctx context.Context) error {
+	cluster := reconciler.observed.cluster
+	if controllerutil.ContainsFinalizer(cluster, jobManagerShutdownFinalizer) {
+		return nil
+	}
+	controllerutil.AddFinalizer(cluster, jobManagerShutdownFinalizer)
+	return reconciler.k8sClient.Update(ctx, cluster)
 }
 
 func (reconciler *ClusterReconciler) reconcileBatchScheduler() error {
