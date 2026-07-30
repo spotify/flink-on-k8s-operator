@@ -241,6 +241,31 @@ func TestReconcileDeletion(t *testing.T) {
 		assert.Assert(t, apierrors.IsNotFound(getErr))
 	})
 
+	t.Run("application mode: removes finalizer immediately when the submitter job is already gone", func(t *testing.T) {
+		// given: an Application-mode HA cluster whose job already reached a terminal state and
+		// was cleaned up (default CleanupPolicy) before deletion started.
+		cluster := testHACluster(true)
+		fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(cluster).Build()
+		reconciler := ClusterReconciler{
+			k8sClient: fakeClient,
+			observed: ObservedClusterState{
+				cluster: cluster,
+				// No submitter job observed (FlinkJobSubmitter zero value).
+			},
+		}
+
+		// when
+		result, err := reconciler.reconcileDeletion(ctx)
+
+		// then: no requeue
+		assert.NilError(t, err)
+		assert.Equal(t, result, ctrl.Result{})
+
+		// jobManagerShutdownFinalizer was removed, which lets the API server (and the fake client) complete the cluster's deletion.
+		getErr := fakeClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, &v1beta1.FlinkCluster{})
+		assert.Assert(t, apierrors.IsNotFound(getErr))
+	})
+
 	t.Run("session mode: deletes JM StatefulSet and requeues without removing the finalizer while the JM pod is still running", func(t *testing.T) {
 		// given: a session-mode HA cluster whose JM StatefulSet still has a running pod.
 		cluster := testSessionHACluster(true)

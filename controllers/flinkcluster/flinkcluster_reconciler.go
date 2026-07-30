@@ -200,8 +200,9 @@ func (reconciler *ClusterReconciler) reconcileDeletion(ctx context.Context) (ctr
 		return requeueResult, nil
 	}
 
+	patch := client.MergeFrom(cluster.DeepCopy())
 	controllerutil.RemoveFinalizer(cluster, jobManagerShutdownFinalizer)
-	if err := reconciler.k8sClient.Update(ctx, cluster); err != nil {
+	if err := reconciler.k8sClient.Patch(ctx, cluster, patch); err != nil {
 		log.Error(err, "Failed to remove JobManager shutdown finalizer")
 		return ctrl.Result{}, err
 	}
@@ -230,8 +231,9 @@ func (reconciler *ClusterReconciler) ensureFinalizer(ctx context.Context) error 
 	if controllerutil.ContainsFinalizer(cluster, jobManagerShutdownFinalizer) {
 		return nil
 	}
+	patch := client.MergeFrom(cluster.DeepCopy())
 	controllerutil.AddFinalizer(cluster, jobManagerShutdownFinalizer)
-	return reconciler.k8sClient.Update(ctx, cluster)
+	return reconciler.k8sClient.Patch(ctx, cluster, patch)
 }
 
 func (reconciler *ClusterReconciler) reconcileBatchScheduler() error {
