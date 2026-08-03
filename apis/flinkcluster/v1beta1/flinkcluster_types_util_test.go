@@ -200,6 +200,16 @@ func TestIsHighAvailabilityEnabled(t *testing.T) {
 			want: false,
 		},
 		{
+			name: "new property takes precedence",
+			properties: map[string]string{
+				"high-availability":            "none",
+				"high-availability.type":       "kubernetes",
+				"kubernetes.cluster-id":        "my-cluster",
+				"high-availability.storageDir": "s3://bucket/ha",
+			},
+			want: true,
+		},
+		{
 			name: "missing cluster-id",
 			properties: map[string]string{
 				"high-availability":            "kubernetes",
@@ -212,6 +222,14 @@ func TestIsHighAvailabilityEnabled(t *testing.T) {
 			properties: map[string]string{
 				"high-availability":     "kubernetes",
 				"kubernetes.cluster-id": "my-cluster",
+			},
+			want: false,
+		},
+		{
+			name: "missing high-availability",
+			properties: map[string]string{
+				"kubernetes.cluster-id":        "my-cluster",
+				"high-availability.storageDir": "s3://bucket/ha",
 			},
 			want: false,
 		},

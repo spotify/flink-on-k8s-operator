@@ -133,9 +133,9 @@ func (fc *FlinkCluster) IsHighAvailabilityEnabled() bool {
 	if fc.Spec.FlinkProperties == nil {
 		return false
 	}
-	v, ok := fc.Spec.FlinkProperties[haConfigType]
+	v, ok := fc.Spec.FlinkProperties[haConfigTypeNew]
 	if !ok {
-		v, ok = fc.Spec.FlinkProperties[haConfigTypeNew]
+		v, ok = fc.Spec.FlinkProperties[haConfigType]
 	}
 	if !ok || strings.ToLower(v) == "none" {
 		return false
