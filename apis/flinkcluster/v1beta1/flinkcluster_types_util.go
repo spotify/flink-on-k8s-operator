@@ -84,13 +84,10 @@ func (j *JobStatus) UpdateReady(spec *JobSpec, observeTime time.Time) bool {
 	case !isBlank(spec.FromSavepoint):
 		return true
 	case j.IsActive():
-		// When job is active and takeSavepointOnUpdate is true, only after taking savepoint with final job state,
-		// proceed job update.
-		if takeSavepointOnUpdate {
-			if j.FinalSavepoint {
-				return true
-			}
-		} else if j.IsSavepointUpToDate(spec, observeTime) {
+		// A completed final savepoint does not mean that the asynchronous job
+		// cancellation has completed. Keep the update in the preparing state
+		// until Flink reports a terminal job state.
+		if !takeSavepointOnUpdate && j.IsSavepointUpToDate(spec, observeTime) {
 			return true
 		}
 	case j.State == JobStateUpdating && !takeSavepointOnUpdate:

@@ -387,6 +387,17 @@ func TestCancelFlinkJob_StopWithSavepoint_Success(t *testing.T) {
 	}
 }
 
+func TestCanSuspendJobWaitsForTerminalStateAfterFinalSavepoint(t *testing.T) {
+	var reconciler = &ClusterReconciler{}
+	var savepoint = &v1beta1.SavepointStatus{
+		JobID:         "job-123",
+		TriggerReason: v1beta1.SavepointReasonUpdate,
+		State:         v1beta1.SavepointStateSucceeded,
+	}
+
+	assert.Equal(t, reconciler.canSuspendJob(context.Background(), "job-123", savepoint), false)
+}
+
 func TestCancelFlinkJob_StopWithSavepoint_SavepointFails(t *testing.T) {
 	// given: Flink REST API that reports a failed savepoint
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

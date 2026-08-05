@@ -788,7 +788,7 @@ func (reconciler *ClusterReconciler) canSuspendJob(ctx context.Context, jobID st
 	switch s.State {
 	case v1beta1.SavepointStateSucceeded:
 		log.Info("Successfully savepoint completed, wait until the job stops")
-		return true
+		return false
 	case v1beta1.SavepointStateInProgress:
 		log.Info("Savepoint is in progress, wait until it is completed")
 		return false
