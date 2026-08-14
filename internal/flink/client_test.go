@@ -60,10 +60,14 @@ func TestTriggerSavepointPayload(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var capturedBody map[string]interface{}
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				body, _ := io.ReadAll(r.Body)
-				json.Unmarshal(body, &capturedBody)
+				assert.Equal(t, r.Method, http.MethodPost)
+				assert.Equal(t, r.URL.Path, "/jobs/job-1/savepoints")
+				body, err := io.ReadAll(r.Body)
+				assert.NilError(t, err)
+				assert.NilError(t, json.Unmarshal(body, &capturedBody))
 				w.Header().Set("Content-Type", "application/json")
-				w.Write([]byte(`{"request-id": "abc123"}`))
+				_, err = w.Write([]byte(`{"request-id": "abc123"}`))
+				assert.NilError(t, err)
 			}))
 			defer server.Close()
 

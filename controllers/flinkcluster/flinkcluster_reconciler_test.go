@@ -309,6 +309,292 @@ func TestReconcileJobKeepsSubmitterAtNextRevision(t *testing.T) {
 	))
 }
 
+func TestReconcileJobResubmitsSucceededJobStoppedForUpdate(t *testing.T) {
+	// given: a job stopped with a final savepoint for an update
+	var scheme = runtime.NewScheme()
+	assert.NilError(t, v1beta1.AddToScheme(scheme))
+	assert.NilError(t, batchv1.AddToScheme(scheme))
+
+	var cluster = &v1beta1.FlinkCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "cluster", Namespace: "default"},
+		Spec: v1beta1.FlinkClusterSpec{
+			Job: &v1beta1.JobSpec{},
+		},
+		Status: v1beta1.FlinkClusterStatus{
+			Components: v1beta1.FlinkClusterComponentsStatus{
+				Job: &v1beta1.JobStatus{
+					State:          v1beta1.JobStateSucceeded,
+					FinalSavepoint: true,
+				},
+			},
+			Savepoint: &v1beta1.SavepointStatus{
+				TriggerReason: v1beta1.SavepointReasonUpdate,
+				State:         v1beta1.SavepointStateSucceeded,
+			},
+			Revision: v1beta1.RevisionStatus{
+				CurrentRevision: "cluster-current-1",
+				NextRevision:    "cluster-current-1",
+			},
+		},
+	}
+	var desiredJob = &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{Name: "cluster-jobmanager", Namespace: cluster.Namespace},
+		Spec: batchv1.JobSpec{Template: corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{Containers: []corev1.Container{{Args: []string{"run"}}}},
+		}},
+	}
+	var fakeClient = fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(cluster).
+		WithObjects(cluster).
+		Build()
+	var reconciler = &ClusterReconciler{
+		k8sClient: fakeClient,
+		observed:  ObservedClusterState{cluster: cluster},
+		desired:   model.DesiredClusterState{Job: desiredJob},
+	}
+
+	// when: the job is reconciled
+	_, err := reconciler.reconcileJob(context.Background())
+	assert.NilError(t, err)
+
+	// then: a new job submitter is created
+	var submitter batchv1.Job
+	assert.NilError(t, fakeClient.Get(
+		context.Background(),
+		types.NamespacedName{Name: desiredJob.Name, Namespace: desiredJob.Namespace},
+		&submitter,
+	))
+}
+
+func TestReconcileJobDoesNotResubmitNormallySucceededJobWithPreviousUpdateSavepoint(t *testing.T) {
+	// given: a normally succeeded job with an earlier update savepoint
+	var scheme = runtime.NewScheme()
+	assert.NilError(t, v1beta1.AddToScheme(scheme))
+	assert.NilError(t, batchv1.AddToScheme(scheme))
+
+	var cluster = &v1beta1.FlinkCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "cluster", Namespace: "default"},
+		Spec: v1beta1.FlinkClusterSpec{
+			Job: &v1beta1.JobSpec{},
+		},
+		Status: v1beta1.FlinkClusterStatus{
+			Components: v1beta1.FlinkClusterComponentsStatus{
+				Job: &v1beta1.JobStatus{
+					State:          v1beta1.JobStateSucceeded,
+					FinalSavepoint: false,
+				},
+			},
+			Savepoint: &v1beta1.SavepointStatus{
+				TriggerReason: v1beta1.SavepointReasonUpdate,
+				State:         v1beta1.SavepointStateSucceeded,
+			},
+		},
+	}
+	var desiredJob = &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{Name: "cluster-jobmanager", Namespace: cluster.Namespace},
+		Spec: batchv1.JobSpec{Template: corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{Containers: []corev1.Container{{Args: []string{"run"}}}},
+		}},
+	}
+	var fakeClient = fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(cluster).
+		WithObjects(cluster).
+		Build()
+	var reconciler = &ClusterReconciler{
+		k8sClient: fakeClient,
+		observed:  ObservedClusterState{cluster: cluster},
+		desired:   model.DesiredClusterState{Job: desiredJob},
+	}
+
+	// when: the job is reconciled
+	_, err := reconciler.reconcileJob(context.Background())
+	assert.NilError(t, err)
+
+	// then: no new job submitter is created
+	var submitter batchv1.Job
+	err = fakeClient.Get(
+		context.Background(),
+		types.NamespacedName{Name: desiredJob.Name, Namespace: desiredJob.Namespace},
+		&submitter,
+	)
+	assert.Assert(t, apierrors.IsNotFound(err))
+}
+
+func TestTrySuspendJobUsesStopWithSavepoint(t *testing.T) {
+	// given: a running job configured to use native savepoints
+	var stopBody map[string]interface{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/jobs/job-123/stop" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+
+		body, err := io.ReadAll(r.Body)
+		assert.NilError(t, err)
+		assert.NilError(t, json.Unmarshal(body, &stopBody))
+		w.Header().Set("Content-Type", "application/json")
+		_, err = fmt.Fprint(w, `{"request-id": "trigger-update"}`)
+		assert.NilError(t, err)
+	}))
+	defer server.Close()
+
+	savepointsDir := "s3://bucket/savepoints"
+	formatType := v1beta1.SavepointFormatTypeNative
+	cluster := newTestClusterWithJob(&savepointsDir, nil)
+	cluster.Spec.FlinkVersion = "2.0.0"
+	cluster.Spec.Job.SavepointFormatType = &formatType
+	reconciler := newTestReconciler(cluster, newRedirectingHTTPClient(server.URL))
+
+	// when: the job is suspended
+	status, err := reconciler.trySuspendJob(context.Background())
+
+	// then: stop-with-savepoint is triggered with the expected settings
+	assert.NilError(t, err)
+	assert.Assert(t, status != nil)
+	assert.Equal(t, status.State, v1beta1.SavepointStateInProgress)
+	assert.Equal(t, status.JobID, "job-123")
+	assert.Equal(t, status.TriggerID, "trigger-update")
+	assert.Equal(t, status.TriggerReason, v1beta1.SavepointReasonUpdate)
+	assert.Equal(t, status.FormatType, v1beta1.SavepointFormatTypeNative)
+	assert.DeepEqual(t, stopBody, map[string]interface{}{
+		"targetDirectory": savepointsDir,
+		"drain":           false,
+		"formatType":      "NATIVE",
+	})
+}
+
+func TestTrySuspendJobRecordsStopTriggerFailure(t *testing.T) {
+	// given: a Flink API that rejects the stop request
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, r.Method, http.MethodPost)
+		assert.Equal(t, r.URL.Path, "/jobs/job-123/stop")
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	savepointsDir := "s3://bucket/savepoints"
+	cluster := newTestClusterWithJob(&savepointsDir, nil)
+	reconciler := newTestReconciler(cluster, newRedirectingHTTPClient(server.URL))
+
+	// when: the job is suspended
+	status, err := reconciler.trySuspendJob(context.Background())
+
+	// then: the trigger failure is returned and recorded
+	requireError(t, err)
+	assert.Assert(t, status != nil)
+	assert.Equal(t, status.State, v1beta1.SavepointStateTriggerFailed)
+	assert.Equal(t, status.JobID, "job-123")
+	assert.Equal(t, status.TriggerID, "")
+	assert.Equal(t, status.TriggerReason, v1beta1.SavepointReasonUpdate)
+	assert.Assert(t, status.Message != "")
+}
+
+func TestTrySuspendJobRetriesStopAfterTriggerFailure(t *testing.T) {
+	// given: a previous stop trigger failed and is ready to retry
+	var stopCalls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		stopCalls.Add(1)
+		assert.Equal(t, r.Method, http.MethodPost)
+		assert.Equal(t, r.URL.Path, "/jobs/job-123/stop")
+		w.Header().Set("Content-Type", "application/json")
+		_, err := fmt.Fprint(w, `{"request-id": "trigger-retry"}`)
+		assert.NilError(t, err)
+	}))
+	defer server.Close()
+
+	savepointsDir := "s3://bucket/savepoints"
+	cluster := newTestClusterWithJob(&savepointsDir, nil)
+	cluster.Status.Savepoint = &v1beta1.SavepointStatus{
+		JobID:         "job-123",
+		TriggerReason: v1beta1.SavepointReasonUpdate,
+		State:         v1beta1.SavepointStateTriggerFailed,
+		UpdateTime:    "2000-01-01T00:00:00Z",
+	}
+	reconciler := newTestReconciler(cluster, newRedirectingHTTPClient(server.URL))
+
+	// when: the job is suspended again
+	status, err := reconciler.trySuspendJob(context.Background())
+
+	// then: a new stop-with-savepoint request is triggered
+	assert.NilError(t, err)
+	assert.Assert(t, status != nil)
+	assert.Equal(t, status.State, v1beta1.SavepointStateInProgress)
+	assert.Equal(t, status.TriggerID, "trigger-retry")
+	assert.Equal(t, status.TriggerReason, v1beta1.SavepointReasonUpdate)
+	assert.Equal(t, stopCalls.Load(), int32(1))
+}
+
+func TestTrySuspendJobDoesNotRepeatStopAfterSavepointSucceeds(t *testing.T) {
+	// given: the job already stopped with a successful final savepoint
+	var stopCalls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		stopCalls.Add(1)
+		t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		http.Error(w, "not found", http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	savepointsDir := "s3://bucket/savepoints"
+	cluster := newTestClusterWithJob(&savepointsDir, nil)
+	cluster.Status.Components.Job.FinalSavepoint = true
+	cluster.Status.Savepoint = &v1beta1.SavepointStatus{
+		JobID:         "job-123",
+		TriggerID:     "trigger-update",
+		TriggerReason: v1beta1.SavepointReasonUpdate,
+		State:         v1beta1.SavepointStateSucceeded,
+	}
+	reconciler := newTestReconciler(cluster, newRedirectingHTTPClient(server.URL))
+
+	// when: job suspension is retried
+	status, err := reconciler.trySuspendJob(context.Background())
+
+	// then: no additional stop request is sent
+	assert.NilError(t, err)
+	assert.Assert(t, status == nil)
+	assert.Equal(t, stopCalls.Load(), int32(0))
+}
+
+func TestTrySuspendJobStopsAgainAfterApplicationResumes(t *testing.T) {
+	// given: an application job resumed after a previous update savepoint
+	var stopCalls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		stopCalls.Add(1)
+		assert.Equal(t, r.Method, http.MethodPost)
+		assert.Equal(t, r.URL.Path, "/jobs/job-123/stop")
+		w.Header().Set("Content-Type", "application/json")
+		_, err := fmt.Fprint(w, `{"request-id": "trigger-next-update"}`)
+		assert.NilError(t, err)
+	}))
+	defer server.Close()
+
+	savepointsDir := "s3://bucket/savepoints"
+	applicationMode := v1beta1.JobModeApplication
+	cluster := newTestClusterWithJob(&savepointsDir, nil)
+	cluster.Spec.Job.Mode = &applicationMode
+	cluster.Status.Components.Job.FinalSavepoint = false
+	cluster.Status.Savepoint = &v1beta1.SavepointStatus{
+		JobID:         "job-123",
+		TriggerID:     "trigger-previous-update",
+		TriggerReason: v1beta1.SavepointReasonUpdate,
+		State:         v1beta1.SavepointStateSucceeded,
+	}
+	reconciler := newTestReconciler(cluster, newRedirectingHTTPClient(server.URL))
+
+	// when: the resumed job is suspended
+	status, err := reconciler.trySuspendJob(context.Background())
+
+	// then: a new stop-with-savepoint request is triggered
+	assert.NilError(t, err)
+	assert.Assert(t, status != nil)
+	assert.Equal(t, status.State, v1beta1.SavepointStateInProgress)
+	assert.Equal(t, status.TriggerID, "trigger-next-update")
+	assert.Equal(t, status.TriggerReason, v1beta1.SavepointReasonUpdate)
+	assert.Equal(t, stopCalls.Load(), int32(1))
+}
+
 func TestCancelFlinkJob_StopWithSavepoint_Success(t *testing.T) {
 	// given: Flink REST API that completes savepoint after 2 in-progress polls
 	var pollCount atomic.Int32
