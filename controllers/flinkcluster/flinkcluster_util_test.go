@@ -17,6 +17,9 @@ limitations under the License.
 package flinkcluster
 
 import (
+	"crypto/md5"
+	"encoding/hex"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -604,6 +607,243 @@ func TestParseFlinkDuration_Invalid(t *testing.T) {
 			assert.Assert(t, err != nil, "expected error for input %q", tt.input)
 		})
 	}
+}
+
+func TestComputeJobIdIsDeterministicAndValid(t *testing.T) {
+	// given: fixed inputs for one deployment attempt
+	cluster := newApplicationClusterForJobIDTest()
+	cluster.Status.Components.Job.SavepointLocation = "s3://bucket/savepoint-1"
+	cluster.Status.Components.Job.RestartCount = 2
+
+	// when: the ID is computed twice
+	firstJobID, firstErr := computeJobId(cluster)
+	secondJobID, secondErr := computeJobId(cluster)
+
+	// then: both results are the same valid 32-character hexadecimal ID
+	assert.NilError(t, firstErr)
+	assert.NilError(t, secondErr)
+	assert.Equal(t, firstJobID, secondJobID)
+	assert.Equal(t, len(firstJobID), 32)
+	decoded, err := hex.DecodeString(firstJobID)
+	assert.NilError(t, err)
+	assert.Equal(t, len(decoded), md5.Size)
+}
+
+func TestComputeJobIdChangesWhenRevisionChanges(t *testing.T) {
+	// given: the ID for one target revision
+	cluster := newApplicationClusterForJobIDTest()
+	firstJobID, err := computeJobId(cluster)
+	assert.NilError(t, err)
+
+	// when: only the target revision changes
+	cluster.Status.Revision.NextRevision = "cluster-revision-2"
+	secondJobID, err := computeJobId(cluster)
+
+	// then: the computed ID changes
+	assert.NilError(t, err)
+	assert.Assert(t, firstJobID != secondJobID)
+}
+
+func TestComputeJobIdChangesWhenRestoreLocationChanges(t *testing.T) {
+	// given: the ID for one restore location
+	cluster := newApplicationClusterForJobIDTest()
+	cluster.Status.Components.Job.SavepointLocation = "s3://bucket/savepoint-1"
+	firstJobID, err := computeJobId(cluster)
+	assert.NilError(t, err)
+
+	// when: only the restore location changes
+	cluster.Status.Components.Job.SavepointLocation = "s3://bucket/savepoint-2"
+	secondJobID, err := computeJobId(cluster)
+
+	// then: the computed ID changes
+	assert.NilError(t, err)
+	assert.Assert(t, firstJobID != secondJobID)
+}
+
+func TestComputeJobIdChangesWhenRestartCountChanges(t *testing.T) {
+	// given: the ID for one operator-managed attempt
+	cluster := newApplicationClusterForJobIDTest()
+	firstJobID, err := computeJobId(cluster)
+	assert.NilError(t, err)
+
+	// when: only the restart count changes
+	cluster.Status.Components.Job.RestartCount = 1
+	secondJobID, err := computeJobId(cluster)
+
+	// then: the computed ID changes
+	assert.NilError(t, err)
+	assert.Assert(t, firstJobID != secondJobID)
+}
+
+func TestComputeJobIdChangesWhenClusterUIDChanges(t *testing.T) {
+	// given: two otherwise identical clusters
+	firstCluster := newApplicationClusterForJobIDTest()
+	secondCluster := firstCluster.DeepCopy()
+
+	// when: only the cluster UID differs
+	secondCluster.UID = "another-cluster-uid"
+	firstJobID, firstErr := computeJobId(firstCluster)
+	secondJobID, secondErr := computeJobId(secondCluster)
+
+	// then: the clusters receive different IDs
+	assert.NilError(t, firstErr)
+	assert.NilError(t, secondErr)
+	assert.Assert(t, firstJobID != secondJobID)
+}
+
+func TestComputeJobIdUsesResolvedRestoreLocation(t *testing.T) {
+	testCases := []struct {
+		name             string
+		configureCluster func(*v1beta1.FlinkCluster)
+		expectedLocation string
+	}{
+		{
+			name: "explicit update savepoint",
+			configureCluster: func(cluster *v1beta1.FlinkCluster) {
+				explicit := "s3://bucket/explicit"
+				cluster.Spec.Job.FromSavepoint = &explicit
+				cluster.Status.Components.Job.SavepointLocation = "s3://bucket/latest"
+				cluster.Status.Components.Job.FromSavepoint = "s3://bucket/previous"
+				cluster.Status.Revision.NextRevision = "cluster-revision-2"
+			},
+			expectedLocation: "s3://bucket/explicit",
+		},
+		{
+			name: "latest operator savepoint",
+			configureCluster: func(cluster *v1beta1.FlinkCluster) {
+				fallback := "s3://bucket/configured"
+				cluster.Spec.Job.FromSavepoint = &fallback
+				cluster.Status.Components.Job.SavepointLocation = "s3://bucket/latest"
+				cluster.Status.Components.Job.FromSavepoint = "s3://bucket/previous"
+			},
+			expectedLocation: "s3://bucket/latest",
+		},
+		{
+			name: "previous restore savepoint",
+			configureCluster: func(cluster *v1beta1.FlinkCluster) {
+				cluster.Status.Components.Job.FromSavepoint = "s3://bucket/previous"
+			},
+			expectedLocation: "s3://bucket/previous",
+		},
+		{
+			name:             "no restore location",
+			configureCluster: func(cluster *v1beta1.FlinkCluster) {},
+			expectedLocation: "",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			// given: restore metadata with a known resolution result
+			cluster := newApplicationClusterForJobIDTest()
+			testCase.configureCluster(cluster)
+
+			// when: the deployment ID is computed
+			jobID, err := computeJobId(cluster)
+
+			// then: the ID is derived from the restore location selected by the converter
+			assert.NilError(t, err)
+			assert.Equal(t, jobID, expectedJobIDForRestoreLocation(cluster, testCase.expectedLocation))
+		})
+	}
+}
+
+func TestComputeJobIdHandlesMissingOptionalState(t *testing.T) {
+	testCases := []struct {
+		name      string
+		configure func(*v1beta1.FlinkCluster)
+	}{
+		{
+			name: "missing job spec",
+			configure: func(cluster *v1beta1.FlinkCluster) {
+				cluster.Spec.Job = nil
+			},
+		},
+		{
+			name: "missing job status",
+			configure: func(cluster *v1beta1.FlinkCluster) {
+				cluster.Status.Components.Job = nil
+			},
+		},
+		{
+			name:      "missing savepoint",
+			configure: func(cluster *v1beta1.FlinkCluster) {},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			// given: a cluster missing optional job state
+			cluster := newApplicationClusterForJobIDTest()
+			testCase.configure(cluster)
+
+			// when: the deployment ID is computed
+			jobID, err := computeJobId(cluster)
+
+			// then: computation succeeds without a panic
+			assert.NilError(t, err)
+			assert.Equal(t, len(jobID), 32)
+		})
+	}
+}
+
+func TestComputeJobIdRejectsMissingRequiredState(t *testing.T) {
+	testCases := []struct {
+		name    string
+		cluster *v1beta1.FlinkCluster
+	}{
+		{name: "nil cluster", cluster: nil},
+		{name: "missing target revision", cluster: &v1beta1.FlinkCluster{}},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			// given: required deterministic input is missing
+			cluster := testCase.cluster
+
+			// when: the deployment ID is computed
+			jobID, err := computeJobId(cluster)
+
+			// then: no ID is returned and the error explains the missing revision
+			assert.Equal(t, jobID, "")
+			assert.ErrorContains(t, err, "cluster or next revision is nil")
+		})
+	}
+}
+
+func TestGenJobIdReturnsRecordedIdWhileComputeJobIdReturnsNextAttemptId(t *testing.T) {
+	// given: status records the ID of the current revision
+	cluster := newApplicationClusterForJobIDTest()
+	recordedJobID, err := computeJobId(cluster)
+	assert.NilError(t, err)
+	cluster.Status.Components.Job.ID = recordedJobID
+
+	// when: the target revision changes and both ID functions are called
+	cluster.Status.Revision.NextRevision = "cluster-revision-2"
+	generatedJobID, genErr := GenJobId(cluster)
+	nextAttemptJobID, computeErr := computeJobId(cluster)
+
+	// then: generation preserves status while computation identifies the next attempt
+	assert.NilError(t, genErr)
+	assert.NilError(t, computeErr)
+	assert.Equal(t, generatedJobID, recordedJobID)
+	assert.Assert(t, nextAttemptJobID != recordedJobID)
+}
+
+func expectedJobIDForRestoreLocation(cluster *v1beta1.FlinkCluster, restoreLocation string) string {
+	restartCount := int32(0)
+	if cluster.Status.Components.Job != nil {
+		restartCount = cluster.Status.Components.Job.RestartCount
+	}
+	data := fmt.Sprintf(
+		"%s-%s-%s-%d",
+		cluster.UID,
+		cluster.Status.Revision.NextRevision,
+		restoreLocation,
+		restartCount,
+	)
+	hash := md5.Sum([]byte(data))
+	return hex.EncodeToString(hash[:])
 }
 
 func TestSavepointFormatType(t *testing.T) {

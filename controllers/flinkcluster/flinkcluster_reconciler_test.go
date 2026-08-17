@@ -676,6 +676,229 @@ func requireJobStatus(t *testing.T, reconciler *ClusterReconciler, cluster *v1be
 	return updated.Status.Components.Job
 }
 
+func TestReconcileJobAssignsGeneratedJobIdOnInitialApplicationDeployment(t *testing.T) {
+	// given: an application cluster ready for its initial deployment
+	cluster := newApplicationClusterForJobIDTest()
+	cluster.Status.Components.Job.State = v1beta1.JobStatePending
+	expectedJobID, err := computeJobId(cluster)
+	assert.NilError(t, err)
+	desiredJob := newJob(cluster)
+	reconciler, k8sClient := newJobIDTestReconciler(t, cluster, desiredJob)
+
+	// when: the job is reconciled
+	_, err = reconciler.reconcileJob(context.Background())
+
+	// then: status and the created job use the generated ID everywhere
+	assert.NilError(t, err)
+	updatedCluster := getJobIDTestCluster(t, k8sClient, cluster)
+	assert.Equal(t, updatedCluster.Status.Components.Job.ID, expectedJobID)
+	createdJob := getJobIDTestJob(t, k8sClient, desiredJob)
+	assertJobUsesID(t, createdJob, expectedJobID)
+}
+
+func TestReconcileJobChangesJobIdWhenApplicationRevisionChanges(t *testing.T) {
+	// given: an application deployment restoring from a savepoint
+	cluster := newApplicationClusterForJobIDTest()
+	cluster.Status.Components.Job.State = v1beta1.JobStateUpdating
+	cluster.Status.Components.Job.SavepointLocation = "s3://bucket/savepoint-1"
+	existingJobID, err := computeJobId(cluster)
+	assert.NilError(t, err)
+	cluster.Status.Components.Job.ID = existingJobID
+
+	// and: a new target revision is selected
+	cluster.Status.Revision.NextRevision = "cluster-revision-2"
+	expectedJobID, err := computeJobId(cluster)
+	assert.NilError(t, err)
+	desiredJob := newJob(cluster)
+	reconciler, k8sClient := newJobIDTestReconciler(t, cluster, desiredJob)
+
+	// when: the new revision is reconciled
+	_, err = reconciler.reconcileJob(context.Background())
+
+	// then: the new deployment uses a different ID consistently
+	assert.NilError(t, err)
+	assert.Assert(t, expectedJobID != existingJobID)
+	updatedCluster := getJobIDTestCluster(t, k8sClient, cluster)
+	assert.Equal(t, updatedCluster.Status.Components.Job.ID, expectedJobID)
+	createdJob := getJobIDTestJob(t, k8sClient, desiredJob)
+	assertJobUsesID(t, createdJob, expectedJobID)
+}
+
+func TestGetNewJobIdChangesWhenRestoreLocationChangesAtSameRevision(t *testing.T) {
+	// given: an application deployment restored from one savepoint
+	cluster := newApplicationClusterForJobIDTest()
+	cluster.Status.Components.Job.SavepointLocation = "s3://bucket/savepoint-1"
+	existingJobID, err := computeJobId(cluster)
+	assert.NilError(t, err)
+	cluster.Status.Components.Job.ID = existingJobID
+
+	// when: the restore location changes at the same revision
+	cluster.Status.Components.Job.SavepointLocation = "s3://bucket/savepoint-2"
+	expectedJobID, err := computeJobId(cluster)
+	assert.NilError(t, err)
+	newJobID := getNewJobIdIfNecessary(cluster.Status.Components.Job, cluster)
+
+	// then: a different deterministic ID is requested
+	assert.Equal(t, newJobID, expectedJobID)
+	assert.Assert(t, newJobID != existingJobID)
+}
+
+func TestGetNewJobIdChangesWhenOperatorRestartCountIncreases(t *testing.T) {
+	// given: an application deployment restored by the operator
+	cluster := newApplicationClusterForJobIDTest()
+	cluster.Status.Components.Job.SavepointLocation = "s3://bucket/savepoint-1"
+	existingJobID, err := computeJobId(cluster)
+	assert.NilError(t, err)
+	cluster.Status.Components.Job.ID = existingJobID
+
+	// when: the operator starts another restore attempt
+	cluster.Status.Components.Job.RestartCount++
+	expectedJobID, err := computeJobId(cluster)
+	assert.NilError(t, err)
+	newJobID := getNewJobIdIfNecessary(cluster.Status.Components.Job, cluster)
+
+	// then: the new attempt receives a different deterministic ID
+	assert.Equal(t, newJobID, expectedJobID)
+	assert.Assert(t, newJobID != existingJobID)
+}
+
+func TestGetNewJobIdIsStableAcrossRepeatedReconciliationOfSameAttempt(t *testing.T) {
+	// given: status already contains the deterministic ID for this attempt
+	cluster := newApplicationClusterForJobIDTest()
+	cluster.Status.Components.Job.SavepointLocation = "s3://bucket/savepoint-1"
+	recordedJobID, err := computeJobId(cluster)
+	assert.NilError(t, err)
+	cluster.Status.Components.Job.ID = recordedJobID
+
+	// when: the same deployment attempt is evaluated repeatedly
+	firstResult := getNewJobIdIfNecessary(cluster.Status.Components.Job, cluster)
+	secondResult := getNewJobIdIfNecessary(cluster.Status.Components.Job, cluster)
+
+	// then: neither evaluation requests another rotation
+	assert.Equal(t, firstResult, "")
+	assert.Equal(t, secondResult, "")
+	assert.Equal(t, cluster.Status.Components.Job.ID, recordedJobID)
+}
+
+func TestGetNewJobIdDoesNotRotateDetachedModeJob(t *testing.T) {
+	// given: a detached-mode job whose deterministic inputs changed
+	cluster := newApplicationClusterForJobIDTest()
+	detachedMode := v1beta1.JobModeDetached
+	cluster.Spec.Job.Mode = &detachedMode
+	cluster.Status.Components.Job.ID = "flink-assigned-id"
+	cluster.Status.Revision.NextRevision = "cluster-revision-2"
+	cluster.Status.Components.Job.RestartCount = 1
+
+	// when: a new job ID is evaluated
+	newJobID := getNewJobIdIfNecessary(cluster.Status.Components.Job, cluster)
+
+	// then: the operator does not rotate Flink's ID
+	assert.Equal(t, newJobID, "")
+	assert.Equal(t, cluster.Status.Components.Job.ID, "flink-assigned-id")
+}
+
+func TestPatchJobIdUpdatesJobLabelsPodLabelsAndArguments(t *testing.T) {
+	// given: an application job whose resources contain the old ID
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{JobIdLabel: "old-id"}},
+		Spec: batchv1.JobSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{JobIdLabel: "old-id"}},
+				Spec: corev1.PodSpec{Containers: []corev1.Container{{
+					Args: []string{"standalone-job", "--job-id", "old-id", "--job-classname", "com.example.Job"},
+				}}},
+			},
+		},
+	}
+
+	// when: the deployment is patched with its new ID
+	patchJobId(job, "new-id")
+
+	// then: the job label, pod label, and command argument agree
+	assertJobUsesID(t, job, "new-id")
+}
+
+func newApplicationClusterForJobIDTest() *v1beta1.FlinkCluster {
+	cluster := getDummyFlinkCluster()
+	applicationMode := v1beta1.JobModeApplication
+	cluster.UID = "cluster-uid"
+	cluster.Spec.Job.Mode = &applicationMode
+	cluster.Status = v1beta1.FlinkClusterStatus{
+		Components: v1beta1.FlinkClusterComponentsStatus{
+			Job: &v1beta1.JobStatus{},
+		},
+		Revision: v1beta1.RevisionStatus{
+			CurrentRevision: "cluster-revision-1",
+			NextRevision:    "cluster-revision-1",
+		},
+	}
+	return cluster
+}
+
+func newJobIDTestReconciler(
+	t *testing.T,
+	cluster *v1beta1.FlinkCluster,
+	desiredJob *batchv1.Job,
+) (*ClusterReconciler, client.Client) {
+	t.Helper()
+	scheme := runtime.NewScheme()
+	assert.NilError(t, v1beta1.AddToScheme(scheme))
+	assert.NilError(t, batchv1.AddToScheme(scheme))
+	k8sClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(cluster).
+		WithObjects(cluster).
+		Build()
+	reconciler := &ClusterReconciler{
+		k8sClient: k8sClient,
+		observed:  ObservedClusterState{cluster: cluster},
+		desired:   model.DesiredClusterState{Job: desiredJob},
+	}
+	return reconciler, k8sClient
+}
+
+func getJobIDTestCluster(
+	t *testing.T,
+	k8sClient client.Client,
+	cluster *v1beta1.FlinkCluster,
+) *v1beta1.FlinkCluster {
+	t.Helper()
+	var updatedCluster v1beta1.FlinkCluster
+	assert.NilError(t, k8sClient.Get(
+		context.Background(),
+		types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace},
+		&updatedCluster,
+	))
+	return &updatedCluster
+}
+
+func getJobIDTestJob(t *testing.T, k8sClient client.Client, desiredJob *batchv1.Job) *batchv1.Job {
+	t.Helper()
+	var createdJob batchv1.Job
+	assert.NilError(t, k8sClient.Get(context.Background(), client.ObjectKeyFromObject(desiredJob), &createdJob))
+	return &createdJob
+}
+
+func assertJobUsesID(t *testing.T, job *batchv1.Job, expectedJobID string) {
+	t.Helper()
+	assert.Equal(t, job.Labels[JobIdLabel], expectedJobID)
+	assert.Equal(t, job.Spec.Template.Labels[JobIdLabel], expectedJobID)
+	assert.Equal(t, applicationJobIDArgument(job), expectedJobID)
+}
+
+func applicationJobIDArgument(job *batchv1.Job) string {
+	if len(job.Spec.Template.Spec.Containers) == 0 {
+		return ""
+	}
+	args := job.Spec.Template.Spec.Containers[0].Args
+	for index, arg := range args {
+		if arg == "--job-id" && index+1 < len(args) {
+			return args[index+1]
+		}
+	}
+	return ""
+}
+
 func assertNoSavepointStatus(t *testing.T, reconciler *ClusterReconciler, cluster *v1beta1.FlinkCluster) {
 	t.Helper()
 	updated := &v1beta1.FlinkCluster{}
@@ -686,340 +909,4 @@ func assertNoSavepointStatus(t *testing.T, reconciler *ClusterReconciler, cluste
 	if updated.Status.Savepoint != nil {
 		t.Errorf("expected no savepoint status, got %+v", updated.Status.Savepoint)
 	}
-}
-
-func TestRotateJobIdOnExplicitFromSavepoint(t *testing.T) {
-	// given: an application-mode cluster restarting from an explicit savepoint,
-	// moving to a new revision, whose job status still has the old job ID
-	var scheme = runtime.NewScheme()
-	assert.NilError(t, v1beta1.AddToScheme(scheme))
-
-	fromSavepoint := "gs://bucket/explicit-savepoint"
-	var applicationMode = v1beta1.JobModeApplication
-	var cluster = &v1beta1.FlinkCluster{
-		ObjectMeta: metav1.ObjectMeta{Name: "cluster", Namespace: "default"},
-		Spec: v1beta1.FlinkClusterSpec{
-			Job: &v1beta1.JobSpec{
-				Mode:          &applicationMode,
-				FromSavepoint: &fromSavepoint,
-			},
-		},
-		Status: v1beta1.FlinkClusterStatus{
-			Components: v1beta1.FlinkClusterComponentsStatus{
-				Job: &v1beta1.JobStatus{
-					ID:             "old-job-id-that-should-be-rotated",
-					State:          v1beta1.JobStateUpdating,
-					FinalSavepoint: false,
-				},
-			},
-			Revision: v1beta1.RevisionStatus{
-				CurrentRevision: "cluster-abc123-1",
-				NextRevision:    "cluster-def456-2",
-			},
-		},
-	}
-	var fakeClient = fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithStatusSubresource(cluster).
-		WithObjects(cluster).
-		Build()
-
-	var desiredJob = &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels: map[string]string{JobIdLabel: "old-job-id-that-should-be-rotated"},
-		},
-		Spec: batchv1.JobSpec{Template: corev1.PodTemplateSpec{
-			ObjectMeta: metav1.ObjectMeta{
-				Labels: map[string]string{JobIdLabel: "old-job-id-that-should-be-rotated"},
-			},
-			Spec: corev1.PodSpec{Containers: []corev1.Container{{
-				Args: []string{
-					"standalone-job",
-					"--fromSavepoint", fromSavepoint,
-					"--job-id", "old-job-id-that-should-be-rotated",
-					"--job-classname", "com.example.Job",
-				},
-			}}},
-		}},
-	}
-	var reconciler = &ClusterReconciler{
-		k8sClient: fakeClient,
-		observed:  ObservedClusterState{cluster: cluster},
-		desired:   model.DesiredClusterState{Job: desiredJob},
-	}
-
-	// when: updateJobDeployStatus is called
-	newJobId, err := reconciler.updateJobDeployStatus(context.Background())
-
-	// then: a new, distinct job ID is generated
-	assert.NilError(t, err)
-	assert.Assert(t, newJobId != "")
-	assert.Assert(t, newJobId != "old-job-id-that-should-be-rotated")
-	assert.Equal(t, len(newJobId), 32)
-
-	// and: the cluster status is updated with the new job ID
-	var updated v1beta1.FlinkCluster
-	assert.NilError(t, fakeClient.Get(
-		context.Background(),
-		types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace},
-		&updated,
-	))
-	assert.Equal(t, updated.Status.Components.Job.ID, newJobId)
-
-	// when: the desired job is patched with the new job ID
-	patchJobId(desiredJob, newJobId)
-
-	// then: the job label, pod template label, and submitter args are updated to the new ID
-	assert.Equal(t, desiredJob.Labels[JobIdLabel], newJobId)
-	assert.Equal(t, desiredJob.Spec.Template.Labels[JobIdLabel], newJobId)
-	assert.Equal(t, desiredJob.Spec.Template.Spec.Containers[0].Args[4], newJobId)
-}
-
-func TestGetNewJobIdSkipsDetachedMode(t *testing.T) {
-	// given: a detached-mode job with an existing job ID and a final savepoint
-	var detachedMode = v1beta1.JobModeDetached
-	cluster := &v1beta1.FlinkCluster{
-		Spec: v1beta1.FlinkClusterSpec{
-			Job: &v1beta1.JobSpec{Mode: &detachedMode},
-		},
-		Status: v1beta1.FlinkClusterStatus{
-			Components: v1beta1.FlinkClusterComponentsStatus{
-				Job: &v1beta1.JobStatus{
-					ID:             "existing-id",
-					FinalSavepoint: true,
-				},
-			},
-			Revision: v1beta1.RevisionStatus{NextRevision: "cluster-abc-2"},
-		},
-	}
-
-	// when: a new job ID is evaluated
-	result := getNewJobIdIfNecessary(cluster.Status.Components.Job, cluster)
-
-	// then: no rotation happens and the existing job ID is preserved
-	assert.Equal(t, result, "")
-	assert.Equal(t, cluster.Status.Components.Job.ID, "existing-id")
-}
-
-func TestGetNewJobIdForStatelessUpdateWithoutHA(t *testing.T) {
-	// given: a non-HA application-mode update with no savepoint to restore from
-	var applicationMode = v1beta1.JobModeApplication
-	cluster := &v1beta1.FlinkCluster{
-		ObjectMeta: metav1.ObjectMeta{UID: "cluster-uid"},
-		Spec: v1beta1.FlinkClusterSpec{
-			Job: &v1beta1.JobSpec{Mode: &applicationMode},
-		},
-		Status: v1beta1.FlinkClusterStatus{
-			Components: v1beta1.FlinkClusterComponentsStatus{
-				Job: &v1beta1.JobStatus{ID: "existing-id"},
-			},
-			Revision: v1beta1.RevisionStatus{
-				CurrentRevision: "cluster-abc-1",
-				NextRevision:    "cluster-def-2",
-			},
-		},
-	}
-	expectedJobId, err := computeJobId(cluster)
-	assert.NilError(t, err)
-
-	// when: a new job ID is evaluated
-	result := getNewJobIdIfNecessary(cluster.Status.Components.Job, cluster)
-
-	// then: a distinct ID is returned without mutating status
-	assert.Equal(t, result, expectedJobId)
-	assert.Equal(t, cluster.Status.Components.Job.ID, "existing-id")
-}
-
-func TestGetNewJobIdForHAUpdateWithoutSavepoint(t *testing.T) {
-	// given: an HA application-mode update with no savepoint to restore from
-	var applicationMode = v1beta1.JobModeApplication
-	cluster := &v1beta1.FlinkCluster{
-		Spec: v1beta1.FlinkClusterSpec{
-			Job: &v1beta1.JobSpec{Mode: &applicationMode},
-			FlinkProperties: map[string]string{
-				"high-availability":            "kubernetes",
-				"kubernetes.cluster-id":        "cluster",
-				"high-availability.storageDir": "gs://bucket/ha",
-			},
-		},
-		Status: v1beta1.FlinkClusterStatus{
-			Components: v1beta1.FlinkClusterComponentsStatus{
-				Job: &v1beta1.JobStatus{ID: "existing-id"},
-			},
-			Revision: v1beta1.RevisionStatus{
-				CurrentRevision: "cluster-abc-1",
-				NextRevision:    "cluster-def-2",
-			},
-		},
-	}
-	expectedJobId, err := computeJobId(cluster)
-	assert.NilError(t, err)
-
-	// when: a new job ID is evaluated
-	result := getNewJobIdIfNecessary(cluster.Status.Components.Job, cluster)
-
-	// then: the new deployment receives the ID derived from its new revision
-	assert.Equal(t, result, expectedJobId)
-	assert.Equal(t, cluster.Status.Components.Job.ID, "existing-id")
-}
-
-func TestGetNewJobIdKeepsDeterministicIdForSameAttempt(t *testing.T) {
-	// given: an HA application-mode deployment whose recorded ID already matches
-	// the ID derived for the current attempt
-	var applicationMode = v1beta1.JobModeApplication
-	cluster := &v1beta1.FlinkCluster{
-		Spec: v1beta1.FlinkClusterSpec{
-			Job: &v1beta1.JobSpec{Mode: &applicationMode},
-			FlinkProperties: map[string]string{
-				"high-availability":            "kubernetes",
-				"kubernetes.cluster-id":        "cluster",
-				"high-availability.storageDir": "gs://bucket/ha",
-			},
-		},
-		Status: v1beta1.FlinkClusterStatus{
-			Components: v1beta1.FlinkClusterComponentsStatus{
-				Job: &v1beta1.JobStatus{
-					ID:             "existing-id",
-					FinalSavepoint: false,
-				},
-			},
-			Revision: v1beta1.RevisionStatus{
-				CurrentRevision: "cluster-abc-2",
-				NextRevision:    "cluster-abc-2",
-			},
-		},
-	}
-	expectedJobId, err := computeJobId(cluster)
-	assert.NilError(t, err)
-	cluster.Status.Components.Job.ID = expectedJobId
-
-	// when: a new job ID is evaluated
-	result := getNewJobIdIfNecessary(cluster.Status.Components.Job, cluster)
-
-	// then: no patch is requested because deterministic generation returns the recorded ID
-	assert.Equal(t, result, "")
-	assert.Equal(t, cluster.Status.Components.Job.ID, expectedJobId)
-}
-
-func TestGenJobIdIsDeterministic(t *testing.T) {
-	// given: a cluster with a fixed target revision and savepoint location
-	cluster := &v1beta1.FlinkCluster{
-		Spec: v1beta1.FlinkClusterSpec{
-			Job: &v1beta1.JobSpec{},
-		},
-		Status: v1beta1.FlinkClusterStatus{
-			Revision: v1beta1.RevisionStatus{NextRevision: "basic-example-85dc8f749-2"},
-			Components: v1beta1.FlinkClusterComponentsStatus{
-				Job: &v1beta1.JobStatus{SavepointLocation: "gs://bucket/sp-1"},
-			},
-		},
-	}
-
-	// when: GenJobId is called twice for the same inputs
-	id1, err1 := GenJobId(cluster)
-	id2, err2 := GenJobId(cluster)
-
-	// then: both calls return the same 32-character ID
-	assert.NilError(t, err1)
-	assert.NilError(t, err2)
-	assert.Equal(t, id1, id2)
-	assert.Equal(t, len(id1), 32)
-
-	// when: the savepoint location changes
-	cluster.Status.Components.Job.SavepointLocation = "gs://bucket/sp-2"
-	id3, err3 := GenJobId(cluster)
-
-	// then: a different ID is generated
-	assert.NilError(t, err3)
-	assert.Assert(t, id1 != id3)
-	assert.Equal(t, len(id3), 32)
-}
-
-func TestGenJobIdDiffersByClusterUID(t *testing.T) {
-	// given: two otherwise identical clusters differing only by UID
-	cluster1 := &v1beta1.FlinkCluster{
-		ObjectMeta: metav1.ObjectMeta{UID: "uid-1"},
-		Spec: v1beta1.FlinkClusterSpec{
-			Job: &v1beta1.JobSpec{},
-		},
-		Status: v1beta1.FlinkClusterStatus{
-			Revision: v1beta1.RevisionStatus{NextRevision: "basic-example-85dc8f749-2"},
-			Components: v1beta1.FlinkClusterComponentsStatus{
-				Job: &v1beta1.JobStatus{SavepointLocation: "gs://bucket/sp-1"},
-			},
-		},
-	}
-	cluster2 := cluster1.DeepCopy()
-	cluster2.UID = "uid-2"
-
-	// when: GenJobId is called for each cluster
-	id1, err1 := GenJobId(cluster1)
-	id2, err2 := GenJobId(cluster2)
-
-	// then: the generated IDs differ
-	assert.NilError(t, err1)
-	assert.NilError(t, err2)
-	assert.Assert(t, id1 != id2)
-}
-
-func TestComputeJobIdDiffersByRestartCount(t *testing.T) {
-	// given: two attempts of the same revision restoring from the same savepoint
-	cluster := &v1beta1.FlinkCluster{
-		ObjectMeta: metav1.ObjectMeta{UID: "cluster-uid"},
-		Spec: v1beta1.FlinkClusterSpec{
-			Job: &v1beta1.JobSpec{},
-		},
-		Status: v1beta1.FlinkClusterStatus{
-			Revision: v1beta1.RevisionStatus{NextRevision: "cluster-revision-1"},
-			Components: v1beta1.FlinkClusterComponentsStatus{
-				Job: &v1beta1.JobStatus{
-					SavepointLocation: "gs://bucket/sp-1",
-					RestartCount:      1,
-				},
-			},
-		},
-	}
-	firstAttemptId, err := computeJobId(cluster)
-	assert.NilError(t, err)
-
-	// when: the trusted restart count advances
-	cluster.Status.Components.Job.RestartCount++
-	secondAttemptId, err := computeJobId(cluster)
-	assert.NilError(t, err)
-
-	// then: the logical deployment gets a distinct deterministic ID
-	assert.Assert(t, firstAttemptId != secondAttemptId)
-	assert.Equal(t, len(firstAttemptId), 32)
-	assert.Equal(t, len(secondAttemptId), 32)
-}
-
-func TestPatchJobId(t *testing.T) {
-	// given: a job whose labels and submitter args reference an old job ID
-	job := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels: map[string]string{JobIdLabel: "old-id"},
-		},
-		Spec: batchv1.JobSpec{
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						JobIdLabel: "old-id",
-					},
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{{
-						Args: []string{"standalone-job", "--fromSavepoint", "gs://bucket/sp", "--job-id", "old-id", "--job-classname", "com.example.Job"},
-					}},
-				},
-			},
-		},
-	}
-
-	// when: patchJobId is called with a new job ID
-	patchJobId(job, "new-id-abc")
-
-	// then: the job label, pod template label, and submitter args are updated to the new ID
-	assert.Equal(t, job.Labels[JobIdLabel], "new-id-abc")
-	assert.Equal(t, job.Spec.Template.Labels[JobIdLabel], "new-id-abc")
-	assert.Equal(t, job.Spec.Template.Spec.Containers[0].Args[4], "new-id-abc")
 }
