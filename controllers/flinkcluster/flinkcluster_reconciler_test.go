@@ -830,7 +830,7 @@ func TestGetNewJobIdForStatelessUpdateWithoutHA(t *testing.T) {
 	assert.Equal(t, cluster.Status.Components.Job.ID, "existing-id")
 }
 
-func TestGetNewJobIdPreservesIdOnHAUpdateWithoutSavepoint(t *testing.T) {
+func TestGetNewJobIdForHAUpdateWithoutSavepoint(t *testing.T) {
 	// given: an HA application-mode update with no savepoint to restore from
 	var applicationMode = v1beta1.JobModeApplication
 	cluster := &v1beta1.FlinkCluster{
@@ -852,18 +852,20 @@ func TestGetNewJobIdPreservesIdOnHAUpdateWithoutSavepoint(t *testing.T) {
 			},
 		},
 	}
+	expectedJobId, err := computeJobId(cluster)
+	assert.NilError(t, err)
 
 	// when: a new job ID is evaluated
 	result := getNewJobIdIfNecessary(cluster.Status.Components.Job, cluster)
 
-	// then: the existing ID is retained for HA checkpoint recovery
-	assert.Equal(t, result, "")
+	// then: the new deployment receives the ID derived from its new revision
+	assert.Equal(t, result, expectedJobId)
 	assert.Equal(t, cluster.Status.Components.Job.ID, "existing-id")
 }
 
-func TestGetNewJobIdPreservesIdOnHARecovery(t *testing.T) {
-	// given: an application-mode job recovering at the same revision (not restarting),
-	// with HA enabled and no final savepoint taken
+func TestGetNewJobIdKeepsDeterministicIdForSameAttempt(t *testing.T) {
+	// given: an HA application-mode deployment whose recorded ID already matches
+	// the ID derived for the current attempt
 	var applicationMode = v1beta1.JobModeApplication
 	cluster := &v1beta1.FlinkCluster{
 		Spec: v1beta1.FlinkClusterSpec{
@@ -887,13 +889,16 @@ func TestGetNewJobIdPreservesIdOnHARecovery(t *testing.T) {
 			},
 		},
 	}
+	expectedJobId, err := computeJobId(cluster)
+	assert.NilError(t, err)
+	cluster.Status.Components.Job.ID = expectedJobId
 
 	// when: a new job ID is evaluated
 	result := getNewJobIdIfNecessary(cluster.Status.Components.Job, cluster)
 
-	// then: no rotation happens and the existing job ID is preserved
+	// then: no patch is requested because deterministic generation returns the recorded ID
 	assert.Equal(t, result, "")
-	assert.Equal(t, cluster.Status.Components.Job.ID, "existing-id")
+	assert.Equal(t, cluster.Status.Components.Job.ID, expectedJobId)
 }
 
 func TestGenJobIdIsDeterministic(t *testing.T) {

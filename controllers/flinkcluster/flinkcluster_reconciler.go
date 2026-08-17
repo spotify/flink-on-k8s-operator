@@ -1118,20 +1118,14 @@ func (reconciler *ClusterReconciler) updateJobDeployStatus(ctx context.Context) 
 	return newJobId, err
 }
 
-// getNewJobIdIfNecessary returns a fresh job ID for Application-mode clusters when one is needed
-// to avoid archive path conflicts. HA clusters preserve the existing ID when no restore location
-// is resolved and no final savepoint was taken so Flink's HA recovery can find its checkpoints.
-// Detached-mode clusters are skipped because Flink assigns its own job ID.
+// getNewJobIdIfNecessary returns the deterministic job ID for the current Application-mode
+// deployment when it differs from the recorded ID. Detached-mode clusters are skipped because
+// Flink assigns their job IDs.
 func getNewJobIdIfNecessary(job *v1beta1.JobStatus, cluster *v1beta1.FlinkCluster) string {
 	if !IsApplicationModeCluster(cluster) {
 		return ""
 	}
 
-	restoreLocation := convertFromSavepoint(cluster.Spec.Job, job, &cluster.Status.Revision)
-
-	if cluster.IsHighAvailabilityEnabled() && !job.FinalSavepoint && restoreLocation == nil {
-		return ""
-	}
 	newJobId, _ := computeJobId(cluster)
 	if newJobId == "" || job.ID == newJobId {
 		return ""
