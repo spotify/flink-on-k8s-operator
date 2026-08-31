@@ -77,14 +77,16 @@ func (reconciler *ClusterReconciler) reconcile(ctx context.Context) (ctrl.Result
 		return ctrl.Result{}, nil
 	}
 
+	// Handle deletion before ensuring the finalizer so manual removal remains a reliable escape
+	// hatch when deletion cannot complete normally.
+	if reconciler.observed.cluster.DeletionTimestamp != nil {
+		return reconciler.reconcileDeletion(ctx)
+	}
+
 	if reconciler.observed.cluster.IsHighAvailabilityEnabled() {
 		if err := reconciler.ensureFinalizer(ctx); err != nil {
 			return ctrl.Result{}, err
 		}
-	}
-
-	if reconciler.observed.cluster.DeletionTimestamp != nil {
-		return reconciler.reconcileDeletion(ctx)
 	}
 
 	if shouldUpdateCluster(&reconciler.observed) {
@@ -224,16 +226,21 @@ func (reconciler *ClusterReconciler) jobManagerPodsRemaining(ctx context.Context
 	return len(podList.Items) > 0, nil
 }
 
-// ensureFinalizer adds the JobManager shutdown finalizer to HA-enabled clusters that don't already
-// have it.
+// ensureFinalizer adds the JobManager shutdown finalizer to active HA-enabled clusters that don't
+// already have it. It never restores a finalizer after deletion has started.
 func (reconciler *ClusterReconciler) ensureFinalizer(ctx context.Context) error {
 	cluster := reconciler.observed.cluster
-	if controllerutil.ContainsFinalizer(cluster, jobManagerShutdownFinalizer) {
+	if cluster.DeletionTimestamp != nil || controllerutil.ContainsFinalizer(cluster, jobManagerShutdownFinalizer) {
 		return nil
 	}
 	patch := client.MergeFrom(cluster.DeepCopy())
 	controllerutil.AddFinalizer(cluster, jobManagerShutdownFinalizer)
-	return reconciler.k8sClient.Patch(ctx, cluster, patch)
+	if err := reconciler.k8sClient.Patch(ctx, cluster, patch); err != nil {
+		return err
+	}
+
+	logr.FromContextOrDiscard(ctx).Info("Added JobManager shutdown finalizer")
+	return nil
 }
 
 func (reconciler *ClusterReconciler) reconcileBatchScheduler() error {

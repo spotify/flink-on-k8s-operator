@@ -133,6 +133,31 @@ func TestEnsureFinalizer(t *testing.T) {
 		// expect: succeeds without ever calling Update (enforced by the interceptor above).
 		assert.NilError(t, reconciler.ensureFinalizer(ctx))
 	})
+
+	t.Run("is a no-op when deletion has started", func(t *testing.T) {
+		// given: a deleting HA-enabled cluster whose finalizer was manually removed
+		cluster := testHACluster(false)
+		fakeClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithInterceptorFuncs(interceptor.Funcs{
+				Patch: func(context.Context, client.WithWatch, client.Object, client.Patch, ...client.PatchOption) error {
+					t.Fatal("Patch should not be called after deletion has started")
+					return nil
+				},
+			}).
+			Build()
+		reconciler := ClusterReconciler{
+			k8sClient: fakeClient,
+			observed:  ObservedClusterState{cluster: cluster},
+		}
+
+		// when: the finalizer is ensured
+		err := reconciler.ensureFinalizer(ctx)
+
+		// then: reconciliation succeeds without restoring the finalizer
+		assert.NilError(t, err)
+		assert.Assert(t, !controllerutil.ContainsFinalizer(cluster, jobManagerShutdownFinalizer))
+	})
 }
 
 func TestReconcileDeletion(t *testing.T) {
