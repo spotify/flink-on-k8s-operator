@@ -19,8 +19,12 @@ package flinkcluster
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/go-logr/logr"
 	"gotest.tools/v3/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -29,6 +33,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -36,6 +41,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
+	"github.com/spotify/flink-on-k8s-operator/internal/flink"
+	"github.com/spotify/flink-on-k8s-operator/internal/model"
 )
 
 func TestDeleteComponent(t *testing.T) {
@@ -102,10 +109,11 @@ func TestEnsureFinalizer(t *testing.T) {
 		}
 
 		// when
-		err := reconciler.ensureFinalizer(ctx)
+		added, err := reconciler.ensureFinalizer(ctx)
 
 		// then: the finalizer is now present on the persisted cluster.
 		assert.NilError(t, err)
+		assert.Assert(t, added)
 		var updated v1beta1.FlinkCluster
 		assert.NilError(t, fakeClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, &updated))
 		assert.Assert(t, controllerutil.ContainsFinalizer(&updated, jobManagerShutdownFinalizer))
@@ -131,7 +139,9 @@ func TestEnsureFinalizer(t *testing.T) {
 		}
 
 		// expect: succeeds without ever calling Update (enforced by the interceptor above).
-		assert.NilError(t, reconciler.ensureFinalizer(ctx))
+		added, err := reconciler.ensureFinalizer(ctx)
+		assert.NilError(t, err)
+		assert.Assert(t, !added)
 	})
 
 	t.Run("is a no-op when deletion has started", func(t *testing.T) {
@@ -152,10 +162,11 @@ func TestEnsureFinalizer(t *testing.T) {
 		}
 
 		// when: the finalizer is ensured
-		err := reconciler.ensureFinalizer(ctx)
+		added, err := reconciler.ensureFinalizer(ctx)
 
 		// then: reconciliation succeeds without restoring the finalizer
 		assert.NilError(t, err)
+		assert.Assert(t, !added)
 		assert.Assert(t, !controllerutil.ContainsFinalizer(cluster, jobManagerShutdownFinalizer))
 	})
 }
@@ -494,6 +505,93 @@ func TestReconcileFlinkNativeConfigMaps(t *testing.T) {
 		// when / then
 		assert.NilError(t, reconciler.reconcileFlinkNativeConfigMaps(ctx))
 	})
+}
+
+func TestReconcileReturnsEarlyAfterAddingFinalizer(t *testing.T) {
+	// A reconcile that adds the finalizer must return before taking any Flink-side action,
+	// so the watch event enqueued by the patch cannot observe a status that predates an
+	// action taken after it. The cluster below is set up so that reconcile would go on to
+	// trigger stop-with-savepoint for the pending update if it didn't return early.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Not t.Fatalf: FailNow must be called from the goroutine running the test.
+		t.Errorf("unexpected Flink API call: %s %s", r.Method, r.URL.Path)
+		http.Error(w, "unexpected call", http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	// given: an HA cluster without the finalizer, with a running job and an update triggered.
+	savepointsDir := "s3://bucket/savepoints"
+	uiPort := int32(8081) // dereferenced when building the Flink API base URL
+	cluster := testHACluster(false)
+	cluster.DeletionTimestamp = nil
+	cluster.Spec.Job.SavepointsDir = &savepointsDir
+	cluster.Spec.JobManager = &v1beta1.JobManagerSpec{Ports: v1beta1.JobManagerPorts{UI: &uiPort}}
+	cluster.Status.Revision = v1beta1.RevisionStatus{CurrentRevision: "rev-1", NextRevision: "rev-2"}
+	cluster.Status.Components.Job = &v1beta1.JobStatus{ID: "job-123", State: v1beta1.JobStateRunning}
+
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(testHADeleteScheme(t)).
+		WithStatusSubresource(&v1beta1.FlinkCluster{}).
+		WithObjects(cluster).
+		Build()
+	reconciler := ClusterReconciler{
+		k8sClient:   fakeClient,
+		flinkClient: flink.NewClient(logr.Discard(), newRedirectingHTTPClient(server.URL)),
+		observed: ObservedClusterState{
+			cluster:                cluster,
+			persistentVolumeClaims: &corev1.PersistentVolumeClaimList{},
+		},
+		desired:  model.DesiredClusterState{Job: testSubmitterJob(cluster.Namespace)},
+		recorder: record.NewFakeRecorder(16),
+	}
+
+	// when
+	ctx := logr.NewContext(context.Background(), logr.Discard())
+	result, err := reconciler.reconcile(ctx)
+
+	// then: early return with a 5s requeue
+	assert.Equal(t, result, ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Second})
+	assert.NilError(t, err)
+
+	// and: the finalizer patch is the only thing that happened — no Flink API call (enforced by
+	//the handler above) and no savepoint recorded.
+	var updated v1beta1.FlinkCluster
+	assert.NilError(t, fakeClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, &updated))
+	assert.Assert(t, controllerutil.ContainsFinalizer(&updated, jobManagerShutdownFinalizer))
+	assert.Assert(t, updated.Status.Savepoint == nil)
+}
+
+func TestReconcileDeletingClusterDoesNotReAddFinalizer(t *testing.T) {
+	scheme := testHADeleteScheme(t)
+
+	// given: a deleting HA cluster whose finalizer was already removed.
+	// The fake client refuses to store an object with deletionTimestamp but no finalizers,
+	// so don't register the cluster as a stored object — reconcile only reads from observed.
+	cluster := testHACluster(false)
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Patch: func(_ context.Context, _ client.WithWatch, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+				if _, ok := obj.(*v1beta1.FlinkCluster); ok {
+					t.Fatal("Patch should not be called on the FlinkCluster during deletion without a finalizer")
+				}
+				return nil
+			},
+		}).
+		Build()
+	reconciler := ClusterReconciler{
+		k8sClient: fakeClient,
+		observed:  ObservedClusterState{cluster: cluster},
+		recorder:  record.NewFakeRecorder(16),
+	}
+
+	// when
+	result, err := reconciler.reconcile(logr.NewContext(context.Background(), logr.Discard()))
+
+	// then: reconcileDeletion returns immediately (no finalizer to process).
+	assert.NilError(t, err)
+	assert.Equal(t, result, ctrl.Result{})
+	assert.Assert(t, !controllerutil.ContainsFinalizer(cluster, jobManagerShutdownFinalizer))
 }
 
 func testDeleteConfigMap() *corev1.ConfigMap {
