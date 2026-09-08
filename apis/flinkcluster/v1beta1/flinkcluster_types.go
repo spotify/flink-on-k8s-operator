@@ -335,6 +335,12 @@ type JobManagerSpec struct {
 	// [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)
 	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
 
+	// _(Optional)_ Actions the management system should take in response to container
+	// lifecycle events. If omitted, a default preStop hook that sleeps for 30 seconds
+	// is used.
+	// [More info](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/)
+	Lifecycle *corev1.Lifecycle `json:"lifecycle,omitempty"`
+
 	// _(Optional)_ Adding entries to JobManager pod /etc/hosts with HostAliases
 	// [More info](https://kubernetes.io/docs/tasks/network/customize-hosts-file-for-pods/)
 	HostAliases []corev1.HostAlias `json:"hostAliases,omitempty"`
@@ -497,6 +503,12 @@ type TaskManagerSpec struct {
 	// If omitted, a [default value](https://github.com/spotify/flink-on-k8s-operator/blob/a88ed2b/api/v1beta1/flinkcluster_default.go#L193-L203) will be used.
 	// [More info](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)
 	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
+
+	// _(Optional)_ Actions the management system should take in response to container
+	// lifecycle events. If omitted, a default preStop hook that sleeps for 30 seconds
+	// is used.
+	// [More info](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/)
+	Lifecycle *corev1.Lifecycle `json:"lifecycle,omitempty"`
 
 	// _(Optional)_ Adding entries to TaskManager pod /etc/hosts with HostAliases
 	// [More info](https://kubernetes.io/docs/tasks/network/customize-hosts-file-for-pods/)

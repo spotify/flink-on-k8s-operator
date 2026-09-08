@@ -664,6 +664,11 @@ func (in *JobManagerSpec) DeepCopyInto(out *JobManagerSpec) {
 		*out = new(v1.Probe)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Lifecycle != nil {
+		in, out := &in.Lifecycle, &out.Lifecycle
+		*out = new(v1.Lifecycle)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.HostAliases != nil {
 		in, out := &in.HostAliases, &out.HostAliases
 		*out = make([]v1.HostAlias, len(*in))
@@ -1091,6 +1096,11 @@ func (in *TaskManagerSpec) DeepCopyInto(out *TaskManagerSpec) {
 	if in.ReadinessProbe != nil {
 		in, out := &in.ReadinessProbe, &out.ReadinessProbe
 		*out = new(v1.Probe)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.Lifecycle != nil {
+		in, out := &in.Lifecycle, &out.Lifecycle
+		*out = new(v1.Lifecycle)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.HostAliases != nil {

@@ -163,13 +163,7 @@ func newJobManagerContainer(flinkCluster *v1beta1.FlinkCluster) *corev1.Containe
 		Env:             flinkCluster.Spec.EnvVars,
 		EnvFrom:         flinkCluster.Spec.EnvFrom,
 		VolumeMounts:    jobManagerSpec.VolumeMounts,
-		Lifecycle: &corev1.Lifecycle{
-			PreStop: &corev1.LifecycleHandler{
-				Exec: &corev1.ExecAction{
-					Command: []string{"sleep", strconv.Itoa(preStopSleepSeconds)},
-				},
-			},
-		},
+		Lifecycle:       getLifecycle(jobManagerSpec.Lifecycle),
 	}
 
 	if IsApplicationModeCluster(flinkCluster) {
@@ -439,11 +433,20 @@ func newTaskManagerContainer(flinkCluster *v1beta1.FlinkCluster) *corev1.Contain
 		Env:             flinkCluster.Spec.EnvVars,
 		EnvFrom:         flinkCluster.Spec.EnvFrom,
 		VolumeMounts:    taskManagerSpec.VolumeMounts,
-		Lifecycle: &corev1.Lifecycle{
-			PreStop: &corev1.LifecycleHandler{
-				Exec: &corev1.ExecAction{
-					Command: []string{"sleep", strconv.Itoa(preStopSleepSeconds)},
-				},
+		Lifecycle:       getLifecycle(taskManagerSpec.Lifecycle),
+	}
+}
+
+// getLifecycle returns the given lifecycle if set, otherwise falls back to a
+// preStop hook that sleeps for preStopSleepSeconds.
+func getLifecycle(lifecycle *corev1.Lifecycle) *corev1.Lifecycle {
+	if lifecycle != nil {
+		return lifecycle
+	}
+	return &corev1.Lifecycle{
+		PreStop: &corev1.LifecycleHandler{
+			Exec: &corev1.ExecAction{
+				Command: []string{"sleep", strconv.Itoa(preStopSleepSeconds)},
 			},
 		},
 	}

@@ -1330,6 +1330,92 @@ func TestSecurityContext(t *testing.T) {
 	assert.Assert(t, desired2.TmStatefulSet.Spec.Template.Spec.SecurityContext == nil)
 }
 
+func TestLifecycleDefaultsWhenNotSet(t *testing.T) {
+	// Given: a FlinkCluster with JobManager/TaskManager specs that do not set Lifecycle.
+	var observed = newObservedClusterStateForLifecycleTest()
+
+	// When: the desired cluster state is computed.
+	var desired = getDesiredClusterState(observed)
+
+	// Then: both containers fall back to the default preStop sleep hook.
+	var defaultLifecycle = &corev1.Lifecycle{
+		PreStop: &corev1.LifecycleHandler{
+			Exec: &corev1.ExecAction{
+				Command: []string{"sleep", strconv.Itoa(preStopSleepSeconds)},
+			},
+		},
+	}
+	assert.DeepEqual(t, desired.JmStatefulSet.Spec.Template.Spec.Containers[0].Lifecycle, defaultLifecycle)
+	assert.DeepEqual(t, desired.TmStatefulSet.Spec.Template.Spec.Containers[0].Lifecycle, defaultLifecycle)
+}
+
+func TestLifecycleUsesExplicitValue(t *testing.T) {
+	// Given: a FlinkCluster with JobManager/TaskManager specs that set an explicit Lifecycle.
+	var customLifecycle = &corev1.Lifecycle{
+		PreStop: &corev1.LifecycleHandler{
+			Exec: &corev1.ExecAction{
+				Command: []string{"sleep", "5"},
+			},
+		},
+	}
+
+	var observed = newObservedClusterStateForLifecycleTest()
+	observed.cluster.Spec.JobManager.Lifecycle = customLifecycle
+	observed.cluster.Spec.TaskManager.Lifecycle = customLifecycle
+
+	// When: the desired cluster state is computed.
+	var desired = getDesiredClusterState(observed)
+
+	// Then: both containers use the explicit Lifecycle instead of the default.
+	assert.DeepEqual(t, desired.JmStatefulSet.Spec.Template.Spec.Containers[0].Lifecycle, customLifecycle)
+	assert.DeepEqual(t, desired.TmStatefulSet.Spec.Template.Spec.Containers[0].Lifecycle, customLifecycle)
+}
+
+// newObservedClusterStateForLifecycleTest builds an ObservedClusterState with minimal
+// JobManager/TaskManager specs.
+func newObservedClusterStateForLifecycleTest() *ObservedClusterState {
+	var jmRPCPort int32 = 6123
+	var jmBlobPort int32 = 6124
+	var jmQueryPort int32 = 6125
+	var jmUIPort int32 = 8081
+	var tmDataPort int32 = 6121
+	var tmRPCPort int32 = 6122
+	var tmQueryPort int32 = 6125
+	var tmReplicas int32 = v1beta1.DefaultTaskManagerReplicas
+
+	return &ObservedClusterState{
+		cluster: &v1beta1.FlinkCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "fjc",
+				Namespace: "default",
+			},
+			Spec: v1beta1.FlinkClusterSpec{
+				JobManager: &v1beta1.JobManagerSpec{
+					AccessScope: v1beta1.AccessScopeVPC,
+					Ports: v1beta1.JobManagerPorts{
+						RPC:   &jmRPCPort,
+						Blob:  &jmBlobPort,
+						Query: &jmQueryPort,
+						UI:    &jmUIPort,
+					},
+				},
+				TaskManager: &v1beta1.TaskManagerSpec{
+					Replicas:       &tmReplicas,
+					DeploymentType: v1beta1.DeploymentTypeStatefulSet,
+					Ports: v1beta1.TaskManagerPorts{
+						Data:  &tmDataPort,
+						RPC:   &tmRPCPort,
+						Query: &tmQueryPort,
+					},
+				},
+			},
+			Status: v1beta1.FlinkClusterStatus{
+				Revision: v1beta1.RevisionStatus{NextRevision: "fjc-85dc8f749-1"},
+			},
+		},
+	}
+}
+
 func TestCalFlinkHeapSize(t *testing.T) {
 	var memoryOffHeapRatio int32 = 25
 	var memoryOffHeapMin = resource.MustParse("600M")
