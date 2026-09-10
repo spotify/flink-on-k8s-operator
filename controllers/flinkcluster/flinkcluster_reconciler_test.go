@@ -466,6 +466,87 @@ func TestTrySuspendJobUsesStopWithSavepoint(t *testing.T) {
 	})
 }
 
+func TestTrySuspendJobDoesNotDuplicateStopWhenCachedSavepointIsStale(t *testing.T) {
+	// given: the first reconciliation observes the last scheduled savepoint
+	var stopCalls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		stopCalls.Add(1)
+		assert.Equal(t, r.Method, http.MethodPost)
+		assert.Equal(t, r.URL.Path, "/jobs/job-123/stop")
+		w.Header().Set("Content-Type", "application/json")
+		_, err := fmt.Fprint(w, `{"request-id": "trigger-update-a"}`)
+		assert.NilError(t, err)
+	}))
+	defer server.Close()
+
+	savepointsDir := "s3://bucket/savepoints"
+	staleCluster := newTestClusterWithJob(&savepointsDir, nil)
+	staleCluster.ResourceVersion = "1"
+	staleCluster.Status.Savepoint = &v1beta1.SavepointStatus{
+		JobID:         "job-123",
+		TriggerID:     "trigger-scheduled",
+		TriggerReason: v1beta1.SavepointReasonScheduled,
+		State:         v1beta1.SavepointStateSucceeded,
+	}
+	firstReconciler := newTestReconciler(staleCluster.DeepCopy(), newRedirectingHTTPClient(server.URL))
+
+	// and: the first reconciliation triggers update savepoint A
+	statusA, err := firstReconciler.trySuspendJob(context.Background())
+	assert.NilError(t, err)
+	assert.Assert(t, statusA != nil)
+	assert.Equal(t, stopCalls.Load(), int32(1))
+
+	// and: the next reconciliation still has the stale cached object, while the API server has A
+	liveCluster := staleCluster.DeepCopy()
+	liveCluster.ResourceVersion = "2"
+	liveCluster.Status.Savepoint = statusA
+	secondReconciler := newTestReconciler(staleCluster.DeepCopy(), newRedirectingHTTPClient(server.URL))
+	secondReconciler.apiReader = newTestAPIReader(t, liveCluster)
+
+	// when: the stale reconciliation tries to suspend the same job
+	statusB, err := secondReconciler.trySuspendJob(context.Background())
+
+	// then: the live read sees A in progress and no duplicate request B is sent
+	assert.NilError(t, err)
+	assert.Assert(t, statusB == nil)
+	assert.Equal(t, stopCalls.Load(), int32(1))
+}
+
+func TestTrySuspendJobHandlesLiveReadErrors(t *testing.T) {
+	savepointsDir := "s3://bucket/savepoints"
+	cluster := newTestClusterWithJob(&savepointsDir, nil)
+
+	t.Run("not found", func(t *testing.T) {
+		reconciler := newTestReconciler(cluster.DeepCopy(), http.DefaultClient)
+		reconciler.apiReader = newTestAPIReader(t)
+
+		status, err := reconciler.trySuspendJob(context.Background())
+
+		assert.NilError(t, err)
+		assert.Assert(t, status == nil)
+	})
+
+	t.Run("read failure", func(t *testing.T) {
+		reconciler := newTestReconciler(cluster.DeepCopy(), http.DefaultClient)
+		reconciler.apiReader = interceptor.NewClient(reconciler.k8sClient.(client.WithWatch), interceptor.Funcs{
+			Get: func(
+				context.Context,
+				client.WithWatch,
+				client.ObjectKey,
+				client.Object,
+				...client.GetOption,
+			) error {
+				return errors.New("API server unavailable")
+			},
+		})
+
+		status, err := reconciler.trySuspendJob(context.Background())
+
+		assert.Assert(t, status == nil)
+		requireError(t, err, "failed to read latest FlinkCluster", "API server unavailable")
+	})
+}
+
 func TestTrySuspendJobRecordsStopTriggerFailure(t *testing.T) {
 	// given: a Flink API that rejects the stop request
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -868,10 +949,27 @@ func newTestReconciler(cluster *v1beta1.FlinkCluster, httpClient *http.Client) *
 
 	return &ClusterReconciler{
 		k8sClient:   k8sClient,
+		apiReader:   k8sClient,
 		flinkClient: flink.NewClient(logr.Discard(), httpClient),
 		observed:    ObservedClusterState{cluster: cluster},
 		recorder:    record.NewFakeRecorder(16),
 	}
+}
+
+func newTestAPIReader(t *testing.T, clusters ...*v1beta1.FlinkCluster) client.Reader {
+	t.Helper()
+	scheme := runtime.NewScheme()
+	assert.NilError(t, v1beta1.AddToScheme(scheme))
+
+	objects := make([]client.Object, len(clusters))
+	for i := range clusters {
+		objects[i] = clusters[i]
+	}
+	return fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(&v1beta1.FlinkCluster{}).
+		WithObjects(objects...).
+		Build()
 }
 
 func newTestClusterWithJob(savepointsDir *string, flinkProperties map[string]string) *v1beta1.FlinkCluster {

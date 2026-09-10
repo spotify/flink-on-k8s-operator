@@ -55,6 +55,7 @@ const jobManagerShutdownFinalizer = "flinkoperator.k8s.io/jobmanager-shutdown"
 // desired state.
 type ClusterReconciler struct {
 	k8sClient   client.Client
+	apiReader   client.Reader
 	flinkClient *flink.Client
 	observed    ObservedClusterState
 	desired     model.DesiredClusterState
@@ -721,16 +722,23 @@ func (reconciler *ClusterReconciler) getFlinkJobID() string {
 
 func (reconciler *ClusterReconciler) trySuspendJob(ctx context.Context) (*v1beta1.SavepointStatus, error) {
 	log := logr.FromContextOrDiscard(ctx)
-	var recorded = reconciler.observed.cluster.Status
 
-	if !canTakeSavepoint(reconciler.observed.cluster) {
+	// Read directly from the API server because the informer cache may not yet contain
+	// the savepoint status written by the previous reconciliation. Using stale status
+	// here could trigger a duplicate, non-idempotent stop-with-savepoint request.
+	var liveCluster, err = reconciler.getLiveCluster(ctx)
+	if err != nil || liveCluster == nil {
+		return nil, err
+	}
+
+	if !canTakeSavepoint(liveCluster) {
 		return nil, nil
 	}
 
-	var jobID = reconciler.getFlinkJobID()
+	var jobID = liveCluster.Status.Components.Job.ID
 
 	log.Info("Checking the conditions for progressing")
-	var canSuspend = reconciler.canSuspendJob(ctx, jobID, recorded.Savepoint)
+	var canSuspend = reconciler.canSuspendJob(ctx, liveCluster)
 	if canSuspend {
 		log.Info("Stopping job with savepoint for update")
 		var newSavepointStatus, err = reconciler.triggerSavepoint(ctx, jobID, v1beta1.SavepointReasonUpdate, true)
@@ -743,6 +751,31 @@ func (reconciler *ClusterReconciler) trySuspendJob(ctx context.Context) (*v1beta
 	}
 
 	return nil, nil
+}
+
+func (reconciler *ClusterReconciler) getLiveCluster(ctx context.Context) (*v1beta1.FlinkCluster, error) {
+	log := logr.FromContextOrDiscard(ctx)
+	var observedCluster = reconciler.observed.cluster
+	var cluster v1beta1.FlinkCluster
+	var key = client.ObjectKeyFromObject(observedCluster)
+	if err := reconciler.apiReader.Get(ctx, key, &cluster); err != nil {
+		if errors.IsNotFound(err) {
+			log.Info("FlinkCluster no longer exists, skip stop with savepoint")
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to read latest FlinkCluster before stopping job with savepoint: %w", err)
+	}
+
+	log.Info("Read latest FlinkCluster before stop with savepoint",
+		"cachedResourceVersion", observedCluster.ResourceVersion,
+		"liveResourceVersion", cluster.ResourceVersion)
+
+	var job = cluster.Status.Components.Job
+	if job == nil || job.ID == "" {
+		return nil, nil
+	}
+
+	return &cluster, nil
 }
 
 func (reconciler *ClusterReconciler) cancelJob(ctx context.Context) error {
@@ -877,8 +910,17 @@ func (reconciler *ClusterReconciler) waitForSavepointCompleted(ctx context.Conte
 }
 
 // canSuspendJob reports whether a new stop-with-savepoint request should be triggered.
-func (reconciler *ClusterReconciler) canSuspendJob(ctx context.Context, jobID string, s *v1beta1.SavepointStatus) bool {
+func (reconciler *ClusterReconciler) canSuspendJob(
+	ctx context.Context,
+	cluster *v1beta1.FlinkCluster,
+) bool {
 	log := logr.FromContextOrDiscard(ctx)
+	var job = cluster.Status.Components.Job
+	var jobID string
+	if job != nil {
+		jobID = job.ID
+	}
+	var s = cluster.Status.Savepoint
 	var firstTry = !finalSavepointRequested(jobID, s)
 	if firstTry {
 		return true
@@ -886,7 +928,6 @@ func (reconciler *ClusterReconciler) canSuspendJob(ctx context.Context, jobID st
 
 	switch s.State {
 	case v1beta1.SavepointStateSucceeded:
-		job := reconciler.observed.cluster.Status.Components.Job
 		if job != nil && !job.FinalSavepoint {
 			log.Info("Previous update savepoint does not belong to the current job execution")
 			return true
@@ -999,7 +1040,7 @@ func (reconciler *ClusterReconciler) triggerSavepoint(
 		triggerID = savepointTriggerID.RequestID
 		log.Info("Successfully savepoint triggered", "jobID", jobID, "triggerID", triggerID)
 	}
-	newSavepointStatus := reconciler.getNewSavepointStatus(triggerID, triggerReason, message, triggerSuccess, formatType)
+	newSavepointStatus := reconciler.getNewSavepointStatus(jobID, triggerID, triggerReason, message, triggerSuccess, formatType)
 
 	return newSavepointStatus, err
 }
@@ -1126,8 +1167,7 @@ func (reconciler *ClusterReconciler) updateJobDeployStatus(ctx context.Context) 
 }
 
 // getNewSavepointStatus returns newly triggered savepoint status.
-func (reconciler *ClusterReconciler) getNewSavepointStatus(triggerID string, triggerReason v1beta1.SavepointReason, message string, triggerSuccess bool, formatType v1beta1.SavepointFormatType) *v1beta1.SavepointStatus {
-	var jobID = reconciler.getFlinkJobID()
+func (reconciler *ClusterReconciler) getNewSavepointStatus(jobID string, triggerID string, triggerReason v1beta1.SavepointReason, message string, triggerSuccess bool, formatType v1beta1.SavepointFormatType) *v1beta1.SavepointStatus {
 	var savepointState string
 	var now string
 	util.SetTimestamp(&now)

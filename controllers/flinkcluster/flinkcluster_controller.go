@@ -45,6 +45,7 @@ var controllerKind = v1beta1.GroupVersion.WithKind("FlinkCluster")
 // FlinkClusterReconciler reconciles a FlinkCluster object
 type FlinkClusterReconciler struct {
 	Client        client.Client
+	APIReader     client.Reader
 	Clientset     *kubernetes.Clientset
 	EventRecorder record.EventRecorder
 	Sharder       *Sharder
@@ -62,6 +63,7 @@ func NewReconciler(mgr manager.Manager) (*FlinkClusterReconciler, error) {
 
 	return &FlinkClusterReconciler{
 		Client:        mgr.GetClient(),
+		APIReader:     mgr.GetAPIReader(),
 		Clientset:     cs,
 		EventRecorder: mgr.GetEventRecorderFor("FlinkOperator"),
 		Sharder:       sh,
@@ -98,6 +100,7 @@ func (r *FlinkClusterReconciler) Reconcile(ctx context.Context,
 
 	var handler = FlinkClusterHandler{
 		k8sClient:     r.Client,
+		apiReader:     r.APIReader,
 		k8sClientset:  r.Clientset,
 		flinkClient:   flink.NewDefaultClient(log),
 		request:       request,
@@ -127,6 +130,7 @@ func (reconciler *FlinkClusterReconciler) SetupWithManager(
 // reconcile request.
 type FlinkClusterHandler struct {
 	k8sClient     client.Client
+	apiReader     client.Reader
 	k8sClientset  *kubernetes.Clientset
 	flinkClient   *flink.Client
 	request       ctrl.Request
@@ -204,6 +208,7 @@ func (handler *FlinkClusterHandler) reconcile(ctx context.Context,
 
 	var reconciler = ClusterReconciler{
 		k8sClient:   k8sClient,
+		apiReader:   handler.apiReader,
 		flinkClient: flinkClient,
 		observed:    handler.observed,
 		desired:     handler.desired,
