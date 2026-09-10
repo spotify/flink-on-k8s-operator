@@ -3,15 +3,20 @@ kind: FlinkCluster
 metadata:
   name: flinkjobcluster-http
 spec:
-  flinkVersion: "1.14"
+  flinkVersion: "2.3"
   image:
-    name: flink:1.14.3
+    name: flink:2.3.0
+    pullPolicy: IfNotPresent
   envVars:
     - name: JAR
-      value: https://repo1.maven.org/maven2/org/apache/flink/flink-examples-streaming_2.12/1.14.3/flink-examples-streaming_2.12-1.14.3-WordCount.jar
+      value: https://repo.maven.apache.org/maven2/org/apache/flink/flink-examples-streaming/2.3.0/flink-examples-streaming-2.3.0-WordCount.jar
     - name: FLINK_USR_LIB
       value: /opt/flink/usrlib
   jobManager:
+    resources:
+      limits:
+        memory: "2048Mi"
+        cpu: "500m"
     volumes:
       - name: usrlib
     volumeMounts:
@@ -19,8 +24,8 @@ spec:
         name: usrlib
     initContainers:
       - name: downloader
-        image: curlimages/curl
-        command: ["sh", "-c", "cd $FLINK_USR_LIB; curl -O $JAR"]
+        image: curlimages/curl:8.12.1
+        command: ["sh", "-ec", "curl --fail --location --retry 3 --output \"$FLINK_USR_LIB/WordCount.jar\" \"$JAR\""]
         resources:
           limits:
             cpu: 100m
@@ -29,6 +34,11 @@ spec:
           - mountPath: /opt/flink/usrlib
             name: usrlib
   taskManager:
+    replicas: 1
+    resources:
+      limits:
+        memory: "2048Mi"
+        cpu: "500m"
     volumes:
       - name: usrlib
     volumeMounts:
@@ -36,8 +46,8 @@ spec:
         name: usrlib
     initContainers:
       - name: downloader
-        image: curlimages/curl
-        command: ["sh", "-c", "cd $FLINK_USR_LIB; curl -O $JAR"]
+        image: curlimages/curl:8.12.1
+        command: ["sh", "-ec", "curl --fail --location --retry 3 --output \"$FLINK_USR_LIB/WordCount.jar\" \"$JAR\""]
         resources:
           limits:
             cpu: 100m
@@ -52,5 +62,18 @@ spec:
       afterJobFails: DeleteCluster
       afterJobCancelled: DeleteCluster
     className: org.apache.flink.streaming.examples.wordcount.WordCount
-    args: ["--input", "./README.txt"]
+    args: ["--input", "./README.txt", "--execution-mode", "BATCH"]
+    parallelism: 1
     restartPolicy: Never
+  flinkProperties:
+    env.java.opts.all: --add-opens=java.base/java.util=ALL-UNNAMED
+    taskmanager.numberOfTaskSlots: "1"
+  logConfig:
+    log4j-console.properties: &consoleLogging |
+      rootLogger.level = INFO
+      rootLogger.appenderRef.console.ref = Console
+      appender.console.name = Console
+      appender.console.type = Console
+      appender.console.layout.type = PatternLayout
+      appender.console.layout.pattern = %d{ISO8601} %-5p %c - %m%n
+    log4j-cli.properties: *consoleLogging

@@ -165,9 +165,28 @@ and verify the pod is up and running with
 kubectl get pods,svc -n default | grep "flinkjobcluster"
 ```
 
-By default, Flink Job Cluster's TaskManager will get terminated once
-the sample job is completed (in this case it takes around 5 minutes for the
-Pod to terminate)
+The sample job runs WordCount in batch mode using `./README.txt` as input. By default,
+the cluster resources are deleted once the job succeeds.
+
+Create a [sample streaming job](../config/samples/flinkoperator_v1beta1_topspeed_streaming.yaml)
+with:
+
+```bash
+kubectl apply -n default -f config/samples/flinkoperator_v1beta1_topspeed_streaming.yaml
+kubectl get flinkcluster flinkstreaming-sample -n default -w
+```
+
+Once the job is `Running`, view its output with:
+
+```bash
+kubectl logs -n default flinkstreaming-sample-taskmanager-0 --tail=20 -f
+```
+
+Delete the sample with:
+
+```bash
+kubectl delete -n default -f config/samples/flinkoperator_v1beta1_topspeed_streaming.yaml
+```
 
 ## Submit a job
 
@@ -193,15 +212,19 @@ There are several ways to submit jobs to a session cluster.
       spec:
         containers:
         - name: wordcount
-          image: flink:1.8.1
+          image: flink:2.3.0
           args:
           - /opt/flink/bin/flink
           - run
           - -m
           - flinksessioncluster-sample-jobmanager:8081
-          - /opt/flink/examples/batch/WordCount.jar
+          - --parallelism
+          - "1"
+          - /opt/flink/examples/streaming/WordCount.jar
           - --input
           - /opt/flink/README.txt
+          - --execution-mode
+          - BATCH
         restartPolicy: Never
   EOF
   ```
@@ -212,8 +235,8 @@ There are several ways to submit jobs to a session cluster.
   you can submit jobs from a machine which is in the scope, for example:
 
   ```bash
-  flink run -m <jobmanager-service-ip>:8081 \
-      examples/batch/WordCount.jar --input /opt/flink/README.txt
+  flink run -m <jobmanager-service-ip>:8081 -p 1 \
+      examples/streaming/WordCount.jar --input /opt/flink/README.txt --execution-mode BATCH
   ```
 
   Or if the access scope is `Cluster` which is the default, you can use port
@@ -228,8 +251,8 @@ There are several ways to submit jobs to a session cluster.
   then submit jobs through the tunnel, for example:
 
   ```bash
-  flink run -m localhost:8081 \
-      examples/batch/WordCount.jar --input ./README.txt
+  flink run -m localhost:8081 -p 1 \
+      examples/streaming/WordCount.jar --input ./README.txt --execution-mode BATCH
   ```
 
 ## Monitoring
