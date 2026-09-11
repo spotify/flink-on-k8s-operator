@@ -69,6 +69,7 @@ spec:
             - --enable-leader-election
             - --zap-devel=false
             - --watch-namespace={{ .Values.watchNamespace.name }}
+            - --flink-client-timeout={{ .Values.flinkClientTimeout }}
           command:
             - /flink-operator
           image: {{ .Values.operatorImage.name }}

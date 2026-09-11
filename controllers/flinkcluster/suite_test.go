@@ -79,7 +79,7 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	reconciler, err := NewReconciler(k8sManager)
+	reconciler, err := NewReconciler(k8sManager, 30*time.Second)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = reconciler.SetupWithManager(k8sManager, 1)

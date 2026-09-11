@@ -19,7 +19,9 @@ package main
 import (
 	"crypto/tls"
 	"flag"
+	"fmt"
 	"os"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
@@ -52,7 +54,15 @@ var (
 	leaderElectionID        = flag.String("leader-election-id", "flink-operator-lock", "The name that leader election will use for holding the leader lock")
 	watchNamespace          = flag.String("watch-namespace", "", "Watch custom resources in the namespace, ignore other namespaces. If empty, all namespaces will be watched.")
 	maxConcurrentReconciles = flag.Int("max-concurrent-reconciles", 1, "The maximum number of concurrent Reconciles which can be run. Defaults to 1.")
+	flinkClientTimeout      = flag.Duration("flink-client-timeout", 30*time.Second, "The timeout for Flink REST API requests.")
 )
+
+func validateFlinkClientTimeout(timeout time.Duration) error {
+	if timeout <= 0 {
+		return fmt.Errorf("flink-client-timeout must be greater than zero")
+	}
+	return nil
+}
 
 func init() {
 	appsv1.AddToScheme(scheme)
@@ -74,6 +84,10 @@ func main() {
 		WithName("controllers").
 		WithName("FlinkCluster")
 	ctrl.SetLogger(logger)
+	if err := validateFlinkClientTimeout(*flinkClientTimeout); err != nil {
+		setupLog.Error(err, "Invalid configuration")
+		os.Exit(1)
+	}
 
 	defaultNamespaces := make(map[string]cache.Config)
 	if *watchNamespace != "" {
@@ -108,7 +122,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	reconciler, err := flinkcluster.NewReconciler(mgr)
+	reconciler, err := flinkcluster.NewReconciler(mgr, *flinkClientTimeout)
 	if err != nil {
 		setupLog.Error(err, "Unable to create reconciler")
 		os.Exit(1)

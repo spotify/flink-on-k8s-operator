@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/go-logr/logr"
 )
@@ -322,8 +323,8 @@ func (c *Client) GetJobExceptions(apiBaseURL string, jobId string) (*JobExceptio
 	return exp, nil
 }
 
-func NewDefaultClient(log logr.Logger) *Client {
-	return NewClient(log, &http.Client{})
+func NewDefaultClient(log logr.Logger, timeout time.Duration) *Client {
+	return NewClient(log, &http.Client{Timeout: timeout})
 }
 
 func NewClient(log logr.Logger, httpClient *http.Client) *Client {
