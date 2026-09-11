@@ -304,7 +304,7 @@ func (observer *ClusterStateObserver) observeJob(
 		log: submitterLog,
 	}
 
-	if isJmReady(applicationMode, observed, jobPod) {
+	if isJobManagerReady(applicationMode, observed, jobPod) {
 		var flinkJobID = getObservedFlinkJobID(jobPod, submitterLog, recordedJob)
 		// Observe the Flink job status.
 		observer.observeFlinkJobStatus(ctx, observed, flinkJobID, &observed.flinkJob)
@@ -410,7 +410,7 @@ func (observer *ClusterStateObserver) observeSavepoint(cluster *v1beta1.FlinkClu
 	return err
 }
 
-func isJmReady(applicationMode bool, observed *ObservedClusterState, jobPod *corev1.Pod) bool {
+func isJobManagerReady(applicationMode bool, observed *ObservedClusterState, jobPod *corev1.Pod) bool {
 	if applicationMode {
 		return isJobManagerServiceAvailable(observed.jmService) &&
 			isApplicationJobManagerPodReady(jobPod)

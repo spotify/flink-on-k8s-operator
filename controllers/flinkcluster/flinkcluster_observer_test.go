@@ -341,7 +341,7 @@ func TestSyncRevisionStatus_RealCollisionIncrementsCount(t *testing.T) {
 	_ = fmt.Sprintf("collisionCount after real collision: %d", observed.revision.collisionCount)
 }
 
-func TestIsJmReady(t *testing.T) {
+func TestIsJobManagerReady(t *testing.T) {
 	readyPod := &corev1.Pod{
 		Status: corev1.PodStatus{
 			Phase: corev1.PodRunning,
@@ -451,7 +451,7 @@ func TestIsJmReady(t *testing.T) {
 			}
 
 			// when: JobManager readiness is evaluated
-			actual := isJmReady(tt.applicationMode, observed, tt.jobPod)
+			actual := isJobManagerReady(tt.applicationMode, observed, tt.jobPod)
 
 			// then: the expected readiness is returned
 			if actual != tt.expected {
