@@ -631,12 +631,19 @@ func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Res
 			log.Info("Preparing job update")
 			var takeSavepoint = jobSpec.TakeSavepointOnUpdate == nil || *jobSpec.TakeSavepointOnUpdate
 			var shouldSuspend = takeSavepoint && util.IsBlank(jobSpec.FromSavepoint)
+			var savepointStatus = recorded.Savepoint
 			if shouldSuspend {
 				newSavepointStatus, err = reconciler.trySuspendJob(ctx)
+				if newSavepointStatus != nil {
+					savepointStatus = newSavepointStatus
+				}
 			} else if shouldUpdateJob(&observed) {
 				err = reconciler.cancelJob(ctx)
 			}
-			return requeueResult, err
+			return ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: getUpdateSavepointRequeueInterval(savepointStatus, time.Now()),
+			}, err
 		}
 
 		// Trigger savepoint if required.
@@ -1198,4 +1205,31 @@ func getTimeAfterAddedSeconds(rawTime string, addedSeconds int64) time.Time {
 		lastTriggerTime = tc.FromString(rawTime)
 	}
 	return lastTriggerTime.Add(time.Duration(addedSeconds * int64(time.Second)))
+}
+
+func getUpdateSavepointRequeueInterval(savepoint *v1beta1.SavepointStatus, now time.Time) time.Duration {
+	if isUpdateSavepointInProgress(savepoint) {
+		triggerTime, err := time.Parse(time.RFC3339, savepoint.TriggerTime)
+		if err == nil && !triggerTime.After(now) {
+			triggerAge := now.Sub(triggerTime)
+			switch {
+			case triggerAge <= 4*time.Second:
+				return time.Second
+			case triggerAge <= 10*time.Second:
+				return 2 * time.Second
+			case triggerAge <= 30*time.Second:
+				return 5 * time.Second
+			default:
+				return 10 * time.Second
+			}
+		}
+	}
+
+	return JobCheckInterval
+}
+
+func isUpdateSavepointInProgress(savepoint *v1beta1.SavepointStatus) bool {
+	return savepoint != nil &&
+		savepoint.TriggerReason == v1beta1.SavepointReasonUpdate &&
+		savepoint.State == v1beta1.SavepointStateInProgress
 }

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/go-logr/logr"
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
@@ -838,6 +839,51 @@ func TestCancelFlinkJob_StopWithSavepoint_Timeout(t *testing.T) {
 	if sp.State != v1beta1.SavepointStateFailed {
 		t.Errorf("expected savepoint state %q, got %q", v1beta1.SavepointStateFailed, sp.State)
 	}
+}
+
+func TestGetUpdateSavepointRequeueInterval(t *testing.T) {
+	now := time.Date(2026, time.September, 9, 12, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name             string
+		savepointAge     time.Duration
+		expectedInterval time.Duration
+	}{
+		{name: "savepoint up to four seconds old", savepointAge: 4 * time.Second, expectedInterval: time.Second},
+		{name: "savepoint up to ten seconds old", savepointAge: 10 * time.Second, expectedInterval: 2 * time.Second},
+		{name: "savepoint up to thirty seconds old", savepointAge: 30 * time.Second, expectedInterval: 5 * time.Second},
+		{name: "older savepoint", savepointAge: 31 * time.Second, expectedInterval: 10 * time.Second},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given: an update savepoint in progress
+			savepoint := &v1beta1.SavepointStatus{
+				TriggerReason: v1beta1.SavepointReasonUpdate,
+				State:         v1beta1.SavepointStateInProgress,
+				TriggerTime:   now.Add(-tt.savepointAge).Format(time.RFC3339),
+			}
+
+			// when: the next reconcile is scheduled
+			interval := getUpdateSavepointRequeueInterval(savepoint, now)
+
+			// then: the interval reflects the savepoint age
+			assert.Equal(t, interval, tt.expectedInterval)
+		})
+	}
+}
+
+func TestGetUpdateSavepointRequeueIntervalUsesDefault(t *testing.T) {
+	// given: an update savepoint is no longer in progress
+	savepoint := &v1beta1.SavepointStatus{
+		TriggerReason: v1beta1.SavepointReasonUpdate,
+		State:         v1beta1.SavepointStateSucceeded,
+	}
+
+	// when: the next reconcile is scheduled
+	interval := getUpdateSavepointRequeueInterval(savepoint, time.Now())
+
+	// then: the normal job check interval is used
+	assert.Equal(t, interval, JobCheckInterval)
 }
 
 // --- Test helpers ---
