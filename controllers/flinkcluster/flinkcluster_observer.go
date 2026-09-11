@@ -276,7 +276,7 @@ func (observer *ClusterStateObserver) observeJob(
 
 	// Get job submitter pod resource.
 	var jobPod *corev1.Pod
-	if err := observer.observeJobSubmitterPod(ctx, jobName, &jobPod); err != nil {
+	if err := observer.observeJobSubmitterPod(ctx, job, &jobPod); err != nil {
 		if client.IgnoreNotFound(err) != nil {
 			log.Error(err, "job submitter corev1.Pod")
 		}
@@ -622,13 +622,21 @@ func (observer *ClusterStateObserver) observeJobManagerIngress(
 // observeJobSubmitterPod observes job submitter pod.
 func (observer *ClusterStateObserver) observeJobSubmitterPod(
 	ctx context.Context,
-	jobName string,
+	job *batchv1.Job,
 	observedPod **corev1.Pod) error {
+	*observedPod = nil
+	if job == nil {
+		return nil
+	}
+
 	var clusterNamespace = observer.request.Namespace
-	var podSelector = labels.SelectorFromSet(map[string]string{"job-name": jobName})
+	var podSelector, err = metav1.LabelSelectorAsSelector(job.Spec.Selector)
+	if err != nil {
+		return err
+	}
 	var podList = new(corev1.PodList)
 
-	var err = observer.k8sClient.List(
+	err = observer.k8sClient.List(
 		ctx,
 		podList,
 		client.InNamespace(clusterNamespace),
@@ -636,9 +644,7 @@ func (observer *ClusterStateObserver) observeJobSubmitterPod(
 	if err != nil {
 		return err
 	}
-	if len(podList.Items) == 0 {
-		*observedPod = nil
-	} else {
+	if len(podList.Items) > 0 {
 		*observedPod = podList.Items[0].DeepCopy()
 	}
 

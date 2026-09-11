@@ -9,11 +9,16 @@ import (
 	"github.com/spotify/flink-on-k8s-operator/internal/controllers/history"
 	"github.com/spotify/flink-on-k8s-operator/internal/util"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 // fakeHistory implements history.Interface for testing syncRevisionStatus.
@@ -451,6 +456,120 @@ func TestIsJmReady(t *testing.T) {
 			// then: the expected readiness is returned
 			if actual != tt.expected {
 				t.Fatalf("expected readiness %t, got %t", tt.expected, actual)
+			}
+		})
+	}
+}
+
+func TestObserveJobSubmitterPodUsesJobSelector(t *testing.T) {
+	const namespace = "default"
+	const currentJobUID = types.UID("current-job-uid")
+	const oldJobUID = types.UID("old-job-uid")
+
+	newJob := func(uid types.UID) *batchv1.Job {
+		return &batchv1.Job{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "jobmanager",
+				Namespace: namespace,
+				UID:       uid,
+			},
+			Spec: batchv1.JobSpec{
+				Selector: &metav1.LabelSelector{MatchLabels: map[string]string{
+					batchv1.ControllerUidLabel: string(uid),
+				}},
+			},
+		}
+	}
+	newPod := func(name string, uid types.UID) corev1.Pod {
+		return corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+				Labels: map[string]string{
+					batchv1.ControllerUidLabel: string(uid),
+				},
+			},
+		}
+	}
+
+	tests := []struct {
+		name         string
+		job          *batchv1.Job
+		pods         []corev1.Pod
+		expectedName string
+	}{
+		{
+			name: "replacement pod is selected instead of old job pod",
+			job:  newJob(currentJobUID),
+			pods: []corev1.Pod{
+				newPod("aaa-old", oldJobUID),
+				newPod("zzz-replacement", currentJobUID),
+			},
+			expectedName: "zzz-replacement",
+		},
+		{
+			name: "first pod matching the current job is selected",
+			job:  newJob(currentJobUID),
+			pods: []corev1.Pod{
+				newPod("aaa-first", currentJobUID),
+				newPod("zzz-second", currentJobUID),
+			},
+			expectedName: "aaa-first",
+		},
+		{
+			name: "no matching pod returns nil",
+			job:  newJob(currentJobUID),
+			pods: []corev1.Pod{
+				newPod("old", oldJobUID),
+			},
+		},
+		{
+			name: "absent job returns nil",
+			pods: []corev1.Pod{
+				newPod("unrelated", oldJobUID),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given: pods from the current and previous job instances
+			scheme := runtime.NewScheme()
+			if err := corev1.AddToScheme(scheme); err != nil {
+				t.Fatalf("failed to add core API to scheme: %v", err)
+			}
+			clientBuilder := fake.NewClientBuilder().WithScheme(scheme)
+			for i := range tt.pods {
+				clientBuilder = clientBuilder.WithObjects(&tt.pods[i])
+			}
+
+			// and: an observer for the job namespace
+			observer := &ClusterStateObserver{
+				k8sClient: clientBuilder.Build(),
+				request:   ctrl.Request{NamespacedName: types.NamespacedName{Namespace: namespace}},
+			}
+
+			// when: the job submitter pod is observed
+			var observedPod *corev1.Pod
+			err := observer.observeJobSubmitterPod(context.Background(), tt.job, &observedPod)
+
+			// then: observation succeeds
+			if err != nil {
+				t.Fatalf("failed to observe job submitter pod: %v", err)
+			}
+
+			// and: the first pod selected by the current job selector is returned
+			if tt.expectedName == "" {
+				if observedPod != nil {
+					t.Fatalf("expected no observed pod, got %q", observedPod.Name)
+				}
+				return
+			}
+			if observedPod == nil {
+				t.Fatalf("expected pod %q, got nil", tt.expectedName)
+			}
+			if observedPod.Name != tt.expectedName {
+				t.Fatalf("expected pod %q, got %q", tt.expectedName, observedPod.Name)
 			}
 		})
 	}
