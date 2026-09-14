@@ -275,8 +275,8 @@ func (observer *ClusterStateObserver) observeJob(
 	}
 
 	// Get job submitter pod resource.
-	jobPod := new(corev1.Pod)
-	if err := observer.observeJobSubmitterPod(ctx, jobName, jobPod); err != nil {
+	var jobPod *corev1.Pod
+	if err := observer.observeJobSubmitterPod(ctx, job, &jobPod); err != nil {
 		if client.IgnoreNotFound(err) != nil {
 			log.Error(err, "job submitter corev1.Pod")
 		}
@@ -304,27 +304,26 @@ func (observer *ClusterStateObserver) observeJob(
 		log: submitterLog,
 	}
 
-	// Wait until the job manager is ready.
-	jmReady := applicationMode ||
-		(observed.jmStatefulSet != nil && getStatefulSetState(observed.jmStatefulSet) == v1beta1.ComponentStateReady)
-	if jmReady {
+	if isJobManagerReady(applicationMode, observed, jobPod) {
+		var flinkJobID = getObservedFlinkJobID(jobPod, submitterLog, recordedJob)
 		// Observe the Flink job status.
-		var flinkJobID string
-		if jobID, ok := jobPod.Labels[JobIdLabel]; ok {
-			flinkJobID = jobID
-		} else
-		// Get the ID from the job submitter.
-		if submitterLog != nil && submitterLog.jobID != "" {
-			flinkJobID = submitterLog.jobID
-		} else
-		// Or get the job ID from the recorded job status which is written in previous iteration.
-		if recordedJob != nil {
-			flinkJobID = recordedJob.ID
-		}
 		observer.observeFlinkJobStatus(ctx, observed, flinkJobID, &observed.flinkJob)
 	}
 
 	return nil
+}
+
+func getObservedFlinkJobID(jobPod *corev1.Pod, submitterLog *SubmitterLog, recordedJob *v1beta1.JobStatus) string {
+	if jobPod != nil && jobPod.Labels[JobIdLabel] != "" {
+		return jobPod.Labels[JobIdLabel]
+	}
+	if submitterLog != nil && submitterLog.jobID != "" {
+		return submitterLog.jobID
+	}
+	if recordedJob != nil {
+		return recordedJob.ID
+	}
+	return ""
 }
 
 // Observes Flink job status through Flink API (instead of Kubernetes jobs through
@@ -409,6 +408,34 @@ func (observer *ClusterStateObserver) observeSavepoint(cluster *v1beta1.FlinkClu
 	savepoint.error = err
 
 	return err
+}
+
+func isJobManagerReady(applicationMode bool, observed *ObservedClusterState, jobPod *corev1.Pod) bool {
+	if applicationMode {
+		return isJobManagerServiceAvailable(observed.jmService) &&
+			isApplicationJobManagerPodReady(jobPod)
+	}
+
+	return observed.jmStatefulSet != nil &&
+		getStatefulSetState(observed.jmStatefulSet) == v1beta1.ComponentStateReady
+}
+
+func isJobManagerServiceAvailable(service *corev1.Service) bool {
+	return service != nil && service.DeletionTimestamp == nil
+}
+
+func isApplicationJobManagerPodReady(pod *corev1.Pod) bool {
+	if pod == nil || pod.DeletionTimestamp != nil || pod.Status.Phase != corev1.PodRunning {
+		return false
+	}
+
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodReady {
+			return condition.Status == corev1.ConditionTrue
+		}
+	}
+
+	return false
 }
 
 func (observer *ClusterStateObserver) observeCluster(ctx context.Context, cluster *v1beta1.FlinkCluster) error {
@@ -595,13 +622,21 @@ func (observer *ClusterStateObserver) observeJobManagerIngress(
 // observeJobSubmitterPod observes job submitter pod.
 func (observer *ClusterStateObserver) observeJobSubmitterPod(
 	ctx context.Context,
-	jobName string,
-	observedPod *corev1.Pod) error {
+	job *batchv1.Job,
+	observedPod **corev1.Pod) error {
+	*observedPod = nil
+	if job == nil {
+		return nil
+	}
+
 	var clusterNamespace = observer.request.Namespace
-	var podSelector = labels.SelectorFromSet(map[string]string{"job-name": jobName})
+	var podSelector, err = metav1.LabelSelectorAsSelector(job.Spec.Selector)
+	if err != nil {
+		return err
+	}
 	var podList = new(corev1.PodList)
 
-	var err = observer.k8sClient.List(
+	err = observer.k8sClient.List(
 		ctx,
 		podList,
 		client.InNamespace(clusterNamespace),
@@ -609,10 +644,8 @@ func (observer *ClusterStateObserver) observeJobSubmitterPod(
 	if err != nil {
 		return err
 	}
-	if len(podList.Items) == 0 {
-		observedPod = nil
-	} else {
-		podList.Items[0].DeepCopyInto(observedPod)
+	if len(podList.Items) > 0 {
+		*observedPod = podList.Items[0].DeepCopy()
 	}
 
 	return nil

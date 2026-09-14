@@ -609,12 +609,14 @@ func (updater *ClusterStatusUpdater) getFlinkJobID() *string {
 	return nil
 }
 func (updater *ClusterStatusUpdater) deriveJobSubmitterExitCodeAndReason(pod *corev1.Pod, job *batchv1.Job) (int32, string) {
-	for _, containerStatus := range pod.Status.ContainerStatuses {
-		if containerStatus.Name == jobSubmitterPodMainContainerName && containerStatus.State.Terminated != nil {
-			exitCode := containerStatus.State.Terminated.ExitCode
-			reason := containerStatus.State.Terminated.Reason
-			message := containerStatus.State.Terminated.Message
-			return exitCode, fmt.Sprintf("[Exit code: %d] Reason: %s, Message: %s", exitCode, reason, message)
+	if pod != nil {
+		for _, containerStatus := range pod.Status.ContainerStatuses {
+			if containerStatus.Name == jobSubmitterPodMainContainerName && containerStatus.State.Terminated != nil {
+				exitCode := containerStatus.State.Terminated.ExitCode
+				reason := containerStatus.State.Terminated.Reason
+				message := containerStatus.State.Terminated.Message
+				return exitCode, fmt.Sprintf("[Exit code: %d] Reason: %s, Message: %s", exitCode, reason, message)
+			}
 		}
 	}
 	// In some cases, the finished pod maybe collected by k8s garbage collector. In this case, we use job.Status to fill it

@@ -9,9 +9,16 @@ import (
 	"github.com/spotify/flink-on-k8s-operator/internal/controllers/history"
 	"github.com/spotify/flink-on-k8s-operator/internal/util"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 // fakeHistory implements history.Interface for testing syncRevisionStatus.
@@ -332,4 +339,287 @@ func TestSyncRevisionStatus_RealCollisionIncrementsCount(t *testing.T) {
 		t.Log("Note: currentRevision == nextRevision (expected on first reconciliation with change)")
 	}
 	_ = fmt.Sprintf("collisionCount after real collision: %d", observed.revision.collisionCount)
+}
+
+func TestIsJobManagerReady(t *testing.T) {
+	readyPod := &corev1.Pod{
+		Status: corev1.PodStatus{
+			Phase: corev1.PodRunning,
+			Conditions: []corev1.PodCondition{{
+				Type:   corev1.PodReady,
+				Status: corev1.ConditionTrue,
+			}},
+		},
+	}
+	terminatingPod := readyPod.DeepCopy()
+	deletionTime := metav1.Now()
+	terminatingPod.DeletionTimestamp = &deletionTime
+	pendingPod := readyPod.DeepCopy()
+	pendingPod.Status.Phase = corev1.PodPending
+	notReadyPod := readyPod.DeepCopy()
+	notReadyPod.Status.Conditions[0].Status = corev1.ConditionFalse
+	readyStatefulSet := &appsv1.StatefulSet{
+		Spec:   appsv1.StatefulSetSpec{Replicas: ptr.To(int32(1))},
+		Status: appsv1.StatefulSetStatus{ReadyReplicas: 1},
+	}
+	notReadyStatefulSet := readyStatefulSet.DeepCopy()
+	notReadyStatefulSet.Status.ReadyReplicas = 0
+	terminatingService := &corev1.Service{ObjectMeta: metav1.ObjectMeta{
+		DeletionTimestamp: &deletionTime,
+	}}
+
+	tests := []struct {
+		name            string
+		applicationMode bool
+		service         *corev1.Service
+		jobPod          *corev1.Pod
+		statefulSet     *appsv1.StatefulSet
+		expected        bool
+	}{
+		{
+			name:            "application mode with absent service",
+			applicationMode: true,
+			jobPod:          readyPod,
+			expected:        false,
+		},
+		{
+			name:            "application mode with terminating service",
+			applicationMode: true,
+			service:         terminatingService,
+			jobPod:          readyPod,
+			expected:        false,
+		},
+		{
+			name:            "application mode with absent pod",
+			applicationMode: true,
+			service:         &corev1.Service{},
+			expected:        false,
+		},
+		{
+			name:            "application mode with terminating pod",
+			applicationMode: true,
+			service:         &corev1.Service{},
+			jobPod:          terminatingPod,
+			expected:        false,
+		},
+		{
+			name:            "application mode with non-running pod",
+			applicationMode: true,
+			service:         &corev1.Service{},
+			jobPod:          pendingPod,
+			expected:        false,
+		},
+		{
+			name:            "application mode with non-ready pod",
+			applicationMode: true,
+			service:         &corev1.Service{},
+			jobPod:          notReadyPod,
+			expected:        false,
+		},
+		{
+			name:            "application mode with ready service and pod",
+			applicationMode: true,
+			service:         &corev1.Service{},
+			jobPod:          readyPod,
+			expected:        true,
+		},
+		{
+			name:            "non-application mode with absent statefulset",
+			applicationMode: false,
+			expected:        false,
+		},
+		{
+			name:            "non-application mode with non-ready statefulset",
+			applicationMode: false,
+			statefulSet:     notReadyStatefulSet,
+			expected:        false,
+		},
+		{
+			name:            "non-application mode with ready statefulset",
+			applicationMode: false,
+			statefulSet:     readyStatefulSet,
+			expected:        true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given: the specified deployment mode and JobManager resources
+			observed := &ObservedClusterState{
+				jmService:     tt.service,
+				jmStatefulSet: tt.statefulSet,
+			}
+
+			// when: JobManager readiness is evaluated
+			actual := isJobManagerReady(tt.applicationMode, observed, tt.jobPod)
+
+			// then: the expected readiness is returned
+			if actual != tt.expected {
+				t.Fatalf("expected readiness %t, got %t", tt.expected, actual)
+			}
+		})
+	}
+}
+
+func TestObserveJobSubmitterPodUsesJobSelector(t *testing.T) {
+	const namespace = "default"
+	const currentJobUID = types.UID("current-job-uid")
+	const oldJobUID = types.UID("old-job-uid")
+
+	newJob := func(uid types.UID) *batchv1.Job {
+		return &batchv1.Job{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "jobmanager",
+				Namespace: namespace,
+				UID:       uid,
+			},
+			Spec: batchv1.JobSpec{
+				Selector: &metav1.LabelSelector{MatchLabels: map[string]string{
+					batchv1.ControllerUidLabel: string(uid),
+				}},
+			},
+		}
+	}
+	newPod := func(name string, uid types.UID) corev1.Pod {
+		return corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+				Labels: map[string]string{
+					batchv1.ControllerUidLabel: string(uid),
+				},
+			},
+		}
+	}
+
+	tests := []struct {
+		name         string
+		job          *batchv1.Job
+		pods         []corev1.Pod
+		expectedName string
+	}{
+		{
+			name: "replacement pod is selected instead of old job pod",
+			job:  newJob(currentJobUID),
+			pods: []corev1.Pod{
+				newPod("aaa-old", oldJobUID),
+				newPod("zzz-replacement", currentJobUID),
+			},
+			expectedName: "zzz-replacement",
+		},
+		{
+			name: "first pod matching the current job is selected",
+			job:  newJob(currentJobUID),
+			pods: []corev1.Pod{
+				newPod("aaa-first", currentJobUID),
+				newPod("zzz-second", currentJobUID),
+			},
+			expectedName: "aaa-first",
+		},
+		{
+			name: "no matching pod returns nil",
+			job:  newJob(currentJobUID),
+			pods: []corev1.Pod{
+				newPod("old", oldJobUID),
+			},
+		},
+		{
+			name: "absent job returns nil",
+			pods: []corev1.Pod{
+				newPod("unrelated", oldJobUID),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given: pods from the current and previous job instances
+			scheme := runtime.NewScheme()
+			if err := corev1.AddToScheme(scheme); err != nil {
+				t.Fatalf("failed to add core API to scheme: %v", err)
+			}
+			clientBuilder := fake.NewClientBuilder().WithScheme(scheme)
+			for i := range tt.pods {
+				clientBuilder = clientBuilder.WithObjects(&tt.pods[i])
+			}
+
+			// and: an observer for the job namespace
+			observer := &ClusterStateObserver{
+				k8sClient: clientBuilder.Build(),
+				request:   ctrl.Request{NamespacedName: types.NamespacedName{Namespace: namespace}},
+			}
+
+			// when: the job submitter pod is observed
+			var observedPod *corev1.Pod
+			err := observer.observeJobSubmitterPod(context.Background(), tt.job, &observedPod)
+
+			// then: observation succeeds
+			if err != nil {
+				t.Fatalf("failed to observe job submitter pod: %v", err)
+			}
+
+			// and: the first pod selected by the current job selector is returned
+			if tt.expectedName == "" {
+				if observedPod != nil {
+					t.Fatalf("expected no observed pod, got %q", observedPod.Name)
+				}
+				return
+			}
+			if observedPod == nil {
+				t.Fatalf("expected pod %q, got nil", tt.expectedName)
+			}
+			if observedPod.Name != tt.expectedName {
+				t.Fatalf("expected pod %q, got %q", tt.expectedName, observedPod.Name)
+			}
+		})
+	}
+}
+
+func TestGetObservedFlinkJobID(t *testing.T) {
+	tests := []struct {
+		name         string
+		jobPod       *corev1.Pod
+		submitterLog *SubmitterLog
+		recordedJob  *v1beta1.JobStatus
+		expected     string
+	}{
+		{
+			name:         "pod label is preferred",
+			jobPod:       &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{JobIdLabel: "pod-job-id"}}},
+			submitterLog: &SubmitterLog{jobID: "log-job-id"},
+			recordedJob:  &v1beta1.JobStatus{ID: "recorded-job-id"},
+			expected:     "pod-job-id",
+		},
+		{
+			name:         "submitter log is used without a pod",
+			submitterLog: &SubmitterLog{jobID: "log-job-id"},
+			recordedJob:  &v1beta1.JobStatus{ID: "recorded-job-id"},
+			expected:     "log-job-id",
+		},
+		{
+			name:        "recorded job is used without a pod or log",
+			recordedJob: &v1beta1.JobStatus{ID: "recorded-job-id"},
+			expected:    "recorded-job-id",
+		},
+		{
+			name: "job ID is absent",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given: the observed job ID sources
+			jobPod := tt.jobPod
+			submitterLog := tt.submitterLog
+			recordedJob := tt.recordedJob
+
+			// when: the Flink job ID is selected
+			actual := getObservedFlinkJobID(jobPod, submitterLog, recordedJob)
+
+			// then: the first available job ID is returned
+			if actual != tt.expected {
+				t.Fatalf("expected job ID %q, got %q", tt.expected, actual)
+			}
+		})
+	}
 }
