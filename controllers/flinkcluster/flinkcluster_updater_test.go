@@ -239,6 +239,19 @@ func TestDeriveControlStatus_StopWithSavepointCancel(t *testing.T) {
 	})
 }
 
+func TestDeriveJobSubmitterExitCodeWithoutPod(t *testing.T) {
+	// given: a Job whose submitter pod has not been observed
+	updater := &ClusterStatusUpdater{}
+	job := &batchv1.Job{}
+
+	// when: the submitter exit code is derived
+	exitCode, reason := updater.deriveJobSubmitterExitCodeAndReason(nil, job)
+
+	// then: the Job is treated as still pending instead of dereferencing the missing pod
+	assert.Equal(t, exitCode, int32(-1))
+	assert.Equal(t, reason, "")
+}
+
 func TestStoppedApplicationClusterRecoversFromActiveJob(t *testing.T) {
 	var applicationMode = v1beta1.JobModeApplication
 	var replicas int32 = 1
