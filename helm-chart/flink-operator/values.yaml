@@ -6,6 +6,9 @@ flinkOperatorNamespace:
 watchNamespace:
   name: ""
 
+# Timeout for Flink REST API requests
+flinkClientTimeout: 30s
+
 # The number of replicas of the operator Deployment
 replicas: 1
 

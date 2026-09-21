@@ -18,6 +18,7 @@ function modifyManifests() {
   yqi "$rbacProxySelector |= sort_keys(.)"
 
   yqi "$managerSelector"'.args += "--watch-namespace=__WATCH_NAMESPACE__"'
+  yqi "$managerSelector"'.args += "--flink-client-timeout=__FLINK_CLIENT_TIMEOUT__"'
   yqi "$managerSelector"'.resources.limits.cpu = "__LIMITS_CPU__"'
   yqi "$managerSelector"'.resources.limits.memory = "__LIMITS_MEMORY__"'
   yqi "$managerSelector"'.resources.requests.cpu = "__REQUESTS_CPU__"'
@@ -37,6 +38,7 @@ function modifyManifests() {
 
 function helmTemplating() {
   sed 's/__WATCH_NAMESPACE__/{{ .Values.watchNamespace.name }}/' |
+  sed 's/__FLINK_CLIENT_TIMEOUT__/{{ .Values.flinkClientTimeout }}/' |
   sed 's/__SERVICE_ACCOUNT__/{{ template "flink-operator.serviceAccountName" . }}/' |
   sed 's/__NAMESPACE__/{{ .Values.flinkOperatorNamespace.name }}/g' |
   sed 's/__LIMITS_CPU__/{{ .Values.resources.limits.cpu }}/' |

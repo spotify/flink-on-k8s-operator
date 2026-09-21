@@ -44,13 +44,14 @@ var controllerKind = v1beta1.GroupVersion.WithKind("FlinkCluster")
 
 // FlinkClusterReconciler reconciles a FlinkCluster object
 type FlinkClusterReconciler struct {
-	Client        client.Client
-	Clientset     *kubernetes.Clientset
-	EventRecorder record.EventRecorder
-	Sharder       *Sharder
+	Client             client.Client
+	Clientset          *kubernetes.Clientset
+	EventRecorder      record.EventRecorder
+	Sharder            *Sharder
+	flinkClientTimeout time.Duration
 }
 
-func NewReconciler(mgr manager.Manager) (*FlinkClusterReconciler, error) {
+func NewReconciler(mgr manager.Manager, flinkClientTimeout time.Duration) (*FlinkClusterReconciler, error) {
 	cs, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
 		return nil, err
@@ -61,10 +62,11 @@ func NewReconciler(mgr manager.Manager) (*FlinkClusterReconciler, error) {
 	}
 
 	return &FlinkClusterReconciler{
-		Client:        mgr.GetClient(),
-		Clientset:     cs,
-		EventRecorder: mgr.GetEventRecorderFor("FlinkOperator"),
-		Sharder:       sh,
+		Client:             mgr.GetClient(),
+		Clientset:          cs,
+		EventRecorder:      mgr.GetEventRecorderFor("FlinkOperator"),
+		Sharder:            sh,
+		flinkClientTimeout: flinkClientTimeout,
 	}, nil
 }
 
@@ -99,7 +101,7 @@ func (r *FlinkClusterReconciler) Reconcile(ctx context.Context,
 	var handler = FlinkClusterHandler{
 		k8sClient:     r.Client,
 		k8sClientset:  r.Clientset,
-		flinkClient:   flink.NewDefaultClient(log),
+		flinkClient:   flink.NewDefaultClient(log, r.flinkClientTimeout),
 		request:       request,
 		eventRecorder: r.EventRecorder,
 		observed:      ObservedClusterState{},
