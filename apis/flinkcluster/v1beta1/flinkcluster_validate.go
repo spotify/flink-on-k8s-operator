@@ -86,6 +86,11 @@ func (v *Validator) ValidateCreate(cluster *FlinkCluster) error {
 
 // ValidateUpdate validates update request.
 func (v *Validator) ValidateUpdate(old *FlinkCluster, new *FlinkCluster) error {
+	// Allow finalizer removal during deletion even when the cluster no longer satisfies validation.
+	if isFinalizerRemovalDuringDeletion(old, new) {
+		return nil
+	}
+
 	var err error
 	err = v.checkControlAnnotations(old, new)
 	if err != nil {
@@ -126,6 +131,29 @@ func (v *Validator) ValidateUpdate(old *FlinkCluster, new *FlinkCluster) error {
 	}
 
 	return nil
+}
+
+// isFinalizerRemovalDuringDeletion reports whether an update removes one or more finalizers
+// without adding any to an object that was already terminating. Spec, other metadata, and
+// status changes do not prevent finalizer removal from bypassing validation.
+func isFinalizerRemovalDuringDeletion(old *FlinkCluster, new *FlinkCluster) bool {
+	if old == nil || new == nil || old.DeletionTimestamp == nil || old.DeletionTimestamp.IsZero() {
+		return false
+	}
+
+	oldFinalizers := make(map[string]struct{}, len(old.Finalizers))
+	for _, finalizer := range old.Finalizers {
+		oldFinalizers[finalizer] = struct{}{}
+	}
+
+	newFinalizers := make(map[string]struct{}, len(new.Finalizers))
+	for _, finalizer := range new.Finalizers {
+		if _, exists := oldFinalizers[finalizer]; !exists {
+			return false
+		}
+		newFinalizers[finalizer] = struct{}{}
+	}
+	return len(newFinalizers) < len(oldFinalizers)
 }
 
 func (v *Validator) checkControlAnnotations(old *FlinkCluster, new *FlinkCluster) error {
