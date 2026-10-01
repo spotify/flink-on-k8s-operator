@@ -45,12 +45,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-// jobManagerShutdownFinalizer prevents a FlinkCluster CR from being deleted until the JobManager
-// has actually terminated. It's needed because Flink's HA leader election (running in the JM pod
-// during graceful termination) recreates the HA ConfigMap without owner references if K8S GC
-// deletes it while the JM is still alive.
-const jobManagerShutdownFinalizer = "flinkoperator.k8s.io/jobmanager-shutdown"
-
 // ClusterReconciler takes actions to drive the observed state towards the
 // desired state.
 type ClusterReconciler struct {
@@ -176,7 +170,7 @@ func (reconciler *ClusterReconciler) reconcileDeletion(ctx context.Context) (ctr
 	log := logr.FromContextOrDiscard(ctx)
 	cluster := reconciler.observed.cluster
 
-	if !controllerutil.ContainsFinalizer(cluster, jobManagerShutdownFinalizer) {
+	if !controllerutil.ContainsFinalizer(cluster, v1beta1.JobManagerShutdownFinalizer) {
 		return ctrl.Result{}, nil
 	}
 
@@ -211,7 +205,7 @@ func (reconciler *ClusterReconciler) reconcileDeletion(ctx context.Context) (ctr
 	}
 
 	patch := client.MergeFrom(cluster.DeepCopy())
-	controllerutil.RemoveFinalizer(cluster, jobManagerShutdownFinalizer)
+	controllerutil.RemoveFinalizer(cluster, v1beta1.JobManagerShutdownFinalizer)
 	if err := reconciler.k8sClient.Patch(ctx, cluster, patch); err != nil {
 		log.Error(err, "Failed to remove JobManager shutdown finalizer")
 		return ctrl.Result{}, err
@@ -238,11 +232,11 @@ func (reconciler *ClusterReconciler) jobManagerPodsRemaining(ctx context.Context
 // already have it. It reports whether a write was actually issued.
 func (reconciler *ClusterReconciler) ensureFinalizer(ctx context.Context) (bool, error) {
 	cluster := reconciler.observed.cluster
-	if cluster.DeletionTimestamp != nil || controllerutil.ContainsFinalizer(cluster, jobManagerShutdownFinalizer) {
+	if cluster.DeletionTimestamp != nil || controllerutil.ContainsFinalizer(cluster, v1beta1.JobManagerShutdownFinalizer) {
 		return false, nil
 	}
 	updated := cluster.DeepCopy()
-	controllerutil.AddFinalizer(updated, jobManagerShutdownFinalizer)
+	controllerutil.AddFinalizer(updated, v1beta1.JobManagerShutdownFinalizer)
 	if err := reconciler.k8sClient.Patch(ctx, updated, client.MergeFrom(cluster)); err != nil {
 		return false, err
 	}

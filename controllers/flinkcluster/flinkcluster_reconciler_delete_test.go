@@ -116,7 +116,7 @@ func TestEnsureFinalizer(t *testing.T) {
 		assert.Assert(t, added)
 		var updated v1beta1.FlinkCluster
 		assert.NilError(t, fakeClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, &updated))
-		assert.Assert(t, controllerutil.ContainsFinalizer(&updated, jobManagerShutdownFinalizer))
+		assert.Assert(t, controllerutil.ContainsFinalizer(&updated, v1beta1.JobManagerShutdownFinalizer))
 	})
 
 	t.Run("is a no-op when already present", func(t *testing.T) {
@@ -167,7 +167,7 @@ func TestEnsureFinalizer(t *testing.T) {
 		// then: reconciliation succeeds without restoring the finalizer
 		assert.NilError(t, err)
 		assert.Assert(t, !added)
-		assert.Assert(t, !controllerutil.ContainsFinalizer(cluster, jobManagerShutdownFinalizer))
+		assert.Assert(t, !controllerutil.ContainsFinalizer(cluster, v1beta1.JobManagerShutdownFinalizer))
 	})
 }
 
@@ -236,7 +236,7 @@ func TestReconcileDeletion(t *testing.T) {
 		// The finalizer stays while the JM pod is still running.
 		var updated v1beta1.FlinkCluster
 		assert.NilError(t, fakeClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, &updated))
-		assert.Assert(t, controllerutil.ContainsFinalizer(&updated, jobManagerShutdownFinalizer))
+		assert.Assert(t, controllerutil.ContainsFinalizer(&updated, v1beta1.JobManagerShutdownFinalizer))
 	})
 
 	t.Run("application mode: deletes job submitter and removes finalizer once JM pod is gone", func(t *testing.T) {
@@ -272,7 +272,7 @@ func TestReconcileDeletion(t *testing.T) {
 		err = fakeClient.Get(ctx, types.NamespacedName{Name: submitterJob.Name, Namespace: submitterJob.Namespace}, &batchv1.Job{})
 		assert.Assert(t, apierrors.IsNotFound(err))
 
-		// jobManagerShutdownFinalizer was removed, which lets the API server (and the fake client) complete the cluster's deletion.
+		// v1beta1.JobManagerShutdownFinalizer was removed, which lets the API server (and the fake client) complete the cluster's deletion.
 		getErr := fakeClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, &v1beta1.FlinkCluster{})
 		assert.Assert(t, apierrors.IsNotFound(getErr))
 	})
@@ -297,7 +297,7 @@ func TestReconcileDeletion(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Equal(t, result, ctrl.Result{})
 
-		// jobManagerShutdownFinalizer was removed, which lets the API server (and the fake client) complete the cluster's deletion.
+		// v1beta1.JobManagerShutdownFinalizer was removed, which lets the API server (and the fake client) complete the cluster's deletion.
 		getErr := fakeClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, &v1beta1.FlinkCluster{})
 		assert.Assert(t, apierrors.IsNotFound(getErr))
 	})
@@ -338,7 +338,7 @@ func TestReconcileDeletion(t *testing.T) {
 		// The finalizer stays while the JM pod is still running.
 		var updated v1beta1.FlinkCluster
 		assert.NilError(t, fakeClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, &updated))
-		assert.Assert(t, controllerutil.ContainsFinalizer(&updated, jobManagerShutdownFinalizer))
+		assert.Assert(t, controllerutil.ContainsFinalizer(&updated, v1beta1.JobManagerShutdownFinalizer))
 	})
 
 	t.Run("session mode: deletes JM StatefulSet and removes finalizer once JM pod is gone", func(t *testing.T) {
@@ -367,7 +367,7 @@ func TestReconcileDeletion(t *testing.T) {
 		err = fakeClient.Get(ctx, types.NamespacedName{Name: jmStatefulSet.Name, Namespace: jmStatefulSet.Namespace}, &appsv1.StatefulSet{})
 		assert.Assert(t, apierrors.IsNotFound(err))
 
-		// jobManagerShutdownFinalizer was removed, which lets the API server (and the fake client) complete the cluster's deletion.
+		// v1beta1.JobManagerShutdownFinalizer was removed, which lets the API server (and the fake client) complete the cluster's deletion.
 		getErr := fakeClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, &v1beta1.FlinkCluster{})
 		assert.Assert(t, apierrors.IsNotFound(getErr))
 	})
@@ -557,7 +557,7 @@ func TestReconcileReturnsEarlyAfterAddingFinalizer(t *testing.T) {
 	//the handler above) and no savepoint recorded.
 	var updated v1beta1.FlinkCluster
 	assert.NilError(t, fakeClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, &updated))
-	assert.Assert(t, controllerutil.ContainsFinalizer(&updated, jobManagerShutdownFinalizer))
+	assert.Assert(t, controllerutil.ContainsFinalizer(&updated, v1beta1.JobManagerShutdownFinalizer))
 	assert.Assert(t, updated.Status.Savepoint == nil)
 }
 
@@ -591,7 +591,7 @@ func TestReconcileDeletingClusterDoesNotReAddFinalizer(t *testing.T) {
 	// then: reconcileDeletion returns immediately (no finalizer to process).
 	assert.NilError(t, err)
 	assert.Equal(t, result, ctrl.Result{})
-	assert.Assert(t, !controllerutil.ContainsFinalizer(cluster, jobManagerShutdownFinalizer))
+	assert.Assert(t, !controllerutil.ContainsFinalizer(cluster, v1beta1.JobManagerShutdownFinalizer))
 }
 
 func testDeleteConfigMap() *corev1.ConfigMap {
@@ -639,7 +639,7 @@ func testHACluster(withFinalizer bool) *v1beta1.FlinkCluster {
 		},
 	}
 	if withFinalizer {
-		controllerutil.AddFinalizer(cluster, jobManagerShutdownFinalizer)
+		controllerutil.AddFinalizer(cluster, v1beta1.JobManagerShutdownFinalizer)
 	}
 	return cluster
 }
@@ -660,7 +660,7 @@ func testSessionHACluster(withFinalizer bool) *v1beta1.FlinkCluster {
 		},
 	}
 	if withFinalizer {
-		controllerutil.AddFinalizer(cluster, jobManagerShutdownFinalizer)
+		controllerutil.AddFinalizer(cluster, v1beta1.JobManagerShutdownFinalizer)
 	}
 	return cluster
 }

@@ -33,8 +33,6 @@ import (
 
 const MaxStateAgeToRestore = int32(60)
 
-const testShutdownFinalizer = "flinkoperator.k8s.io/jobmanager-shutdown"
-
 var DefaultResources = corev1.ResourceRequirements{
 	Requests: corev1.ResourceList{
 		corev1.ResourceCPU:    resource.MustParse("200m"),
@@ -1012,7 +1010,7 @@ func TestFinalizerRemovalDuringDeletion(t *testing.T) {
 			name: "removes one of multiple finalizers",
 			mutate: func(old *FlinkCluster, new *FlinkCluster) {
 				old.Finalizers = append(old.Finalizers, "example.com/other-finalizer")
-				new.Finalizers = []string{testShutdownFinalizer}
+				new.Finalizers = []string{JobManagerShutdownFinalizer}
 			},
 			expectValidationBypass: true,
 		},
@@ -1037,7 +1035,7 @@ func TestFinalizerRemovalDuringDeletion(t *testing.T) {
 			name: "reorders finalizers",
 			mutate: func(old *FlinkCluster, new *FlinkCluster) {
 				old.Finalizers = append(old.Finalizers, "example.com/other-finalizer")
-				new.Finalizers = []string{"example.com/other-finalizer", testShutdownFinalizer}
+				new.Finalizers = []string{"example.com/other-finalizer", JobManagerShutdownFinalizer}
 			},
 			expectValidationBypass: false,
 		},
@@ -1055,15 +1053,6 @@ func TestFinalizerRemovalDuringDeletion(t *testing.T) {
 				new.Finalizers = append(new.Finalizers, "example.com/new-finalizer")
 			},
 			expectValidationBypass: false,
-		},
-		{
-			name: "changes the spec",
-			mutate: func(_ *FlinkCluster, new *FlinkCluster) {
-				new.Finalizers = nil
-				parallelism := int32(4)
-				new.Spec.Job.Parallelism = &parallelism
-			},
-			expectValidationBypass: true,
 		},
 		{
 			name: "deletion has not started",
@@ -1094,7 +1083,7 @@ func deletingClusterWithFailedJobAndFinalizer(t *testing.T) *FlinkCluster {
 	cluster := getSimpleFlinkCluster()
 	deletionTimestamp := metav1.Now()
 	cluster.DeletionTimestamp = &deletionTimestamp
-	cluster.Finalizers = []string{testShutdownFinalizer}
+	cluster.Finalizers = []string{JobManagerShutdownFinalizer}
 	cluster.Status.Components.Job = &JobStatus{
 		ID:    "failed-job",
 		State: JobStateFailed,

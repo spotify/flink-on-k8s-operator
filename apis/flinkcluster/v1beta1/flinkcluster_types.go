@@ -24,6 +24,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// JobManagerShutdownFinalizer prevents a FlinkCluster CR from being deleted until the JobManager
+// has actually terminated. It's needed because Flink's HA leader election (running in the JM pod
+// during graceful termination) recreates the HA ConfigMap without owner references if K8S GC
+// deletes it while the JM is still alive.
+const JobManagerShutdownFinalizer = "flinkoperator.k8s.io/jobmanager-shutdown"
+
 type ClusterState string
 
 func (cs ClusterState) String() string {
