@@ -1073,7 +1073,7 @@ func TestFinalizerRemovalDuringDeletion(t *testing.T) {
 			test.mutate(oldCluster, newCluster)
 
 			// expect: only removal of finalizers from a terminating cluster qualifies
-			assert.Equal(t, isFinalizerRemovalDuringDeletion(oldCluster, newCluster), test.expectValidationBypass)
+			assert.Equal(t, isRemovingFinalizersDuringDeletion(oldCluster, newCluster), test.expectValidationBypass)
 		})
 	}
 }

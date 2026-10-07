@@ -87,7 +87,7 @@ func (v *Validator) ValidateCreate(cluster *FlinkCluster) error {
 // ValidateUpdate validates update request.
 func (v *Validator) ValidateUpdate(old *FlinkCluster, new *FlinkCluster) error {
 	// Allow finalizer removal during deletion even when the cluster no longer satisfies validation.
-	if isFinalizerRemovalDuringDeletion(old, new) {
+	if isRemovingFinalizersDuringDeletion(old, new) {
 		return nil
 	}
 
@@ -133,10 +133,10 @@ func (v *Validator) ValidateUpdate(old *FlinkCluster, new *FlinkCluster) error {
 	return nil
 }
 
-// isFinalizerRemovalDuringDeletion reports whether an update removes one or more finalizers
+// isRemovingFinalizersDuringDeletion reports whether an update removes one or more finalizers
 // without adding any to an object that was already terminating. Spec, other metadata, and
 // status changes do not prevent finalizer removal from bypassing validation.
-func isFinalizerRemovalDuringDeletion(old *FlinkCluster, new *FlinkCluster) bool {
+func isRemovingFinalizersDuringDeletion(old *FlinkCluster, new *FlinkCluster) bool {
 	if old == nil || new == nil || old.DeletionTimestamp == nil || old.DeletionTimestamp.IsZero() {
 		return false
 	}
