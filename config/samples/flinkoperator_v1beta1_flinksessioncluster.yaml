@@ -17,15 +17,12 @@ kind: FlinkCluster
 metadata:
   name: flinksessioncluster-sample
 spec:
-  flinkVersion: "1.14"
+  flinkVersion: "2.3"
   image:
-    name: flink:1.14.2
-    pullPolicy: Always
+    name: flink:2.3.0
+    pullPolicy: IfNotPresent
   jobManager:
     accessScope: Cluster
-    securityContext:
-      runAsUser: 9999
-      runAsGroup: 9999
     ports:
       ui: 8081
     resources:
@@ -54,4 +51,14 @@ spec:
     - name: FOO
       value: bar
   flinkProperties:
+    env.java.opts.all: --add-opens=java.base/java.util=ALL-UNNAMED
     taskmanager.numberOfTaskSlots: "1"
+  logConfig:
+    log4j-console.properties: &consoleLogging |
+      rootLogger.level = INFO
+      rootLogger.appenderRef.console.ref = Console
+      appender.console.name = Console
+      appender.console.type = Console
+      appender.console.layout.type = PatternLayout
+      appender.console.layout.pattern = %d{ISO8601} %-5p %c - %m%n
+    log4j-cli.properties: *consoleLogging
