@@ -930,3 +930,163 @@ func TestFlinkClusterValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestFinalizerRemovalDuringDeletionWithStaleSavepoint(t *testing.T) {
+	tests := []struct {
+		name                      string
+		deletionInProgress        bool
+		removesFinalizer          bool
+		expectValidationToSucceed bool
+	}{
+		{
+			name:                      "allows spec changes while removing a finalizer during deletion",
+			deletionInProgress:        true,
+			removesFinalizer:          true,
+			expectValidationToSucceed: true,
+		},
+		{
+			name:                      "validates spec changes when no finalizer is removed",
+			deletionInProgress:        true,
+			removesFinalizer:          false,
+			expectValidationToSucceed: false,
+		},
+		{
+			name:                      "validates spec changes before deletion starts",
+			deletionInProgress:        false,
+			removesFinalizer:          true,
+			expectValidationToSucceed: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// given: a failed job with a savepoint older than its allowed restore age
+			oldCluster := deletingClusterWithFailedJobAndFinalizer(t)
+			maxStateAge := int32(3600)
+			oldCluster.Spec.Job.MaxStateAgeToRestoreSeconds = &maxStateAge
+			oldCluster.Spec.Job.TakeSavepointOnUpdate = nil
+			oldCluster.Status.Components.Job.SavepointLocation = "gs://savepoints/stale-savepoint"
+			oldCluster.Status.Components.Job.SavepointTime = "2026-09-27T12:55:41Z"
+			if !test.deletionInProgress {
+				oldCluster.DeletionTimestamp = nil
+			}
+
+			// and: an update that changes the spec and optionally removes the finalizer
+			newCluster := oldCluster.DeepCopy()
+			parallelism := int32(4)
+			newCluster.Spec.Job.Parallelism = &parallelism
+			if test.removesFinalizer {
+				newCluster.Finalizers = nil
+			}
+
+			// when: the update is validated
+			err := (&Validator{}).ValidateUpdate(oldCluster, newCluster)
+
+			// then: only finalizer removal during deletion bypasses the stale savepoint check
+			if test.expectValidationToSucceed {
+				assert.NilError(t, err)
+			} else {
+				assert.ErrorContains(t, err, "cannot update spec: taking savepoint is skipped but no up-to-date savepoint, "+
+					"spec.job.takeSavepointOnUpdate: nil, spec.job.maxStateAgeToRestoreSeconds: 3600")
+			}
+		})
+	}
+}
+
+func TestFinalizerRemovalDuringDeletion(t *testing.T) {
+	tests := []struct {
+		name                   string
+		mutate                 func(old *FlinkCluster, new *FlinkCluster)
+		expectValidationBypass bool
+	}{
+		{
+			name: "removes jobmanager shutdown finalizer",
+			mutate: func(_ *FlinkCluster, new *FlinkCluster) {
+				new.Finalizers = nil
+			},
+			expectValidationBypass: true,
+		},
+		{
+			name: "removes one of multiple finalizers",
+			mutate: func(old *FlinkCluster, new *FlinkCluster) {
+				old.Finalizers = append(old.Finalizers, "example.com/other-finalizer")
+				new.Finalizers = []string{JobManagerShutdownFinalizer}
+			},
+			expectValidationBypass: true,
+		},
+		{
+			name: "allows replacement metadata and status",
+			mutate: func(_ *FlinkCluster, new *FlinkCluster) {
+				new.Finalizers = nil
+				new.ManagedFields = []metav1.ManagedFieldsEntry{{Manager: "kube-apiserver"}}
+				new.Labels = map[string]string{"example.com/replaced": "true"}
+				new.Annotations = map[string]string{"example.com/replaced": "true"}
+				new.OwnerReferences = []metav1.OwnerReference{{Name: "replacement-owner"}}
+				new.Status.State = ClusterStateRunning
+			},
+			expectValidationBypass: true,
+		},
+		{
+			name:                   "does not remove a finalizer",
+			mutate:                 func(_ *FlinkCluster, _ *FlinkCluster) {},
+			expectValidationBypass: false,
+		},
+		{
+			name: "reorders finalizers",
+			mutate: func(old *FlinkCluster, new *FlinkCluster) {
+				old.Finalizers = append(old.Finalizers, "example.com/other-finalizer")
+				new.Finalizers = []string{"example.com/other-finalizer", JobManagerShutdownFinalizer}
+			},
+			expectValidationBypass: false,
+		},
+		{
+			name: "removes finalizers while adding another",
+			mutate: func(old *FlinkCluster, new *FlinkCluster) {
+				old.Finalizers = append(old.Finalizers, "example.com/other-finalizer")
+				new.Finalizers = []string{"example.com/new-finalizer"}
+			},
+			expectValidationBypass: false,
+		},
+		{
+			name: "adds a finalizer without removing jobmanager shutdown finalizer",
+			mutate: func(_ *FlinkCluster, new *FlinkCluster) {
+				new.Finalizers = append(new.Finalizers, "example.com/new-finalizer")
+			},
+			expectValidationBypass: false,
+		},
+		{
+			name: "deletion has not started",
+			mutate: func(old *FlinkCluster, new *FlinkCluster) {
+				old.DeletionTimestamp = nil
+				new.DeletionTimestamp = nil
+				new.Finalizers = nil
+			},
+			expectValidationBypass: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// given: a terminating cluster with the JobManager shutdown finalizer
+			oldCluster := deletingClusterWithFailedJobAndFinalizer(t)
+			newCluster := oldCluster.DeepCopy()
+			test.mutate(oldCluster, newCluster)
+
+			// expect: only removal of finalizers from a terminating cluster qualifies
+			assert.Equal(t, isRemovingFinalizersDuringDeletion(oldCluster, newCluster), test.expectValidationBypass)
+		})
+	}
+}
+
+func deletingClusterWithFailedJobAndFinalizer(t *testing.T) *FlinkCluster {
+	t.Helper()
+	cluster := getSimpleFlinkCluster()
+	deletionTimestamp := metav1.Now()
+	cluster.DeletionTimestamp = &deletionTimestamp
+	cluster.Finalizers = []string{JobManagerShutdownFinalizer}
+	cluster.Status.Components.Job = &JobStatus{
+		ID:    "failed-job",
+		State: JobStateFailed,
+	}
+	return &cluster
+}
