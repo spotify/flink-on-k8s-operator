@@ -27,6 +27,7 @@ import (
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -77,6 +78,23 @@ var _ = Describe("FlinkCluster type", func() {
 
 				return createdSpec
 			}, timeout, interval).Should(Equal(expectedSpec))
+		})
+	})
+
+	Context("When updating jobManager deploymentType", func() {
+		It("Should reject changing it, including from unset", func() {
+			ctx := context.Background()
+			cluster := flinkJob.DeepCopy()
+			cluster.ObjectMeta = metav1.ObjectMeta{Name: "deployment-type", Namespace: Namespace}
+			Expect(k8sClient.Create(ctx, cluster)).Should(Succeed())
+
+			cluster.Spec.JobManager.DeploymentType = JobManagerDeploymentTypeDeployment
+			err := k8sClient.Update(ctx, cluster)
+			Expect(err).Should(HaveOccurred())
+			Expect(err.Error()).Should(ContainSubstring("jobManager deploymentType is immutable"))
+
+			cluster.Spec.JobManager.DeploymentType = JobManagerDeploymentTypeJob
+			Expect(k8sClient.Update(ctx, cluster)).Should(Succeed())
 		})
 	})
 })

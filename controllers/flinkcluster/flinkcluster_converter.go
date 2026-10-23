@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -60,6 +61,13 @@ const (
 	gacEnvVar               = "GOOGLE_APPLICATION_CREDENTIALS"
 )
 
+const (
+	jobManagerContainerName        = "jobmanager"
+	shutdownOnApplicationFinishKey = "execution.shutdown-on-application-finish"
+	// How long a JobManager Deployment may take to recover a lost job before the job is cleaned up as failed.
+	lostJobRecoveryTimeout = 10 * time.Minute
+)
+
 var (
 	backoffLimit                  int32 = 0
 	terminationGracePeriodSeconds int64 = 60
@@ -87,23 +95,23 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 	jobSpec := cluster.Spec.Job
 	applicationMode := IsApplicationModeCluster(cluster)
 
-	if !shouldCleanup(cluster, "ConfigMap") {
+	if !shouldCleanup(observed, "ConfigMap") {
 		state.ConfigMap = newConfigMap(cluster)
 	}
 
-	if !shouldCleanup(cluster, "PodDisruptionBudget") {
+	if !shouldCleanup(observed, "PodDisruptionBudget") {
 		state.PodDisruptionBudget = newPodDisruptionBudget(cluster)
 	}
 
-	if !shouldCleanup(cluster, "HorizontalPodAutoscaler") {
+	if !shouldCleanup(observed, "HorizontalPodAutoscaler") {
 		state.HorizontalPodAutoscaler = newHorizontalPodAutoscaler(cluster)
 	}
 
-	if !shouldCleanup(cluster, "JobManager") && !applicationMode {
+	if !shouldCleanup(observed, "JobManager") && !applicationMode {
 		state.JmStatefulSet = newJobManagerStatefulSet(cluster)
 	}
 
-	if !shouldCleanup(cluster, "TaskManager") {
+	if !shouldCleanup(observed, "TaskManager") {
 		switch cluster.Spec.TaskManager.DeploymentType {
 		case v1beta1.DeploymentTypeStatefulSet:
 			state.TmStatefulSet = newTaskManagerStatefulSet(cluster)
@@ -111,15 +119,15 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 			state.TmDeployment = newTaskManagerDeployment(cluster)
 		}
 	}
-	if !shouldCleanup(cluster, "TaskManagerService") {
+	if !shouldCleanup(observed, "TaskManagerService") {
 		state.TmService = newTaskManagerService(cluster)
 	}
 
-	if !shouldCleanup(cluster, "JobManagerService") {
+	if !shouldCleanup(observed, "JobManagerService") {
 		state.JmService = newJobManagerService(cluster)
 	}
 
-	if !shouldCleanup(cluster, "JobManagerIngress") {
+	if !shouldCleanup(observed, "JobManagerIngress") {
 		state.JmIngress = newJobManagerIngress(cluster)
 	}
 
@@ -127,11 +135,15 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 		jobStatus := cluster.Status.Components.Job
 
 		keepJobState := (shouldStopJob(cluster) || jobStatus.IsStopped()) &&
-			(!shouldUpdateJob(observed) && !jobStatus.ShouldRestart(jobSpec)) &&
-			shouldCleanup(cluster, "Job")
+			(!shouldUpdateJob(observed) && !jobStatus.ShouldRestart(&cluster.Spec)) &&
+			shouldCleanup(observed, "Job")
 
 		if !keepJobState {
-			state.Job = newJob(cluster)
+			if isJobManagerDeployment(cluster) {
+				state.JmDeployment = newJobManagerDeployment(cluster, getJobManagerDeploymentReplicas(observed))
+			} else {
+				state.Job = newJob(cluster)
+			}
 		}
 	}
 
@@ -152,7 +164,7 @@ func newJobManagerContainer(flinkCluster *v1beta1.FlinkCluster) *corev1.Containe
 	}
 
 	container := &corev1.Container{
-		Name:            "jobmanager",
+		Name:            jobManagerContainerName,
 		Image:           imageSpec.Name,
 		ImagePullPolicy: imageSpec.PullPolicy,
 		Args:            []string{"jobmanager"},
@@ -744,6 +756,10 @@ func newConfigMap(flinkCluster *v1beta1.FlinkCluster) *corev1.ConfigMap {
 		}
 		flinkProps[k] = v
 	}
+	// Keep the JobManager running after the job reaches a terminal state, otherwise the Deployment would restart it.
+	if isJobManagerDeployment(flinkCluster) {
+		flinkProps[shutdownOnApplicationFinishKey] = "false"
+	}
 	var configData = getLogConf(flinkCluster.Spec)
 	flinkConfFileName := "flink-conf.yaml"
 	if appVersion != nil && !appVersion.LessThan(v20) {
@@ -888,7 +904,6 @@ func newJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 	}
 
 	recorded := flinkCluster.Status
-	jobManagerSpec := flinkCluster.Spec.JobManager
 	labels := getClusterLabels(flinkCluster)
 	labels = mergeLabels(labels, getRevisionHashLabels(&recorded.Revision))
 
@@ -897,14 +912,8 @@ func newJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 	var podSpec *corev1.PodSpec
 
 	if IsApplicationModeCluster(flinkCluster) {
-		jobId, _ := GenJobId(flinkCluster)
-		labels = mergeLabels(labels, getComponentLabels(flinkCluster, "jobmanager"))
-		labels = mergeLabels(labels, jobManagerSpec.PodLabels)
-		labels = mergeLabels(labels, map[string]string{JobIdLabel: jobId})
 		jobName = getJobManagerJobName(flinkCluster.Name)
-		annotations = jobManagerSpec.PodAnnotations
-		mainContainer := newJobManagerContainer(flinkCluster)
-		podSpec = newJobManagerPodSpec(mainContainer, flinkCluster)
+		labels, annotations, podSpec = newApplicationJobManagerPod(flinkCluster, labels)
 	} else {
 		jobName = getSubmitterJobName(flinkCluster.Name)
 		labels = mergeLabels(labels, jobSpec.PodLabels)
@@ -939,6 +948,67 @@ func newJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 			BackoffLimit: &backoffLimit,
 		},
 	}
+}
+
+// newJobManagerDeployment returns the application mode JobManager as a Deployment, so that
+// Kubernetes recreates a lost JobManager pod, which then recovers the job from its high availability metadata.
+func newJobManagerDeployment(flinkCluster *v1beta1.FlinkCluster, replicas int32) *appsv1.Deployment {
+	labels := mergeLabels(getClusterLabels(flinkCluster), getRevisionHashLabels(&flinkCluster.Status.Revision))
+	labels, annotations, podSpec := newApplicationJobManagerPod(flinkCluster, labels)
+	podSpec.RestartPolicy = corev1.RestartPolicyAlways
+
+	return &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:       flinkCluster.Namespace,
+			Name:            getJobManagerJobName(flinkCluster.Name),
+			OwnerReferences: []metav1.OwnerReference{ToOwnerReference(flinkCluster)},
+			Labels:          labels,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{MatchLabels: getComponentLabels(flinkCluster, "jobmanager")},
+			// Never run two JobManagers of the same job at once.
+			Strategy: appsv1.DeploymentStrategy{Type: appsv1.RecreateDeploymentStrategyType},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels:      labels,
+					Annotations: annotations,
+				},
+				Spec: *podSpec,
+			},
+		},
+	}
+}
+
+// getJobManagerDeploymentReplicas returns 0 once the job is terminated, so that like the JobManager Job, the JobManager
+// Deployment is kept without a running pod. A job being updated or a lost job that may still recover keeps its pod.
+func getJobManagerDeploymentReplicas(observed *ObservedClusterState) int32 {
+	var cluster = observed.cluster
+	var jobStatus = cluster.Status.Components.Job
+	if !jobStatus.IsStopped() || cluster.Status.Revision.IsUpdateTriggered() || isLostJobRecoverable(observed) {
+		return 1
+	}
+	return 0
+}
+
+// isLostJobRecoverable returns true if the JobManager Deployment of a lost job may still recover it,
+// which it has until lostJobRecoveryTimeout after the job was lost.
+func isLostJobRecoverable(observed *ObservedClusterState) bool {
+	var jobStatus = observed.cluster.Status.Components.Job
+	return isJobManagerDeployment(observed.cluster) && jobStatus != nil &&
+		jobStatus.State == v1beta1.JobStateLost &&
+		(jobStatus.CompletionTime == nil || observed.observeTime.Sub(jobStatus.CompletionTime.Time) < lostJobRecoveryTimeout)
+}
+
+// newApplicationJobManagerPod returns the labels, annotations and spec of the application mode JobManager pod.
+func newApplicationJobManagerPod(flinkCluster *v1beta1.FlinkCluster, labels map[string]string) (map[string]string, map[string]string, *corev1.PodSpec) {
+	jobManagerSpec := flinkCluster.Spec.JobManager
+	jobId, _ := GenJobId(flinkCluster)
+	labels = mergeLabels(labels, getComponentLabels(flinkCluster, "jobmanager"))
+	labels = mergeLabels(labels, jobManagerSpec.PodLabels)
+	labels = mergeLabels(labels, map[string]string{JobIdLabel: jobId})
+	mainContainer := newJobManagerContainer(flinkCluster)
+	return labels, jobManagerSpec.PodAnnotations, newJobManagerPodSpec(mainContainer, flinkCluster)
 }
 
 // Decide from which savepoint Flink job should be restored when the job created, updated or restarted
@@ -1077,7 +1147,8 @@ func getJobManagerIngressHost(ingressHostFormat string, clusterName string) stri
 
 // Checks whether the component should be deleted according to the cleanup
 // policy. Always return false for session cluster.
-func shouldCleanup(cluster *v1beta1.FlinkCluster, component string) bool {
+func shouldCleanup(observed *ObservedClusterState, component string) bool {
+	var cluster = observed.cluster
 	var jobStatus = cluster.Status.Components.Job
 	// Session cluster.
 	if jobStatus == nil {
@@ -1085,6 +1156,11 @@ func shouldCleanup(cluster *v1beta1.FlinkCluster, component string) bool {
 	}
 
 	if cluster.Status.Revision.IsUpdateTriggered() {
+		return false
+	}
+
+	// The JobManager Deployment may still recover a lost job, so keep the cluster until the recovery timeout.
+	if isLostJobRecoverable(observed) {
 		return false
 	}
 

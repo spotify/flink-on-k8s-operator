@@ -159,14 +159,25 @@ func shouldStopJob(cluster *v1beta1.FlinkCluster) bool {
 		(cancelRequested != nil && *cancelRequested)
 }
 
-func getFromSavepoint(jobSpec batchv1.JobSpec) string {
-	var jobArgs = jobSpec.Template.Spec.Containers[0].Args
+func getFromSavepoint(podSpec corev1.PodSpec) string {
+	var jobArgs = podSpec.Containers[0].Args
 	for i, arg := range jobArgs {
 		if arg == "--fromSavepoint" && i < len(jobArgs)-1 {
 			return jobArgs[i+1]
 		}
 	}
 	return ""
+}
+
+// getPodTemplate returns the pod template of the JobManager Deployment or the Job that runs the job.
+func getPodTemplate(workload client.Object) *corev1.PodTemplateSpec {
+	switch w := workload.(type) {
+	case *appsv1.Deployment:
+		return &w.Spec.Template
+	case *batchv1.Job:
+		return &w.Spec.Template
+	}
+	return nil
 }
 
 // newRevision generates FlinkClusterSpec patch and makes new child ControllerRevision resource with it.
@@ -427,7 +438,11 @@ func isClusterUpdateToDate(observed *ObservedClusterState) bool {
 	}
 
 	if IsApplicationModeCluster(observed.cluster) && !isScaleUpdate(observed.revisions, observed.cluster) {
-		components = append(components, observed.flinkJobSubmitter.job)
+		if isJobManagerDeployment(observed.cluster) {
+			components = append(components, observed.flinkJobSubmitter.deployment)
+		} else {
+			components = append(components, observed.flinkJobSubmitter.job)
+		}
 	} else if !IsApplicationModeCluster(observed.cluster) {
 		components = append(components, observed.jmStatefulSet)
 	}
@@ -574,8 +589,12 @@ func getFlinkJobSubmitLogFromString(podLog string) *SubmitterLog {
 }
 
 func IsApplicationModeCluster(cluster *v1beta1.FlinkCluster) bool {
-	jobSpec := cluster.Spec.Job
-	return jobSpec != nil && jobSpec.Mode != nil && *jobSpec.Mode == v1beta1.JobModeApplication
+	return cluster.Spec.Job.IsApplicationMode()
+}
+
+// isJobManagerDeployment returns true if the application mode JobManager runs as a Kubernetes Deployment.
+func isJobManagerDeployment(cluster *v1beta1.FlinkCluster) bool {
+	return cluster.Spec.JobManager.GetDeploymentType() == v1beta1.JobManagerDeploymentTypeDeployment
 }
 
 // checks if job-cancel was requested

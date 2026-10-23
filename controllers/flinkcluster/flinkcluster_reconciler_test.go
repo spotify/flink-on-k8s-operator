@@ -18,6 +18,7 @@ import (
 	"github.com/spotify/flink-on-k8s-operator/internal/flink"
 	"github.com/spotify/flink-on-k8s-operator/internal/model"
 	"gotest.tools/v3/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -26,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
@@ -1017,4 +1019,179 @@ func assertNoSavepointStatus(t *testing.T, reconciler *ClusterReconciler, cluste
 	if updated.Status.Savepoint != nil {
 		t.Errorf("expected no savepoint status, got %+v", updated.Status.Savepoint)
 	}
+}
+
+func newJobManagerDeploymentReconcilerTestCluster(jobStatus *v1beta1.JobStatus, revision v1beta1.RevisionStatus) *v1beta1.FlinkCluster {
+	var applicationMode = v1beta1.JobModeApplication
+	return &v1beta1.FlinkCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "cluster", Namespace: "default"},
+		Spec: v1beta1.FlinkClusterSpec{
+			JobManager: &v1beta1.JobManagerSpec{DeploymentType: v1beta1.JobManagerDeploymentTypeDeployment},
+			Job:        &v1beta1.JobSpec{Mode: &applicationMode},
+		},
+		Status: v1beta1.FlinkClusterStatus{
+			Components: v1beta1.FlinkClusterComponentsStatus{Job: jobStatus},
+			Revision:   revision,
+		},
+	}
+}
+
+func newJobManagerDeploymentReconcilerTest(
+	t *testing.T,
+	cluster *v1beta1.FlinkCluster,
+	observedDeployment *appsv1.Deployment,
+	desiredDeployment *appsv1.Deployment) (*ClusterReconciler, client.Client) {
+	var scheme = runtime.NewScheme()
+	assert.NilError(t, v1beta1.AddToScheme(scheme))
+	assert.NilError(t, appsv1.AddToScheme(scheme))
+
+	var objects = []client.Object{cluster}
+	if observedDeployment != nil {
+		objects = append(objects, observedDeployment)
+	}
+	var fakeClient = fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(cluster).
+		WithObjects(objects...).
+		Build()
+	return &ClusterReconciler{
+		k8sClient: fakeClient,
+		observed: ObservedClusterState{
+			cluster:           cluster,
+			flinkJobSubmitter: FlinkJobSubmitter{deployment: observedDeployment},
+		},
+		desired: model.DesiredClusterState{JmDeployment: desiredDeployment},
+	}, fakeClient
+}
+
+func newJobManagerDeploymentForRevision(revision string, args ...string) *appsv1.Deployment {
+	return &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cluster-jobmanager",
+			Namespace: "default",
+			Labels:    map[string]string{RevisionNameLabel: revision},
+		},
+		Spec: appsv1.DeploymentSpec{Template: corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{Containers: []corev1.Container{{Args: args}}},
+		}},
+	}
+}
+
+func TestReconcileJobDeletesJobManagerDeploymentOfPreviousRevision(t *testing.T) {
+	// given: a job stopped for an update whose JobManager Deployment is at the previous revision
+	var cluster = newJobManagerDeploymentReconcilerTestCluster(
+		&v1beta1.JobStatus{State: v1beta1.JobStateUpdating, FinalSavepoint: true},
+		v1beta1.RevisionStatus{CurrentRevision: "cluster-current-1", NextRevision: "cluster-next-2"})
+	var oldDeployment = newJobManagerDeploymentForRevision("cluster-current")
+	var reconciler, fakeClient = newJobManagerDeploymentReconcilerTest(
+		t, cluster, oldDeployment, newJobManagerDeploymentForRevision("cluster-next"))
+
+	// when: the job is reconciled
+	_, err := reconciler.reconcileJob(context.Background())
+	assert.NilError(t, err)
+
+	// then: the old JobManager Deployment is deleted
+	err = fakeClient.Get(context.Background(), client.ObjectKeyFromObject(oldDeployment), &appsv1.Deployment{})
+	assert.Assert(t, apierrors.IsNotFound(err))
+}
+
+func TestReconcileJobCreatesJobManagerDeploymentFromUpdateSavepoint(t *testing.T) {
+	// given: a job stopped with a final savepoint for an update, after the old Deployment was deleted
+	var cluster = newJobManagerDeploymentReconcilerTestCluster(
+		&v1beta1.JobStatus{State: v1beta1.JobStateUpdating, FinalSavepoint: true},
+		v1beta1.RevisionStatus{CurrentRevision: "cluster-current-1", NextRevision: "cluster-next-2"})
+	var desiredDeployment = newJobManagerDeploymentForRevision(
+		"cluster-next", "standalone-job", "--fromSavepoint", "gs://bucket/savepoint-1")
+	var reconciler, fakeClient = newJobManagerDeploymentReconcilerTest(t, cluster, nil, desiredDeployment)
+
+	// when: the job is reconciled
+	_, err := reconciler.reconcileJob(context.Background())
+	assert.NilError(t, err)
+
+	// then: the next JobManager Deployment is created and the job is restored from the savepoint
+	assert.NilError(t, fakeClient.Get(context.Background(), client.ObjectKeyFromObject(desiredDeployment), &appsv1.Deployment{}))
+	var updated v1beta1.FlinkCluster
+	assert.NilError(t, fakeClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), &updated))
+	assert.Equal(t, updated.Status.Components.Job.FromSavepoint, "gs://bucket/savepoint-1")
+	assert.Assert(t, updated.Status.Components.Job.DeployTime != "")
+}
+
+func TestReconcileJobDeletesJobManagerDeploymentOfStoppedJob(t *testing.T) {
+	// given: a failed job whose cleanup policy removes the JobManager Deployment
+	var cluster = newJobManagerDeploymentReconcilerTestCluster(
+		&v1beta1.JobStatus{State: v1beta1.JobStateFailed},
+		v1beta1.RevisionStatus{CurrentRevision: "cluster-current-1", NextRevision: "cluster-current-1"})
+	var deployment = newJobManagerDeploymentForRevision("cluster-current")
+	var reconciler, fakeClient = newJobManagerDeploymentReconcilerTest(t, cluster, deployment, nil)
+
+	// when: the job is reconciled
+	_, err := reconciler.reconcileJob(context.Background())
+	assert.NilError(t, err)
+
+	// then: the JobManager Deployment is deleted
+	err = fakeClient.Get(context.Background(), client.ObjectKeyFromObject(deployment), &appsv1.Deployment{})
+	assert.Assert(t, apierrors.IsNotFound(err))
+}
+
+func TestReconcileJobDoesNotRestartFailedJobWithJobManagerDeployment(t *testing.T) {
+	// given: a failed job with restartPolicy FromSavepointOnFailure and a JobManager Deployment
+	var cluster = newJobManagerDeploymentReconcilerTestCluster(
+		&v1beta1.JobStatus{State: v1beta1.JobStateFailed, SavepointLocation: "gs://bucket/savepoint-1"},
+		v1beta1.RevisionStatus{CurrentRevision: "cluster-current-1", NextRevision: "cluster-current-1"})
+	var restartPolicy = v1beta1.JobRestartPolicyFromSavepointOnFailure
+	cluster.Spec.Job.RestartPolicy = &restartPolicy
+	var deployment = newJobManagerDeploymentForRevision("cluster-current")
+	var reconciler, fakeClient = newJobManagerDeploymentReconcilerTest(
+		t, cluster, deployment, newJobManagerDeploymentForRevision("cluster-current"))
+
+	// when: the job is reconciled
+	_, err := reconciler.reconcileJob(context.Background())
+	assert.NilError(t, err)
+
+	// then: the restart policy has no effect, the Deployment is kept and no new deploy is recorded
+	assert.NilError(t, fakeClient.Get(context.Background(), client.ObjectKeyFromObject(deployment), &appsv1.Deployment{}))
+	var updated v1beta1.FlinkCluster
+	assert.NilError(t, fakeClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), &updated))
+	assert.Equal(t, updated.Status.Components.Job.DeployTime, "")
+}
+
+func TestReconcileJobScalesDownJobManagerDeploymentOfTerminatedJob(t *testing.T) {
+	// given: a succeeded job whose cleanup policy keeps the JobManager Deployment, which still runs a pod
+	var cluster = newJobManagerDeploymentReconcilerTestCluster(
+		&v1beta1.JobStatus{State: v1beta1.JobStateSucceeded},
+		v1beta1.RevisionStatus{CurrentRevision: "cluster-current-1", NextRevision: "cluster-current-1"})
+	var running, stopped int32 = 1, 0
+	var deployment = newJobManagerDeploymentForRevision("cluster-current")
+	deployment.Spec.Replicas = &running
+	var desiredDeployment = newJobManagerDeploymentForRevision("cluster-current")
+	desiredDeployment.Spec.Replicas = &stopped
+	var reconciler, fakeClient = newJobManagerDeploymentReconcilerTest(t, cluster, deployment, desiredDeployment)
+
+	// when: the job is reconciled
+	result, err := reconciler.reconcileJob(context.Background())
+	assert.NilError(t, err)
+
+	// then: the Deployment is kept without a pod, like a finished JobManager Job
+	var scaled appsv1.Deployment
+	assert.NilError(t, fakeClient.Get(context.Background(), client.ObjectKeyFromObject(deployment), &scaled))
+	assert.Equal(t, *scaled.Spec.Replicas, stopped)
+	assert.Equal(t, result, ctrl.Result{})
+}
+
+func TestReconcileJobRequeuesLostJobWithJobManagerDeployment(t *testing.T) {
+	// given: a job lost moments ago whose JobManager Deployment may still recover it
+	var lostTime = time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	var cluster = newJobManagerDeploymentReconcilerTestCluster(
+		&v1beta1.JobStatus{State: v1beta1.JobStateLost, CompletionTime: &metav1.Time{Time: lostTime}},
+		v1beta1.RevisionStatus{CurrentRevision: "cluster-current-1", NextRevision: "cluster-current-1"})
+	var deployment = newJobManagerDeploymentForRevision("cluster-current")
+	var reconciler, _ = newJobManagerDeploymentReconcilerTest(t, cluster, deployment, deployment.DeepCopy())
+	reconciler.observed.observeTime = lostTime.Add(time.Minute)
+
+	// when: the job is reconciled
+	result, err := reconciler.reconcileJob(context.Background())
+	assert.NilError(t, err)
+
+	// then: the job is checked again before the recovery timeout
+	assert.Equal(t, result, requeueResult)
 }

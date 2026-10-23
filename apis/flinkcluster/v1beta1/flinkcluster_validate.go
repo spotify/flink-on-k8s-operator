@@ -81,6 +81,10 @@ func (v *Validator) ValidateCreate(cluster *FlinkCluster) error {
 	if err != nil {
 		return err
 	}
+	err = v.validateJobManagerDeploymentType(cluster)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -113,6 +117,11 @@ func (v *Validator) ValidateUpdate(old *FlinkCluster, new *FlinkCluster) error {
 	}
 	if savepointGenUpdated {
 		return nil
+	}
+
+	err = v.validateJobManagerUpdate(old, new)
+	if err != nil {
+		return err
 	}
 
 	err = v.validateTaskManagerUpdate(old, new)
@@ -168,7 +177,7 @@ func (v *Validator) checkControlAnnotations(old *FlinkCluster, new *FlinkCluster
 			var job = old.Status.Components.Job
 			if old.Spec.Job == nil {
 				return fmt.Errorf(SessionClusterWarnMsg, ControlNameJobCancel, ControlAnnotation)
-			} else if job == nil || job.IsTerminated(old.Spec.Job) {
+			} else if job == nil || job.IsTerminated(&old.Spec) {
 				return errors.NewResourceExpired(fmt.Sprintf(InvalidJobStateForJobCancelMsg, ControlAnnotation))
 			}
 		case ControlNameSavepoint:
@@ -248,6 +257,15 @@ func (v *Validator) checkSavepointGeneration(
 
 	return false, fmt.Errorf(
 		"you cannot update savepointGeneration with others at the same time")
+}
+
+// The CRD's CEL rule on JobManagerSpec also keeps deploymentType immutable if the webhook is bypassed.
+func (v *Validator) validateJobManagerUpdate(old *FlinkCluster, new *FlinkCluster) error {
+	// Old FlinkClusters created before deploymentType was added have it unset, which means Job.
+	if old.Spec.JobManager.GetDeploymentType() != new.Spec.JobManager.GetDeploymentType() {
+		return fmt.Errorf("updating jobManager deploymentType is not allowed")
+	}
+	return nil
 }
 
 func (v *Validator) validateTaskManagerUpdate(old *FlinkCluster, new *FlinkCluster) error {
@@ -492,8 +510,7 @@ func (v *Validator) validateJob(jobSpec *JobSpec) error {
 		return fmt.Errorf("%s", errors.ToAggregate().Error())
 	}
 
-	applicationMode := jobSpec.Mode != nil && *jobSpec.Mode == JobModeApplication
-	if !applicationMode && jobSpec.JarFile == nil && jobSpec.PyFile == nil && jobSpec.PyModule == nil {
+	if !jobSpec.IsApplicationMode() && jobSpec.JarFile == nil && jobSpec.PyFile == nil && jobSpec.PyModule == nil {
 		return fmt.Errorf("job jarFile or pythonFile or pythonModule is unspecified")
 	}
 
@@ -521,6 +538,21 @@ func (v *Validator) validateJob(jobSpec *JobSpec) error {
 			"property `cancelRequested` cannot be set to true for a new job")
 	}
 
+	return nil
+}
+
+// A JobManager Deployment relies on Flink high availability to recover the job when its pod is recreated.
+// spec.job.restartPolicy is allowed but has no effect, see JobStatus.ShouldRestart.
+func (v *Validator) validateJobManagerDeploymentType(cluster *FlinkCluster) error {
+	if cluster.Spec.JobManager.GetDeploymentType() != JobManagerDeploymentTypeDeployment {
+		return nil
+	}
+	switch {
+	case !cluster.Spec.Job.IsApplicationMode():
+		return fmt.Errorf("jobManager deploymentType Deployment requires job mode Application")
+	case !cluster.IsHighAvailabilityEnabled():
+		return fmt.Errorf("jobManager deploymentType Deployment requires high availability to be enabled")
+	}
 	return nil
 }
 

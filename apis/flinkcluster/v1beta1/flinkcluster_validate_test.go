@@ -370,6 +370,102 @@ func TestTaskManagerDeploymentTypeUpdate(t *testing.T) {
 	assert.Equal(t, err.Error(), expectedErr)
 }
 
+func TestJobManagerDeploymentTypeUpdate(t *testing.T) {
+	// unset and Job are equivalent
+	var oldCluster = getJobManagerDeploymentFlinkCluster()
+	oldCluster.Spec.JobManager.DeploymentType = ""
+	var newCluster = getJobManagerDeploymentFlinkCluster()
+	newCluster.Spec.JobManager.DeploymentType = JobManagerDeploymentTypeJob
+	err := validator.ValidateUpdate(&oldCluster, &newCluster)
+	assert.NilError(t, err)
+
+	// cannot update deploymentType
+	oldCluster = getJobManagerDeploymentFlinkCluster()
+	oldCluster.Spec.JobManager.DeploymentType = ""
+	newCluster = getJobManagerDeploymentFlinkCluster()
+	err = validator.ValidateUpdate(&oldCluster, &newCluster)
+	assert.Error(t, err, "updating jobManager deploymentType is not allowed")
+
+	oldCluster = getJobManagerDeploymentFlinkCluster()
+	newCluster = getJobManagerDeploymentFlinkCluster()
+	newCluster.Spec.JobManager.DeploymentType = JobManagerDeploymentTypeJob
+	err = validator.ValidateUpdate(&oldCluster, &newCluster)
+	assert.Error(t, err, "updating jobManager deploymentType is not allowed")
+}
+
+func TestJobManagerDeploymentType(t *testing.T) {
+	data := []struct {
+		testName    string
+		modify      func(cluster *FlinkCluster)
+		expectedErr string
+	}{
+		{
+			"valid deployment",
+			func(cluster *FlinkCluster) {},
+			"",
+		},
+		{
+			"valid job without high availability",
+			func(cluster *FlinkCluster) {
+				cluster.Spec.JobManager.DeploymentType = JobManagerDeploymentTypeJob
+				cluster.Spec.FlinkProperties = nil
+			},
+			"",
+		},
+		{
+			"valid deployment with legacy high-availability key",
+			func(cluster *FlinkCluster) {
+				delete(cluster.Spec.FlinkProperties, haConfigTypeNew)
+				cluster.Spec.FlinkProperties[haConfigType] = "kubernetes"
+			},
+			"",
+		},
+		{
+			"deployment requires application mode",
+			func(cluster *FlinkCluster) {
+				var jobMode = JobModeDetached
+				cluster.Spec.Job.Mode = &jobMode
+			},
+			"jobManager deploymentType Deployment requires job mode Application",
+		},
+		{
+			"deployment requires a job",
+			func(cluster *FlinkCluster) {
+				cluster.Spec.Job = nil
+			},
+			"jobManager deploymentType Deployment requires job mode Application",
+		},
+		{
+			"deployment requires high availability",
+			func(cluster *FlinkCluster) {
+				cluster.Spec.FlinkProperties = nil
+			},
+			"jobManager deploymentType Deployment requires high availability to be enabled",
+		},
+		{
+			"valid deployment with restartPolicy FromSavepointOnFailure, which has no effect",
+			func(cluster *FlinkCluster) {
+				var restartPolicy = JobRestartPolicyFromSavepointOnFailure
+				cluster.Spec.Job.RestartPolicy = &restartPolicy
+			},
+			"",
+		},
+	}
+
+	for _, tt := range data {
+		t.Run(tt.testName, func(t *testing.T) {
+			cluster := getJobManagerDeploymentFlinkCluster()
+			tt.modify(&cluster)
+			err := validator.ValidateCreate(&cluster)
+			if tt.expectedErr == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.Error(t, err, tt.expectedErr)
+			}
+		})
+	}
+}
+
 func TestUpdateJob(t *testing.T) {
 	var validator = &Validator{}
 	var tc = &util.TimeConverter{}
@@ -818,6 +914,22 @@ func getSimpleFlinkCluster() FlinkCluster {
 			},
 		},
 	}
+}
+
+// A valid application mode FlinkCluster with high availability and a JobManager Deployment.
+func getJobManagerDeploymentFlinkCluster() FlinkCluster {
+	var restartPolicy = JobRestartPolicyNever
+	var jobMode = JobModeApplication
+	cluster := getSimpleFlinkCluster()
+	cluster.Spec.JobManager.DeploymentType = JobManagerDeploymentTypeDeployment
+	cluster.Spec.FlinkProperties = map[string]string{
+		haConfigTypeNew:    "kubernetes",
+		haConfigClusterId:  "mycluster",
+		haConfigStorageDir: "gs://my-bucket/ha",
+	}
+	cluster.Spec.Job.RestartPolicy = &restartPolicy
+	cluster.Spec.Job.Mode = &jobMode
+	return cluster
 }
 
 func TestFlinkClusterValidation(t *testing.T) {

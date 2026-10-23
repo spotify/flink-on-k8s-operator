@@ -239,6 +239,47 @@ func TestReconcileDeletion(t *testing.T) {
 		assert.Assert(t, controllerutil.ContainsFinalizer(&updated, v1beta1.JobManagerShutdownFinalizer))
 	})
 
+	t.Run("application mode: deletes JobManager Deployment and requeues while the JM pod is still running", func(t *testing.T) {
+		// given: an Application-mode HA cluster whose JobManager runs as a Deployment with a running pod.
+		cluster := testHACluster(true)
+		cluster.Spec.JobManager = &v1beta1.JobManagerSpec{DeploymentType: v1beta1.JobManagerDeploymentTypeDeployment}
+		jmDeployment := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{Name: "ha-cluster-jobmanager", Namespace: cluster.Namespace},
+		}
+		jmPod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "ha-cluster-jobmanager-abcde",
+				Namespace: cluster.Namespace,
+				Labels:    map[string]string{"cluster": cluster.Name, "component": "jobmanager"},
+			},
+		}
+		fakeClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(cluster, jmDeployment, jmPod).
+			Build()
+		reconciler := ClusterReconciler{
+			k8sClient: fakeClient,
+			observed: ObservedClusterState{
+				cluster:           cluster,
+				flinkJobSubmitter: FlinkJobSubmitter{deployment: jmDeployment},
+			},
+		}
+
+		// when
+		result, err := reconciler.reconcileDeletion(ctx)
+
+		// then: the Deployment is deleted and the finalizer stays while the JM pod is still running.
+		assert.NilError(t, err)
+		assert.Equal(t, result, requeueResult)
+
+		err = fakeClient.Get(ctx, types.NamespacedName{Name: jmDeployment.Name, Namespace: jmDeployment.Namespace}, &appsv1.Deployment{})
+		assert.Assert(t, apierrors.IsNotFound(err))
+
+		var updated v1beta1.FlinkCluster
+		assert.NilError(t, fakeClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, &updated))
+		assert.Assert(t, controllerutil.ContainsFinalizer(&updated, v1beta1.JobManagerShutdownFinalizer))
+	})
+
 	t.Run("application mode: deletes job submitter and removes finalizer once JM pod is gone", func(t *testing.T) {
 		// given: an Application-mode HA cluster being deleted, with a submitter Job but no
 		// running submitter pod (JM already terminated), and a still-present HA ConfigMap.
