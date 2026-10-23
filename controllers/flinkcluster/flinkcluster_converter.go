@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -63,6 +64,8 @@ const (
 const (
 	jobManagerContainerName        = "jobmanager"
 	shutdownOnApplicationFinishKey = "execution.shutdown-on-application-finish"
+	// How long a JobManager Deployment may take to recover a lost job before the job is cleaned up as failed.
+	lostJobRecoveryTimeout = 10 * time.Minute
 )
 
 var (
@@ -92,23 +95,23 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 	jobSpec := cluster.Spec.Job
 	applicationMode := IsApplicationModeCluster(cluster)
 
-	if !shouldCleanup(cluster, "ConfigMap") {
+	if !shouldCleanup(observed, "ConfigMap") {
 		state.ConfigMap = newConfigMap(cluster)
 	}
 
-	if !shouldCleanup(cluster, "PodDisruptionBudget") {
+	if !shouldCleanup(observed, "PodDisruptionBudget") {
 		state.PodDisruptionBudget = newPodDisruptionBudget(cluster)
 	}
 
-	if !shouldCleanup(cluster, "HorizontalPodAutoscaler") {
+	if !shouldCleanup(observed, "HorizontalPodAutoscaler") {
 		state.HorizontalPodAutoscaler = newHorizontalPodAutoscaler(cluster)
 	}
 
-	if !shouldCleanup(cluster, "JobManager") && !applicationMode {
+	if !shouldCleanup(observed, "JobManager") && !applicationMode {
 		state.JmStatefulSet = newJobManagerStatefulSet(cluster)
 	}
 
-	if !shouldCleanup(cluster, "TaskManager") {
+	if !shouldCleanup(observed, "TaskManager") {
 		switch cluster.Spec.TaskManager.DeploymentType {
 		case v1beta1.DeploymentTypeStatefulSet:
 			state.TmStatefulSet = newTaskManagerStatefulSet(cluster)
@@ -116,15 +119,15 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 			state.TmDeployment = newTaskManagerDeployment(cluster)
 		}
 	}
-	if !shouldCleanup(cluster, "TaskManagerService") {
+	if !shouldCleanup(observed, "TaskManagerService") {
 		state.TmService = newTaskManagerService(cluster)
 	}
 
-	if !shouldCleanup(cluster, "JobManagerService") {
+	if !shouldCleanup(observed, "JobManagerService") {
 		state.JmService = newJobManagerService(cluster)
 	}
 
-	if !shouldCleanup(cluster, "JobManagerIngress") {
+	if !shouldCleanup(observed, "JobManagerIngress") {
 		state.JmIngress = newJobManagerIngress(cluster)
 	}
 
@@ -133,11 +136,11 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 
 		keepJobState := (shouldStopJob(cluster) || jobStatus.IsStopped()) &&
 			(!shouldUpdateJob(observed) && !jobStatus.ShouldRestart(&cluster.Spec)) &&
-			shouldCleanup(cluster, "Job")
+			shouldCleanup(observed, "Job")
 
 		if !keepJobState {
 			if isJobManagerDeployment(cluster) {
-				state.JmDeployment = newJobManagerDeployment(cluster)
+				state.JmDeployment = newJobManagerDeployment(cluster, getJobManagerDeploymentReplicas(observed))
 			} else {
 				state.Job = newJob(cluster)
 			}
@@ -949,11 +952,10 @@ func newJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 
 // newJobManagerDeployment returns the application mode JobManager as a Deployment, so that
 // Kubernetes recreates a lost JobManager pod, which then recovers the job from its high availability metadata.
-func newJobManagerDeployment(flinkCluster *v1beta1.FlinkCluster) *appsv1.Deployment {
+func newJobManagerDeployment(flinkCluster *v1beta1.FlinkCluster, replicas int32) *appsv1.Deployment {
 	labels := mergeLabels(getClusterLabels(flinkCluster), getRevisionHashLabels(&flinkCluster.Status.Revision))
 	labels, annotations, podSpec := newApplicationJobManagerPod(flinkCluster, labels)
 	podSpec.RestartPolicy = corev1.RestartPolicyAlways
-	var replicas int32 = 1
 
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -976,6 +978,26 @@ func newJobManagerDeployment(flinkCluster *v1beta1.FlinkCluster) *appsv1.Deploym
 			},
 		},
 	}
+}
+
+// getJobManagerDeploymentReplicas returns 0 once the job is terminated, so that like the JobManager Job, the JobManager
+// Deployment is kept without a running pod. A job being updated or a lost job that may still recover keeps its pod.
+func getJobManagerDeploymentReplicas(observed *ObservedClusterState) int32 {
+	var cluster = observed.cluster
+	var jobStatus = cluster.Status.Components.Job
+	if !jobStatus.IsStopped() || cluster.Status.Revision.IsUpdateTriggered() || isLostJobRecoverable(observed) {
+		return 1
+	}
+	return 0
+}
+
+// isLostJobRecoverable returns true if the JobManager Deployment of a lost job may still recover it,
+// which it has until lostJobRecoveryTimeout after the job was lost.
+func isLostJobRecoverable(observed *ObservedClusterState) bool {
+	var jobStatus = observed.cluster.Status.Components.Job
+	return isJobManagerDeployment(observed.cluster) && jobStatus != nil &&
+		jobStatus.State == v1beta1.JobStateLost &&
+		(jobStatus.CompletionTime == nil || observed.observeTime.Sub(jobStatus.CompletionTime.Time) < lostJobRecoveryTimeout)
 }
 
 // newApplicationJobManagerPod returns the labels, annotations and spec of the application mode JobManager pod.
@@ -1125,7 +1147,8 @@ func getJobManagerIngressHost(ingressHostFormat string, clusterName string) stri
 
 // Checks whether the component should be deleted according to the cleanup
 // policy. Always return false for session cluster.
-func shouldCleanup(cluster *v1beta1.FlinkCluster, component string) bool {
+func shouldCleanup(observed *ObservedClusterState, component string) bool {
+	var cluster = observed.cluster
 	var jobStatus = cluster.Status.Components.Job
 	// Session cluster.
 	if jobStatus == nil {
@@ -1136,17 +1159,9 @@ func shouldCleanup(cluster *v1beta1.FlinkCluster, component string) bool {
 		return false
 	}
 
-	if isJobManagerDeployment(cluster) {
-		switch jobStatus.State {
-		// The JobManager Deployment recreates its pod, which recovers the job, so keep the cluster.
-		case v1beta1.JobStateLost:
-			return false
-		// The JobManager Deployment would keep restarting its crashing pod, so remove it.
-		case v1beta1.JobStateDeployFailed:
-			if component == "Job" {
-				return true
-			}
-		}
+	// The JobManager Deployment may still recover a lost job, so keep the cluster until the recovery timeout.
+	if isLostJobRecoverable(observed) {
+		return false
 	}
 
 	var action v1beta1.CleanupAction

@@ -123,7 +123,7 @@ func (s *FlinkJobSubmitter) workload() client.Object {
 func (s *FlinkJobSubmitter) getState() JobSubmitState {
 	switch {
 	// A JobManager Deployment restarts its pod, so it failed only when the pod keeps crashing.
-	case s.deployment != nil && isJobManagerCrashLooping(s.pod):
+	case s.deployment != nil && getJobManagerCrashLoopReason(s.pod) != "":
 		return JobDeployStateFailed
 	case s.deployment != nil:
 		return JobDeployStateInProgress
@@ -307,7 +307,7 @@ func (observer *ClusterStateObserver) observeJob(
 
 	// Get job submitter pod resource.
 	var jobPod *corev1.Pod
-	if err := observer.observeJobSubmitterPod(ctx, podSelector, &jobPod); err != nil {
+	if err := observer.observeJobSubmitterPod(ctx, podSelector, deployment != nil, &jobPod); err != nil {
 		if client.IgnoreNotFound(err) != nil {
 			log.Error(err, "job submitter corev1.Pod")
 		}
@@ -652,10 +652,12 @@ func (observer *ClusterStateObserver) observeJobManagerIngress(
 	return nil
 }
 
-// observeJobSubmitterPod observes the job submitter or JobManager pod matching the selector of its workload.
+// observeJobSubmitterPod observes the job submitter or JobManager pod matching the selector of its workload,
+// the newest one if newest is set.
 func (observer *ClusterStateObserver) observeJobSubmitterPod(
 	ctx context.Context,
 	selector *metav1.LabelSelector,
+	newest bool,
 	observedPod **corev1.Pod) error {
 	*observedPod = nil
 	if selector == nil {
@@ -677,8 +679,13 @@ func (observer *ClusterStateObserver) observeJobSubmitterPod(
 	if err != nil {
 		return err
 	}
-	if pod := getNewestPod(podList.Items); pod != nil {
-		*observedPod = pod.DeepCopy()
+	// A JobManager Deployment may have the terminating pod and its replacement at once.
+	if newest {
+		if pod := getNewestPod(podList.Items); pod != nil {
+			*observedPod = pod.DeepCopy()
+		}
+	} else if len(podList.Items) > 0 {
+		*observedPod = podList.Items[0].DeepCopy()
 	}
 
 	return nil

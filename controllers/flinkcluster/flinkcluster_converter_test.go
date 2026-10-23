@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
@@ -1789,43 +1790,84 @@ func TestJmDeploymentTypeShutdownOnApplicationFinish(t *testing.T) {
 	assert.Assert(t, strings.Contains(flinkConf, shutdownOnApplicationFinishKey+": true\n"))
 }
 
-func TestJmDeploymentTypeNoCleanupOnLost(t *testing.T) {
+func TestJmDeploymentTypeLostJobRecoveryTimeout(t *testing.T) {
+	var lostTime = time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	var observed = getJobManagerDeploymentObservedClusterState()
 	observed.cluster.Spec.Job.CleanupPolicy = &v1beta1.CleanupPolicy{AfterJobFails: v1beta1.CleanupActionDeleteCluster}
-	observed.cluster.Status.Components.Job = &v1beta1.JobStatus{State: v1beta1.JobStateLost}
+	observed.cluster.Status.Components.Job = &v1beta1.JobStatus{
+		State:          v1beta1.JobStateLost,
+		CompletionTime: &metav1.Time{Time: lostTime},
+	}
 	observed.cluster.Status.Revision.CurrentRevision = observed.cluster.Status.Revision.NextRevision
 
+	// The JobManager Deployment may still recover the lost job, so the cluster is kept.
+	observed.observeTime = lostTime.Add(lostJobRecoveryTimeout - time.Second)
 	var desired = getDesiredClusterState(observed)
-	assert.Assert(t, desired.JmDeployment != nil)
+	assert.Equal(t, *desired.JmDeployment.Spec.Replicas, int32(1))
 	assert.Assert(t, desired.ConfigMap != nil)
 	assert.Assert(t, desired.TmStatefulSet != nil)
 
+	// After the recovery timeout, the cleanup policy for failed jobs applies.
+	observed.observeTime = lostTime.Add(lostJobRecoveryTimeout)
+	desired = getDesiredClusterState(observed)
+	assert.Assert(t, desired.JmDeployment == nil)
+	assert.Assert(t, desired.ConfigMap == nil)
+	assert.Assert(t, desired.TmStatefulSet == nil)
+
+	// A lost JobManager Job is cleaned up right away.
+	observed.observeTime = lostTime
 	observed.cluster.Spec.JobManager.DeploymentType = v1beta1.JobManagerDeploymentTypeJob
 	desired = getDesiredClusterState(observed)
 	assert.Assert(t, desired.Job == nil)
 	assert.Assert(t, desired.ConfigMap == nil)
-	assert.Assert(t, desired.TmStatefulSet == nil)
-
-	// A failed job is still cleaned up.
-	observed.cluster.Spec.JobManager.DeploymentType = v1beta1.JobManagerDeploymentTypeDeployment
-	observed.cluster.Status.Components.Job.State = v1beta1.JobStateFailed
-	desired = getDesiredClusterState(observed)
-	assert.Assert(t, desired.JmDeployment == nil)
-	assert.Assert(t, desired.ConfigMap == nil)
 }
 
-func TestJmDeploymentTypeRemovedAfterDeployFailed(t *testing.T) {
+func TestJmDeploymentTypeReplicas(t *testing.T) {
+	for _, test := range []struct {
+		name             string
+		state            v1beta1.JobState
+		cleanupAction    v1beta1.CleanupAction
+		updateTriggered  bool
+		expectedReplicas int32
+	}{
+		{name: "running job", state: v1beta1.JobStateRunning, cleanupAction: v1beta1.CleanupActionKeepCluster, expectedReplicas: 1},
+		{name: "succeeded job kept by the cleanup policy", state: v1beta1.JobStateSucceeded, cleanupAction: v1beta1.CleanupActionKeepCluster},
+		{name: "failed job whose TaskManager is deleted", state: v1beta1.JobStateFailed, cleanupAction: v1beta1.CleanupActionDeleteTaskManager},
+		{name: "job that failed to deploy", state: v1beta1.JobStateDeployFailed, cleanupAction: v1beta1.CleanupActionKeepCluster},
+		{
+			name:             "succeeded job being updated",
+			state:            v1beta1.JobStateSucceeded,
+			cleanupAction:    v1beta1.CleanupActionKeepCluster,
+			updateTriggered:  true,
+			expectedReplicas: 1,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var observed = getJobManagerDeploymentObservedClusterState()
+			observed.cluster.Spec.Job.CleanupPolicy = &v1beta1.CleanupPolicy{
+				AfterJobSucceeds: test.cleanupAction,
+				AfterJobFails:    test.cleanupAction,
+			}
+			observed.cluster.Status.Components.Job = &v1beta1.JobStatus{State: test.state}
+			if !test.updateTriggered {
+				observed.cluster.Status.Revision.CurrentRevision = observed.cluster.Status.Revision.NextRevision
+			}
+
+			var desired = getDesiredClusterState(observed)
+
+			assert.Equal(t, *desired.JmDeployment.Spec.Replicas, test.expectedReplicas)
+		})
+	}
+}
+
+func TestJmDeploymentTypeRemovedByDeleteClusterPolicy(t *testing.T) {
 	var observed = getJobManagerDeploymentObservedClusterState()
-	observed.cluster.Spec.Job.CleanupPolicy = &v1beta1.CleanupPolicy{AfterJobFails: v1beta1.CleanupActionKeepCluster}
+	observed.cluster.Spec.Job.CleanupPolicy = &v1beta1.CleanupPolicy{AfterJobFails: v1beta1.CleanupActionDeleteCluster}
 	observed.cluster.Status.Components.Job = &v1beta1.JobStatus{State: v1beta1.JobStateDeployFailed}
 	observed.cluster.Status.Revision.CurrentRevision = observed.cluster.Status.Revision.NextRevision
 
 	var desired = getDesiredClusterState(observed)
-	assert.Assert(t, desired.JmDeployment == nil)
-	assert.Assert(t, desired.ConfigMap != nil)
-	assert.Assert(t, desired.TmStatefulSet != nil)
 
-	// The JobManager Job is kept as before.
-	observed.cluster.Spec.JobManager.DeploymentType = v1beta1.JobManagerDeploymentTypeJob
-	assert.Assert(t, getDesiredClusterState(observed).Job != nil)
+	assert.Assert(t, desired.JmDeployment == nil)
+	assert.Assert(t, desired.ConfigMap == nil)
 }

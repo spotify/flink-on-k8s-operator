@@ -493,12 +493,32 @@ func TestObserveJobSubmitterPodUsesJobSelector(t *testing.T) {
 		}
 	}
 
+	newerPod := func(name string, uid types.UID) corev1.Pod {
+		pod := newPod(name, uid)
+		pod.CreationTimestamp = metav1.NewTime(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+		return pod
+	}
+
 	tests := []struct {
 		name         string
 		job          *batchv1.Job
+		newest       bool
 		pods         []corev1.Pod
 		expectedName string
 	}{
+		{
+			name:         "first pod is selected for a Job even if another pod is newer",
+			job:          newJob(currentJobUID),
+			pods:         []corev1.Pod{newPod("aaa-first", currentJobUID), newerPod("zzz-newer", currentJobUID)},
+			expectedName: "aaa-first",
+		},
+		{
+			name:         "newest pod is selected for a JobManager Deployment",
+			job:          newJob(currentJobUID),
+			newest:       true,
+			pods:         []corev1.Pod{newPod("aaa-first", currentJobUID), newerPod("zzz-newer", currentJobUID)},
+			expectedName: "zzz-newer",
+		},
 		{
 			name: "replacement pod is selected instead of old job pod",
 			job:  newJob(currentJobUID),
@@ -556,7 +576,7 @@ func TestObserveJobSubmitterPodUsesJobSelector(t *testing.T) {
 			if tt.job != nil {
 				selector = tt.job.Spec.Selector
 			}
-			err := observer.observeJobSubmitterPod(context.Background(), selector, &observedPod)
+			err := observer.observeJobSubmitterPod(context.Background(), selector, tt.newest, &observedPod)
 
 			// then: observation succeeds
 			if err != nil {

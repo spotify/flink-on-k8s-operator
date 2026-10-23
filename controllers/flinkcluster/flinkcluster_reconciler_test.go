@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
@@ -1152,4 +1153,45 @@ func TestReconcileJobDoesNotRestartFailedJobWithJobManagerDeployment(t *testing.
 	var updated v1beta1.FlinkCluster
 	assert.NilError(t, fakeClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), &updated))
 	assert.Equal(t, updated.Status.Components.Job.DeployTime, "")
+}
+
+func TestReconcileJobScalesDownJobManagerDeploymentOfTerminatedJob(t *testing.T) {
+	// given: a succeeded job whose cleanup policy keeps the JobManager Deployment, which still runs a pod
+	var cluster = newJobManagerDeploymentReconcilerTestCluster(
+		&v1beta1.JobStatus{State: v1beta1.JobStateSucceeded},
+		v1beta1.RevisionStatus{CurrentRevision: "cluster-current-1", NextRevision: "cluster-current-1"})
+	var running, stopped int32 = 1, 0
+	var deployment = newJobManagerDeploymentForRevision("cluster-current")
+	deployment.Spec.Replicas = &running
+	var desiredDeployment = newJobManagerDeploymentForRevision("cluster-current")
+	desiredDeployment.Spec.Replicas = &stopped
+	var reconciler, fakeClient = newJobManagerDeploymentReconcilerTest(t, cluster, deployment, desiredDeployment)
+
+	// when: the job is reconciled
+	result, err := reconciler.reconcileJob(context.Background())
+	assert.NilError(t, err)
+
+	// then: the Deployment is kept without a pod, like a finished JobManager Job
+	var scaled appsv1.Deployment
+	assert.NilError(t, fakeClient.Get(context.Background(), client.ObjectKeyFromObject(deployment), &scaled))
+	assert.Equal(t, *scaled.Spec.Replicas, stopped)
+	assert.Equal(t, result, ctrl.Result{})
+}
+
+func TestReconcileJobRequeuesLostJobWithJobManagerDeployment(t *testing.T) {
+	// given: a job lost moments ago whose JobManager Deployment may still recover it
+	var lostTime = time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	var cluster = newJobManagerDeploymentReconcilerTestCluster(
+		&v1beta1.JobStatus{State: v1beta1.JobStateLost, CompletionTime: &metav1.Time{Time: lostTime}},
+		v1beta1.RevisionStatus{CurrentRevision: "cluster-current-1", NextRevision: "cluster-current-1"})
+	var deployment = newJobManagerDeploymentForRevision("cluster-current")
+	var reconciler, _ = newJobManagerDeploymentReconcilerTest(t, cluster, deployment, deployment.DeepCopy())
+	reconciler.observed.observeTime = lostTime.Add(time.Minute)
+
+	// when: the job is reconciled
+	result, err := reconciler.reconcileJob(context.Background())
+	assert.NilError(t, err)
+
+	// then: the job is checked again before the recovery timeout
+	assert.Equal(t, result, requeueResult)
 }

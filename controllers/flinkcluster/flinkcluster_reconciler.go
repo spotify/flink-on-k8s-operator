@@ -534,6 +534,13 @@ func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Res
 			savepointStatus != nil &&
 			savepointStatus.TriggerReason == v1beta1.SavepointReasonUpdate
 		if !stoppedForUpdate {
+			if err := reconciler.scaleJobManagerDeployment(ctx); err != nil {
+				return requeueResult, err
+			}
+			// Check again whether the lost job recovered before its recovery timeout.
+			if isLostJobRecoverable(&observed) {
+				return requeueResult, nil
+			}
 			return ctrl.Result{}, nil
 		}
 		log.Info("Job was stopped for update, proceeding with job resubmission")
@@ -711,18 +718,47 @@ func isJobWorkloadFailed(workload client.Object) bool {
 	return ok && job.Status.Failed >= 1
 }
 
+// getJobWorkloadName returns the name of the workload kind for logs.
+func getJobWorkloadName(workload client.Object) string {
+	if _, ok := workload.(*appsv1.Deployment); ok {
+		return "JobManager Deployment"
+	}
+	return "job submitter"
+}
+
 func (reconciler *ClusterReconciler) createJobWorkload(ctx context.Context, job client.Object) error {
 	log := logr.FromContextOrDiscard(ctx)
 	var k8sClient = reconciler.k8sClient
+	var workloadName = getJobWorkloadName(job)
 
-	log.Info("Creating job submitter", "job", logObjectSummary(job))
+	log.Info("Creating "+workloadName, "job", logObjectSummary(job))
 	var err = k8sClient.Create(ctx, job)
 	if err != nil {
-		log.Info("Failed to created job submitter", "error", err)
+		log.Info("Failed to create "+workloadName, "error", err)
 	} else {
-		log.Info("Job submitter created")
+		log.Info(workloadName + " created")
 	}
 
+	return err
+}
+
+// scaleJobManagerDeployment sets the replicas of the observed JobManager Deployment to the desired ones,
+// which removes its pod once the job is terminated.
+func (reconciler *ClusterReconciler) scaleJobManagerDeployment(ctx context.Context) error {
+	var desired = reconciler.desired.JmDeployment
+	var observed = reconciler.observed.flinkJobSubmitter.deployment
+	if desired == nil || observed == nil || reflect.DeepEqual(desired.Spec.Replicas, observed.Spec.Replicas) {
+		return nil
+	}
+
+	log := logr.FromContextOrDiscard(ctx)
+	log.Info("Scaling JobManager Deployment", "replicas", *desired.Spec.Replicas)
+	var scaled = observed.DeepCopy()
+	scaled.Spec.Replicas = desired.Spec.Replicas
+	var err = reconciler.k8sClient.Patch(ctx, scaled, client.MergeFrom(observed))
+	if err != nil {
+		log.Error(err, "Failed to scale JobManager Deployment")
+	}
 	return err
 }
 
@@ -733,13 +769,14 @@ func (reconciler *ClusterReconciler) deleteJobWorkload(ctx context.Context, job 
 	var deletePolicy = metav1.DeletePropagationBackground
 	var deleteOption = client.DeleteOptions{PropagationPolicy: &deletePolicy}
 
-	log.Info("Deleting job submitter", "job", logObjectSummary(job))
+	var workloadName = getJobWorkloadName(job)
+	log.Info("Deleting "+workloadName, "job", logObjectSummary(job))
 	var err = k8sClient.Delete(ctx, job, &deleteOption)
 	err = client.IgnoreNotFound(err)
 	if err != nil {
-		log.Error(err, "Failed to delete job submitter")
+		log.Error(err, "Failed to delete "+workloadName)
 	} else {
-		log.Info("Job submitter deleted")
+		log.Info(workloadName + " deleted")
 	}
 	return err
 }
