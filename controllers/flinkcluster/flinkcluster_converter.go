@@ -60,7 +60,10 @@ const (
 	gacEnvVar               = "GOOGLE_APPLICATION_CREDENTIALS"
 )
 
-const shutdownOnApplicationFinishKey = "execution.shutdown-on-application-finish"
+const (
+	jobManagerContainerName        = "jobmanager"
+	shutdownOnApplicationFinishKey = "execution.shutdown-on-application-finish"
+)
 
 var (
 	backoffLimit                  int32 = 0
@@ -128,12 +131,9 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 	if jobSpec != nil {
 		jobStatus := cluster.Status.Components.Job
 
-		// A JobManager Deployment that failed to deploy would keep restarting its pod, so remove it.
-		jobManagerDeployFailed := isJobManagerDeployment(cluster) && jobStatus != nil &&
-			jobStatus.State == v1beta1.JobStateDeployFailed
 		keepJobState := (shouldStopJob(cluster) || jobStatus.IsStopped()) &&
 			(!shouldUpdateJob(observed) && !jobStatus.ShouldRestart(&cluster.Spec)) &&
-			(shouldCleanup(cluster, "Job") || jobManagerDeployFailed)
+			shouldCleanup(cluster, "Job")
 
 		if !keepJobState {
 			if isJobManagerDeployment(cluster) {
@@ -950,10 +950,6 @@ func newJob(flinkCluster *v1beta1.FlinkCluster) *batchv1.Job {
 // newJobManagerDeployment returns the application mode JobManager as a Deployment, so that
 // Kubernetes recreates a lost JobManager pod, which then recovers the job from its high availability metadata.
 func newJobManagerDeployment(flinkCluster *v1beta1.FlinkCluster) *appsv1.Deployment {
-	if flinkCluster.Spec.Job == nil {
-		return nil
-	}
-
 	labels := mergeLabels(getClusterLabels(flinkCluster), getRevisionHashLabels(&flinkCluster.Status.Revision))
 	labels, annotations, podSpec := newApplicationJobManagerPod(flinkCluster, labels)
 	podSpec.RestartPolicy = corev1.RestartPolicyAlways
@@ -1140,17 +1136,24 @@ func shouldCleanup(cluster *v1beta1.FlinkCluster, component string) bool {
 		return false
 	}
 
+	if isJobManagerDeployment(cluster) {
+		switch jobStatus.State {
+		// The JobManager Deployment recreates its pod, which recovers the job, so keep the cluster.
+		case v1beta1.JobStateLost:
+			return false
+		// The JobManager Deployment would keep restarting its crashing pod, so remove it.
+		case v1beta1.JobStateDeployFailed:
+			if component == "Job" {
+				return true
+			}
+		}
+	}
+
 	var action v1beta1.CleanupAction
 	switch jobStatus.State {
 	case v1beta1.JobStateSucceeded:
 		action = cluster.Spec.Job.CleanupPolicy.AfterJobSucceeds
-	case v1beta1.JobStateLost:
-		// A JobManager Deployment recreates its pod, which recovers the job, so keep the cluster.
-		if isJobManagerDeployment(cluster) {
-			return false
-		}
-		action = cluster.Spec.Job.CleanupPolicy.AfterJobFails
-	case v1beta1.JobStateFailed, v1beta1.JobStateDeployFailed:
+	case v1beta1.JobStateFailed, v1beta1.JobStateLost, v1beta1.JobStateDeployFailed:
 		action = cluster.Spec.Job.CleanupPolicy.AfterJobFails
 	case v1beta1.JobStateCancelled:
 		action = cluster.Spec.Job.CleanupPolicy.AfterJobCancelled

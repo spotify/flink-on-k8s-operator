@@ -199,10 +199,7 @@ func getClusterResourceList(state *model.DesiredClusterState) (*corev1.ResourceL
 		resources := getStatefulSetResources(&spec)
 		addResourceRequirements(reqs, resources)
 	} else if state.TmDeployment != nil {
-		spec := state.TmDeployment.Spec
-		size += *spec.Replicas
-		resources := getDeploymentResources(&spec)
-		addResourceRequirements(reqs, resources)
+		size += addDeploymentResources(reqs, &state.TmDeployment.Spec)
 	}
 
 	if state.Job != nil {
@@ -212,13 +209,16 @@ func getClusterResourceList(state *model.DesiredClusterState) (*corev1.ResourceL
 	}
 
 	if state.JmDeployment != nil {
-		spec := state.JmDeployment.Spec
-		size += *spec.Replicas
-		resources := getDeploymentResources(&spec)
-		addResourceRequirements(reqs, resources)
+		size += addDeploymentResources(reqs, &state.JmDeployment.Spec)
 	}
 
 	return &reqs, size
+}
+
+// addDeploymentResources adds the resources of the Deployment's pods to reqs and returns the number of pods.
+func addDeploymentResources(reqs corev1.ResourceList, spec *appsv1.DeploymentSpec) int32 {
+	addResourceRequirements(reqs, getDeploymentResources(spec))
+	return *spec.Replicas
 }
 
 func getStatefulSetResources(spec *appsv1.StatefulSetSpec) *corev1.ResourceList {

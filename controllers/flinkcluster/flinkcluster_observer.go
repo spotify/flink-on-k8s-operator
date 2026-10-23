@@ -122,6 +122,11 @@ func (s *FlinkJobSubmitter) workload() client.Object {
 // Job submitter status.
 func (s *FlinkJobSubmitter) getState() JobSubmitState {
 	switch {
+	// A JobManager Deployment restarts its pod, so it failed only when the pod keeps crashing.
+	case s.deployment != nil && isJobManagerCrashLooping(s.pod):
+		return JobDeployStateFailed
+	case s.deployment != nil:
+		return JobDeployStateInProgress
 	case s.log != nil && s.log.jobID != "":
 		return JobDeployStateSucceeded
 	// Job ID not found cases:
@@ -280,29 +285,24 @@ func (observer *ClusterStateObserver) observeJob(
 	}
 
 	// Job or JobManager Deployment resource.
+	var workload client.Object = new(batchv1.Job)
+	if isJobManagerDeployment(observed.cluster) {
+		workload = new(appsv1.Deployment)
+	}
+	if err := observer.observeObject(ctx, jobName, workload); err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			log.Error(err, "job workload", "name", jobName)
+		}
+		workload = nil
+	}
 	var job *batchv1.Job
 	var deployment *appsv1.Deployment
 	var podSelector *metav1.LabelSelector
-	if isJobManagerDeployment(observed.cluster) {
-		deployment = new(appsv1.Deployment)
-		if err := observer.observeObject(ctx, jobName, deployment); err != nil {
-			if client.IgnoreNotFound(err) != nil {
-				log.Error(err, "JobManager appsv1.Deployment")
-			}
-			deployment = nil
-		} else {
-			podSelector = deployment.Spec.Selector
-		}
-	} else {
-		job = new(batchv1.Job)
-		if err := observer.observeObject(ctx, jobName, job); err != nil {
-			if client.IgnoreNotFound(err) != nil {
-				log.Error(err, "job submitter batchv1.Job")
-			}
-			job = nil
-		} else {
-			podSelector = job.Spec.Selector
-		}
+	switch w := workload.(type) {
+	case *batchv1.Job:
+		job, podSelector = w, w.Spec.Selector
+	case *appsv1.Deployment:
+		deployment, podSelector = w, w.Spec.Selector
 	}
 
 	// Get job submitter pod resource.
@@ -317,8 +317,9 @@ func (observer *ClusterStateObserver) observeJob(
 	var submitterLog *SubmitterLog
 	// Extract submission result only when it is in deployment progress or the submitter pod failed.
 	// It is not necessary to get the log stream from the submitter pod always.
+	// A JobManager Deployment gets the job ID from its pod label and never reads the log.
 	var jobDeployInProgress = recordedJob != nil && recordedJob.State == v1beta1.JobStateDeploying
-	if jobPod != nil && (jobDeployInProgress || jobPod.Status.Phase == corev1.PodFailed) {
+	if jobPod != nil && (jobDeployInProgress || jobPod.Status.Phase == corev1.PodFailed) && !isJobManagerDeployment(observed.cluster) {
 		var err error
 		submitterLog, err = getFlinkJobSubmitLog(observer.k8sClientset, jobPod)
 		if err != nil {
