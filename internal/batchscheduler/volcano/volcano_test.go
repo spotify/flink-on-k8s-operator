@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	scheduling "volcano.sh/apis/pkg/apis/scheduling/v1beta1"
 
 	"github.com/spotify/flink-on-k8s-operator/internal/model"
 )
@@ -495,4 +496,52 @@ func TestPogGroupsMinResources(t *testing.T) {
 
 	assert.Equal(t, rl.Storage().String(), "0", "Storage should be 0")
 	assert.Equal(t, rl.Name(corev1.ResourceRequestsStorage, resource.DecimalSI).String(), "0", "Storage request should be 0")
+}
+
+func getJobManagerDeploymentDesiredState() *model.DesiredClusterState {
+	return &model.DesiredClusterState{
+		JmDeployment: &appsv1.Deployment{
+			Spec: appsv1.DeploymentSpec{
+				Replicas: &jmRep,
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name: "jobmanager",
+								Resources: corev1.ResourceRequirements{
+									Requests: map[corev1.ResourceName]resource.Quantity{
+										corev1.ResourceCPU:    resource.MustParse("200m"),
+										corev1.ResourceMemory: resource.MustParse("512Mi"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func TestGetClusterResourceForJobManagerDeployment(t *testing.T) {
+	res, size := getClusterResourceList(getJobManagerDeploymentDesiredState())
+
+	assert.Equal(t, size, int32(1))
+	assert.Equal(t, res.Memory().String(), "512Mi")
+	assert.Equal(t, res.Cpu().MilliValue(), int64(200))
+}
+
+func TestSetSchedulerMetaForJobManagerDeployment(t *testing.T) {
+	desiredState := getJobManagerDeploymentDesiredState()
+	podGroup := &scheduling.PodGroup{
+		ObjectMeta: metav1.ObjectMeta{Name: "flink-cluster-pg"},
+		Spec:       scheduling.PodGroupSpec{PriorityClassName: "high"},
+	}
+
+	(&VolcanoBatchScheduler{}).setSchedulerMeta(podGroup, desiredState)
+
+	template := desiredState.JmDeployment.Spec.Template
+	assert.Equal(t, template.Spec.SchedulerName, schedulerName)
+	assert.Equal(t, template.Spec.PriorityClassName, "high")
+	assert.Equal(t, template.Annotations[scheduling.KubeGroupNameAnnotationKey], "flink-cluster-pg")
 }
