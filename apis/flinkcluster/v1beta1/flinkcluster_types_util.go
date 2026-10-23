@@ -64,6 +64,11 @@ func (j *JobStatus) IsSavepointUpToDate(spec *JobSpec, compareTime time.Time) bo
 	return !util.HasTimeElapsed(j.SavepointTime, compareTime, stateMaxAge)
 }
 
+// IsApplicationMode returns true if the job is deployed in application mode.
+func (j *JobSpec) IsApplicationMode() bool {
+	return j != nil && j.Mode != nil && *j.Mode == JobModeApplication
+}
+
 // ShouldRestart returns true if the controller should restart failed job.
 // The controller can restart the job if policy is set to FromSavepointOnFailure.
 // Job will restart from savepoint if the savepoint was taken successfully.
@@ -123,6 +128,14 @@ func isBlank(s *string) bool {
 
 func (jm *JobManagerSpec) GetResources() *corev1.ResourceList {
 	return util.UpperBoundedResourceList(jm.Resources)
+}
+
+// GetDeploymentType returns the JobManager workload type, treating unset as Job.
+func (jm *JobManagerSpec) GetDeploymentType() JobManagerDeploymentType {
+	if jm == nil || jm.DeploymentType == "" {
+		return JobManagerDeploymentTypeJob
+	}
+	return jm.DeploymentType
 }
 
 func (tm *TaskManagerSpec) GetResources() *corev1.ResourceList {

@@ -320,6 +320,23 @@ _Appears in:_
 | `pullSecrets` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#localobjectreference-v1-core) array_ | _(Optional)_ Secrets for image pull.<br />[More info](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/#create-a-pod-that-uses-your-secret) |  |  |
 
 
+#### JobManagerDeploymentType
+
+_Underlying type:_ _string_
+
+K8s workload API kind for the JobManager in application mode
+
+
+
+_Appears in:_
+- [JobManagerSpec](#jobmanagerspec)
+
+| Field | Description |
+| --- | --- |
+| `Job` | This refers to the Kubernetes Type [Job](https://kubernetes.io/docs/concepts/workloads/controllers/job)<br />A lost JobManager pod is not recreated.<br /> |
+| `Deployment` | This refers to the Kubernetes Type [Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment)<br />A lost JobManager pod is recreated and recovers the job from its high availability metadata.<br /> |
+
+
 #### JobManagerIngressSpec
 
 
@@ -408,6 +425,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
+| `deploymentType` _[JobManagerDeploymentType](#jobmanagerdeploymenttype)_ | _(Optional)_ Defines the JobManager workload's type in application mode: `Job` or `Deployment`. If not specified, the default value is `Job`.<br />`Deployment` requires `spec.job.mode: Application` and high availability, and `spec.job.restartPolicy` must be `Never` or unset.<br />It cannot be updated. |  | Enum: [Job Deployment] <br /> |
 | `replicas` _integer_ | The number of JobManager replicas, default: `1` | 1 | Maximum: 1 <br />Minimum: 1 <br /> |
 | `accessScope` _string_ | Access scope, default: `Cluster`.<br />`Cluster`: accessible from within the same cluster.<br />`VPC`: accessible from within the same VPC.<br />`External`: accessible from the internet.<br />`NodePort`: accessible through node port.<br />`Headless`: pod IPs assumed to be routable and advertised directly with `clusterIP: None``.<br />Currently `VPC, External` are only available for GKE. | Cluster | Enum: [Cluster VPC External NodePort Headless] <br /> |
 | `ServiceAnnotations` _object (keys:string, values:string)_ | _(Optional)_ Define JobManager Service annotations for configuration. |  |  |

@@ -231,8 +231,28 @@ type JobManagerIngressSpec struct {
 	TLSSecretName *string `json:"tlsSecretName,omitempty"`
 }
 
+// K8s workload API kind for the JobManager in application mode
+type JobManagerDeploymentType string
+
+const (
+	// This refers to the Kubernetes Type [Job](https://kubernetes.io/docs/concepts/workloads/controllers/job)
+	// A lost JobManager pod is not recreated.
+	JobManagerDeploymentTypeJob JobManagerDeploymentType = "Job"
+
+	// This refers to the Kubernetes Type [Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment)
+	// A lost JobManager pod is recreated and recovers the job from its high availability metadata.
+	JobManagerDeploymentTypeDeployment JobManagerDeploymentType = "Deployment"
+)
+
 // JobManagerSpec defines properties of JobManager.
 type JobManagerSpec struct {
+	// _(Optional)_ Defines the JobManager workload's type in application mode: `Job` or `Deployment`. If not specified, the default value is `Job`.
+	// `Deployment` requires `spec.job.mode: Application` and high availability, and `spec.job.restartPolicy` must be `Never` or unset.
+	// It cannot be updated.
+	// +kubebuilder:validation:Enum=Job;Deployment
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="jobManager deploymentType is immutable"
+	DeploymentType JobManagerDeploymentType `json:"deploymentType,omitempty"`
+
 	// The number of JobManager replicas, default: `1`
 	// +kubebuilder:default:=1
 	// +kubebuilder:validation:Minimum=1
