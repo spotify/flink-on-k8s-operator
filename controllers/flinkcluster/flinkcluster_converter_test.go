@@ -1813,3 +1813,19 @@ func TestJmDeploymentTypeNoCleanupOnLost(t *testing.T) {
 	assert.Assert(t, desired.JmDeployment == nil)
 	assert.Assert(t, desired.ConfigMap == nil)
 }
+
+func TestJmDeploymentTypeRemovedAfterDeployFailed(t *testing.T) {
+	var observed = getJobManagerDeploymentObservedClusterState()
+	observed.cluster.Spec.Job.CleanupPolicy = &v1beta1.CleanupPolicy{AfterJobFails: v1beta1.CleanupActionKeepCluster}
+	observed.cluster.Status.Components.Job = &v1beta1.JobStatus{State: v1beta1.JobStateDeployFailed}
+	observed.cluster.Status.Revision.CurrentRevision = observed.cluster.Status.Revision.NextRevision
+
+	var desired = getDesiredClusterState(observed)
+	assert.Assert(t, desired.JmDeployment == nil)
+	assert.Assert(t, desired.ConfigMap != nil)
+	assert.Assert(t, desired.TmStatefulSet != nil)
+
+	// The JobManager Job is kept as before.
+	observed.cluster.Spec.JobManager.DeploymentType = v1beta1.JobManagerDeploymentTypeJob
+	assert.Assert(t, getDesiredClusterState(observed).Job != nil)
+}

@@ -182,8 +182,8 @@ func (reconciler *ClusterReconciler) reconcileDeletion(ctx context.Context) (ctr
 	}
 
 	if IsApplicationModeCluster(cluster) {
-		if job := reconciler.observed.flinkJobSubmitter.job; job != nil {
-			if err := reconciler.deleteJob(ctx, job); err != nil {
+		if workload := reconciler.observed.flinkJobSubmitter.workload(); workload != nil {
+			if err := reconciler.deleteJobWorkload(ctx, workload); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
@@ -503,7 +503,7 @@ func (reconciler *ClusterReconciler) reconcilePersistentVolumeClaim(ctx context.
 
 func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Result, error) {
 	log := logr.FromContextOrDiscard(ctx)
-	var desiredJob = reconciler.desired.Job
+	var desiredJob = getDesiredJobWorkload(&reconciler.desired)
 	var observed = reconciler.observed
 	var recorded = observed.cluster.Status
 	var jobSpec = observed.cluster.Spec.Job
@@ -516,7 +516,7 @@ func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Res
 	var newControlStatus *v1beta1.FlinkClusterControlStatus
 	defer reconciler.updateStatus(ctx, &newSavepointStatus, &newControlStatus)
 
-	observedSubmitter := observed.flinkJobSubmitter.job
+	observedSubmitter := observed.flinkJobSubmitter.workload()
 
 	if desiredJob != nil && job.IsTerminated(jobSpec) {
 		// When the job was stopped as part of an update (savepoint trigger
@@ -553,7 +553,7 @@ func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Res
 		}
 		// kill job submitter pod
 		if observedSubmitter != nil {
-			if err := reconciler.deleteJob(ctx, observedSubmitter); err != nil {
+			if err := reconciler.deleteJobWorkload(ctx, observedSubmitter); err != nil {
 				return requeueResult, err
 			}
 		}
@@ -588,18 +588,18 @@ func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Res
 		if observedSubmitter != nil {
 			var shouldDeleteForRestart bool
 			if !recorded.Revision.IsUpdateTriggered() && recorded.Revision.CurrentRevision != "" {
-				shouldDeleteForRestart = observedSubmitter.Labels[RevisionNameLabel] ==
+				shouldDeleteForRestart = observedSubmitter.GetLabels()[RevisionNameLabel] ==
 					getCurrentRevisionName(&recorded.Revision)
 			}
 			if !isComponentUpdated(observedSubmitter, observed.cluster) || shouldDeleteForRestart {
 				log.Info("Found old job submitter")
-				err = reconciler.deleteJob(ctx, observedSubmitter)
+				err = reconciler.deleteJobWorkload(ctx, observedSubmitter)
 				if err != nil {
 					return requeueResult, err
 				}
-			} else if observedSubmitter.Status.Failed >= 1 {
+			} else if isJobWorkloadFailed(observedSubmitter) {
 				log.Info("Found failed job submitter")
-				err = reconciler.deleteJob(ctx, observedSubmitter)
+				err = reconciler.deleteJobWorkload(ctx, observedSubmitter)
 				if err != nil {
 					return requeueResult, err
 				}
@@ -608,7 +608,7 @@ func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Res
 				return requeueResult, nil
 			}
 		} else {
-			err = reconciler.createJob(ctx, desiredJob)
+			err = reconciler.createJobWorkload(ctx, desiredJob)
 		}
 
 		return requeueResult, err
@@ -676,7 +676,7 @@ func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Res
 				log.Info("Job submitter has not finished yet")
 				return requeueResult, err
 			}
-			if err := reconciler.deleteJob(ctx, observedSubmitter); err != nil {
+			if err := reconciler.deleteJobWorkload(ctx, observedSubmitter); err != nil {
 				return requeueResult, err
 			}
 		}
@@ -692,7 +692,26 @@ func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Res
 	return ctrl.Result{}, nil
 }
 
-func (reconciler *ClusterReconciler) createJob(ctx context.Context, job *batchv1.Job) error {
+// getDesiredJobWorkload returns the desired workload that runs the job: the JobManager Deployment,
+// the JobManager Job in application mode or the job submitter Job. It returns nil if there is none.
+func getDesiredJobWorkload(desired *model.DesiredClusterState) client.Object {
+	switch {
+	case desired.JmDeployment != nil:
+		return desired.JmDeployment
+	case desired.Job != nil:
+		return desired.Job
+	}
+	return nil
+}
+
+// isJobWorkloadFailed returns true if the Job running the job failed. A JobManager Deployment
+// restarts its pod instead of failing.
+func isJobWorkloadFailed(workload client.Object) bool {
+	job, ok := workload.(*batchv1.Job)
+	return ok && job.Status.Failed >= 1
+}
+
+func (reconciler *ClusterReconciler) createJobWorkload(ctx context.Context, job client.Object) error {
 	log := logr.FromContextOrDiscard(ctx)
 	var k8sClient = reconciler.k8sClient
 
@@ -707,7 +726,7 @@ func (reconciler *ClusterReconciler) createJob(ctx context.Context, job *batchv1
 	return err
 }
 
-func (reconciler *ClusterReconciler) deleteJob(ctx context.Context, job *batchv1.Job) error {
+func (reconciler *ClusterReconciler) deleteJobWorkload(ctx context.Context, job client.Object) error {
 	log := logr.FromContextOrDiscard(ctx)
 	var k8sClient = reconciler.k8sClient
 
@@ -771,9 +790,9 @@ func (reconciler *ClusterReconciler) cancelJob(ctx context.Context) error {
 	}
 
 	// TODO: Not to delete the job submitter immediately, and retain the latest ones for inspection.
-	var observedSubmitter = reconciler.observed.flinkJobSubmitter.job
+	var observedSubmitter = reconciler.observed.flinkJobSubmitter.workload()
 	if observedSubmitter != nil {
-		var err = reconciler.deleteJob(ctx, observedSubmitter)
+		var err = reconciler.deleteJobWorkload(ctx, observedSubmitter)
 		if err != nil {
 			log.Error(
 				err, "Failed to delete job submitter", "job", observedSubmitter)
@@ -1100,7 +1119,7 @@ func (reconciler *ClusterReconciler) updateStatusWithJob(
 func (reconciler *ClusterReconciler) updateJobDeployStatus(ctx context.Context) error {
 	var log = logr.FromContextOrDiscard(ctx)
 	var observedCluster = reconciler.observed.cluster
-	var desiredJobSubmitter = reconciler.desired.Job
+	var desiredJobSubmitter = getDesiredJobWorkload(&reconciler.desired)
 	var newJob *v1beta1.JobStatus
 	var key = types.NamespacedName{Namespace: observedCluster.Namespace, Name: observedCluster.Name}
 
@@ -1122,7 +1141,7 @@ func (reconciler *ClusterReconciler) updateJobDeployStatus(ctx context.Context) 
 		util.SetTimestamp(&cluster.Status.LastUpdateTime)
 
 		// Latest savepoint location should be fromSavepoint.
-		var fromSavepoint = getFromSavepoint(desiredJobSubmitter.Spec)
+		var fromSavepoint = getFromSavepoint(getPodTemplate(desiredJobSubmitter).Spec)
 		newJob.FromSavepoint = fromSavepoint
 		if newJob.SavepointLocation != "" {
 			newJob.SavepointLocation = fromSavepoint

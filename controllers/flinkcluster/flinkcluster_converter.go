@@ -128,9 +128,12 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 	if jobSpec != nil {
 		jobStatus := cluster.Status.Components.Job
 
+		// A JobManager Deployment that failed to deploy would keep restarting its pod, so remove it.
+		jobManagerDeployFailed := isJobManagerDeployment(cluster) && jobStatus != nil &&
+			jobStatus.State == v1beta1.JobStateDeployFailed
 		keepJobState := (shouldStopJob(cluster) || jobStatus.IsStopped()) &&
 			(!shouldUpdateJob(observed) && !jobStatus.ShouldRestart(jobSpec)) &&
-			shouldCleanup(cluster, "Job")
+			(shouldCleanup(cluster, "Job") || jobManagerDeployFailed)
 
 		if !keepJobState {
 			if isJobManagerDeployment(cluster) {

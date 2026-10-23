@@ -107,6 +107,18 @@ type Revision struct {
 	collisionCount  int32
 }
 
+// workload returns the observed workload that runs the job: the JobManager Deployment, the JobManager Job
+// in application mode or the job submitter Job. It returns nil if there is none.
+func (s *FlinkJobSubmitter) workload() client.Object {
+	switch {
+	case s.deployment != nil:
+		return s.deployment
+	case s.job != nil:
+		return s.job
+	}
+	return nil
+}
+
 // Job submitter status.
 func (s *FlinkJobSubmitter) getState() JobSubmitState {
 	switch {
