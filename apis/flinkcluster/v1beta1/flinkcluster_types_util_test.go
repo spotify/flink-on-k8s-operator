@@ -111,7 +111,7 @@ func TestShouldRestartJob(t *testing.T) {
 		SavepointTime:     tc.ToString(savepointTime),
 		CompletionTime:    &metav1.Time{Time: jobCompletionTime},
 	}
-	var restart = jobStatus.ShouldRestart(&jobSpec)
+	var restart = jobStatus.ShouldRestart(&FlinkClusterSpec{Job: &jobSpec})
 	assert.Equal(t, restart, true)
 
 	// Not restart without savepoint
@@ -123,7 +123,7 @@ func TestShouldRestartJob(t *testing.T) {
 		State:          JobStateFailed,
 		CompletionTime: &metav1.Time{Time: jobCompletionTime},
 	}
-	restart = jobStatus.ShouldRestart(&jobSpec)
+	restart = jobStatus.ShouldRestart(&FlinkClusterSpec{Job: &jobSpec})
 	assert.Equal(t, restart, true)
 
 	// Not restart with restartPolicy Never
@@ -137,7 +137,7 @@ func TestShouldRestartJob(t *testing.T) {
 		SavepointTime:     tc.ToString(savepointTime),
 		CompletionTime:    &metav1.Time{Time: jobCompletionTime},
 	}
-	restart = jobStatus.ShouldRestart(&jobSpec)
+	restart = jobStatus.ShouldRestart(&FlinkClusterSpec{Job: &jobSpec})
 	assert.Equal(t, restart, false)
 
 	// Not restart with old savepoint
@@ -152,8 +152,26 @@ func TestShouldRestartJob(t *testing.T) {
 		SavepointTime:     tc.ToString(savepointTime),
 		CompletionTime:    &metav1.Time{Time: jobCompletionTime},
 	}
-	restart = jobStatus.ShouldRestart(&jobSpec)
+	restart = jobStatus.ShouldRestart(&FlinkClusterSpec{Job: &jobSpec})
 	assert.Equal(t, restart, false)
+
+	// Not restart with a JobManager Deployment, which recovers the job from high availability metadata
+	jobSpec = JobSpec{
+		RestartPolicy:               &restartOnFailure,
+		MaxStateAgeToRestoreSeconds: &maxStateAgeToRestoreSeconds,
+	}
+	jobStatus = JobStatus{
+		State:             JobStateFailed,
+		SavepointLocation: "gs://my-bucket/savepoint-123",
+		SavepointTime:     tc.ToString(savepointTime),
+		CompletionTime:    &metav1.Time{Time: savepointTime.Add(time.Second * 60)},
+	}
+	var clusterSpec = FlinkClusterSpec{
+		Job:        &jobSpec,
+		JobManager: &JobManagerSpec{DeploymentType: JobManagerDeploymentTypeDeployment},
+	}
+	assert.Equal(t, jobStatus.ShouldRestart(&clusterSpec), false)
+	assert.Equal(t, jobStatus.IsTerminated(&clusterSpec), true)
 }
 
 func TestIsHighAvailabilityEnabled(t *testing.T) {

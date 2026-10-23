@@ -518,7 +518,7 @@ func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Res
 
 	observedSubmitter := observed.flinkJobSubmitter.workload()
 
-	if desiredJob != nil && job.IsTerminated(jobSpec) {
+	if desiredJob != nil && job.IsTerminated(&observed.cluster.Spec) {
 		// When the job was stopped as part of an update (savepoint trigger
 		// reason is "update"), don't treat it as terminally done. Flink reports
 		// a job stopped through /stop as FINISHED, which maps to Succeeded.

@@ -132,7 +132,7 @@ func getDesiredClusterState(observed *ObservedClusterState) *model.DesiredCluste
 		jobManagerDeployFailed := isJobManagerDeployment(cluster) && jobStatus != nil &&
 			jobStatus.State == v1beta1.JobStateDeployFailed
 		keepJobState := (shouldStopJob(cluster) || jobStatus.IsStopped()) &&
-			(!shouldUpdateJob(observed) && !jobStatus.ShouldRestart(jobSpec)) &&
+			(!shouldUpdateJob(observed) && !jobStatus.ShouldRestart(&cluster.Spec)) &&
 			(shouldCleanup(cluster, "Job") || jobManagerDeployFailed)
 
 		if !keepJobState {

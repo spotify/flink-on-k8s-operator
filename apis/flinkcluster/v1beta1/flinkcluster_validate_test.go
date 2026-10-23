@@ -443,12 +443,12 @@ func TestJobManagerDeploymentType(t *testing.T) {
 			"jobManager deploymentType Deployment requires high availability to be enabled",
 		},
 		{
-			"deployment requires restartPolicy Never",
+			"valid deployment with restartPolicy FromSavepointOnFailure, which has no effect",
 			func(cluster *FlinkCluster) {
 				var restartPolicy = JobRestartPolicyFromSavepointOnFailure
 				cluster.Spec.Job.RestartPolicy = &restartPolicy
 			},
-			"jobManager deploymentType Deployment requires job restartPolicy Never",
+			"",
 		},
 	}
 

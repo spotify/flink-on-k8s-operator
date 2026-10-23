@@ -1131,3 +1131,25 @@ func TestReconcileJobDeletesJobManagerDeploymentOfStoppedJob(t *testing.T) {
 	err = fakeClient.Get(context.Background(), client.ObjectKeyFromObject(deployment), &appsv1.Deployment{})
 	assert.Assert(t, apierrors.IsNotFound(err))
 }
+
+func TestReconcileJobDoesNotRestartFailedJobWithJobManagerDeployment(t *testing.T) {
+	// given: a failed job with restartPolicy FromSavepointOnFailure and a JobManager Deployment
+	var cluster = newJobManagerDeploymentReconcilerTestCluster(
+		&v1beta1.JobStatus{State: v1beta1.JobStateFailed, SavepointLocation: "gs://bucket/savepoint-1"},
+		v1beta1.RevisionStatus{CurrentRevision: "cluster-current-1", NextRevision: "cluster-current-1"})
+	var restartPolicy = v1beta1.JobRestartPolicyFromSavepointOnFailure
+	cluster.Spec.Job.RestartPolicy = &restartPolicy
+	var deployment = newJobManagerDeploymentForRevision("cluster-current")
+	var reconciler, fakeClient = newJobManagerDeploymentReconcilerTest(
+		t, cluster, deployment, newJobManagerDeploymentForRevision("cluster-current"))
+
+	// when: the job is reconciled
+	_, err := reconciler.reconcileJob(context.Background())
+	assert.NilError(t, err)
+
+	// then: the restart policy has no effect, the Deployment is kept and no new deploy is recorded
+	assert.NilError(t, fakeClient.Get(context.Background(), client.ObjectKeyFromObject(deployment), &appsv1.Deployment{}))
+	var updated v1beta1.FlinkCluster
+	assert.NilError(t, fakeClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), &updated))
+	assert.Equal(t, updated.Status.Components.Job.DeployTime, "")
+}

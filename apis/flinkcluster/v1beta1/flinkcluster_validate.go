@@ -177,7 +177,7 @@ func (v *Validator) checkControlAnnotations(old *FlinkCluster, new *FlinkCluster
 			var job = old.Status.Components.Job
 			if old.Spec.Job == nil {
 				return fmt.Errorf(SessionClusterWarnMsg, ControlNameJobCancel, ControlAnnotation)
-			} else if job == nil || job.IsTerminated(old.Spec.Job) {
+			} else if job == nil || job.IsTerminated(&old.Spec) {
 				return errors.NewResourceExpired(fmt.Sprintf(InvalidJobStateForJobCancelMsg, ControlAnnotation))
 			}
 		case ControlNameSavepoint:
@@ -541,18 +541,16 @@ func (v *Validator) validateJob(jobSpec *JobSpec) error {
 }
 
 // A JobManager Deployment relies on Flink high availability to recover the job when its pod is recreated.
+// spec.job.restartPolicy is allowed but has no effect, see JobStatus.ShouldRestart.
 func (v *Validator) validateJobManagerDeploymentType(cluster *FlinkCluster) error {
 	if cluster.Spec.JobManager.GetDeploymentType() != JobManagerDeploymentTypeDeployment {
 		return nil
 	}
-	jobSpec := cluster.Spec.Job
 	switch {
-	case !jobSpec.IsApplicationMode():
+	case !cluster.Spec.Job.IsApplicationMode():
 		return fmt.Errorf("jobManager deploymentType Deployment requires job mode Application")
 	case !cluster.IsHighAvailabilityEnabled():
 		return fmt.Errorf("jobManager deploymentType Deployment requires high availability to be enabled")
-	case jobSpec.RestartPolicy != nil && *jobSpec.RestartPolicy != JobRestartPolicyNever:
-		return fmt.Errorf("jobManager deploymentType Deployment requires job restartPolicy Never")
 	}
 	return nil
 }

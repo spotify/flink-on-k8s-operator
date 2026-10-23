@@ -247,7 +247,8 @@ const (
 // JobManagerSpec defines properties of JobManager.
 type JobManagerSpec struct {
 	// _(Optional)_ Defines the JobManager workload's type in application mode: `Job` or `Deployment`. If not specified, the default value is `Job`.
-	// `Deployment` requires `spec.job.mode: Application` and high availability, and `spec.job.restartPolicy` must be `Never` or unset.
+	// `Deployment` requires `spec.job.mode: Application` and high availability. With `Deployment`, `spec.job.restartPolicy` has no effect:
+	// Kubernetes recreates a lost JobManager pod and the job recovers from its high availability metadata, never from a savepoint.
 	// It cannot be updated.
 	// +kubebuilder:validation:Enum=Job;Deployment
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="jobManager deploymentType is immutable"

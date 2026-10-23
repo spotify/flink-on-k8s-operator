@@ -42,7 +42,7 @@ func (j *JobStatus) IsStopped() bool {
 			j.IsFailed())
 }
 
-func (j *JobStatus) IsTerminated(spec *JobSpec) bool {
+func (j *JobStatus) IsTerminated(spec *FlinkClusterSpec) bool {
 	return j.IsStopped() && !j.ShouldRestart(spec)
 }
 
@@ -72,12 +72,15 @@ func (j *JobSpec) IsApplicationMode() bool {
 // ShouldRestart returns true if the controller should restart failed job.
 // The controller can restart the job if policy is set to FromSavepointOnFailure.
 // Job will restart from savepoint if the savepoint was taken successfully.
-func (j *JobStatus) ShouldRestart(spec *JobSpec) bool {
-	if j == nil || !j.IsFailed() || spec == nil {
+// The restart policy has no effect with a JobManager Deployment: Kubernetes recreates the JobManager pod,
+// which recovers the job from its high availability metadata instead of a savepoint.
+func (j *JobStatus) ShouldRestart(spec *FlinkClusterSpec) bool {
+	if j == nil || !j.IsFailed() || spec == nil || spec.Job == nil ||
+		spec.JobManager.GetDeploymentType() == JobManagerDeploymentTypeDeployment {
 		return false
 	}
 
-	restartEnabled := spec.RestartPolicy != nil && *spec.RestartPolicy == JobRestartPolicyFromSavepointOnFailure
+	restartEnabled := spec.Job.RestartPolicy != nil && *spec.Job.RestartPolicy == JobRestartPolicyFromSavepointOnFailure
 	return restartEnabled
 }
 
