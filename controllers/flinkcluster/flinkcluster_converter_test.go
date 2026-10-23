@@ -19,6 +19,7 @@ package flinkcluster
 import (
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -1736,4 +1737,79 @@ func TestClassPath(t *testing.T) {
 	args := desired.Job.Spec.Template.Spec.Containers[0].Args
 
 	assert.DeepEqual(t, args, expectedArgs)
+}
+
+func getJobManagerDeploymentObservedClusterState() *ObservedClusterState {
+	var observed = getObservedClusterState()
+	var jobMode = v1beta1.JobModeApplication
+	var restartPolicy = v1beta1.JobRestartPolicyNever
+	observed.cluster.Spec.Job.Mode = &jobMode
+	observed.cluster.Spec.Job.RestartPolicy = &restartPolicy
+	observed.cluster.Spec.JobManager.DeploymentType = v1beta1.JobManagerDeploymentTypeDeployment
+	return observed
+}
+
+func TestJmDeploymentTypeDeployment(t *testing.T) {
+	var observed = getJobManagerDeploymentObservedClusterState()
+	var desired = getDesiredClusterState(observed)
+
+	observed.cluster.Spec.JobManager.DeploymentType = v1beta1.JobManagerDeploymentTypeJob
+	var desiredJob = getDesiredClusterState(observed).Job
+
+	assert.Assert(t, desired.Job == nil)
+	assert.Assert(t, desired.JmDeployment != nil)
+	var deployment = desired.JmDeployment
+	assert.Equal(t, deployment.Name, desiredJob.Name)
+	assert.DeepEqual(t, deployment.Labels, desiredJob.Labels)
+	assert.DeepEqual(t, deployment.OwnerReferences, desiredJob.OwnerReferences)
+	assert.Equal(t, *deployment.Spec.Replicas, int32(1))
+	assert.Equal(t, deployment.Spec.Strategy.Type, appsv1.RecreateDeploymentStrategyType)
+	assert.DeepEqual(t, deployment.Spec.Selector.MatchLabels, map[string]string{
+		"app":       "flink",
+		"cluster":   "fjc",
+		"component": "jobmanager",
+	})
+	assert.DeepEqual(t, deployment.Spec.Template.ObjectMeta, desiredJob.Spec.Template.ObjectMeta)
+
+	// The pod spec is the same as the JobManager Job's, except that Kubernetes restarts the pod.
+	assert.Equal(t, deployment.Spec.Template.Spec.RestartPolicy, corev1.RestartPolicyAlways)
+	var jobPodSpec = desiredJob.Spec.Template.Spec.DeepCopy()
+	jobPodSpec.RestartPolicy = corev1.RestartPolicyAlways
+	assert.DeepEqual(t, deployment.Spec.Template.Spec, *jobPodSpec, cmpopts.IgnoreUnexported(resource.Quantity{}))
+}
+
+func TestJmDeploymentTypeShutdownOnApplicationFinish(t *testing.T) {
+	var observed = getJobManagerDeploymentObservedClusterState()
+	observed.cluster.Spec.FlinkProperties = map[string]string{shutdownOnApplicationFinishKey: "true"}
+	var flinkConf = getDesiredClusterState(observed).ConfigMap.Data["flink-conf.yaml"]
+	assert.Assert(t, strings.Contains(flinkConf, shutdownOnApplicationFinishKey+": false\n"))
+
+	observed.cluster.Spec.JobManager.DeploymentType = v1beta1.JobManagerDeploymentTypeJob
+	flinkConf = getDesiredClusterState(observed).ConfigMap.Data["flink-conf.yaml"]
+	assert.Assert(t, strings.Contains(flinkConf, shutdownOnApplicationFinishKey+": true\n"))
+}
+
+func TestJmDeploymentTypeNoCleanupOnLost(t *testing.T) {
+	var observed = getJobManagerDeploymentObservedClusterState()
+	observed.cluster.Spec.Job.CleanupPolicy = &v1beta1.CleanupPolicy{AfterJobFails: v1beta1.CleanupActionDeleteCluster}
+	observed.cluster.Status.Components.Job = &v1beta1.JobStatus{State: v1beta1.JobStateLost}
+	observed.cluster.Status.Revision.CurrentRevision = observed.cluster.Status.Revision.NextRevision
+
+	var desired = getDesiredClusterState(observed)
+	assert.Assert(t, desired.JmDeployment != nil)
+	assert.Assert(t, desired.ConfigMap != nil)
+	assert.Assert(t, desired.TmStatefulSet != nil)
+
+	observed.cluster.Spec.JobManager.DeploymentType = v1beta1.JobManagerDeploymentTypeJob
+	desired = getDesiredClusterState(observed)
+	assert.Assert(t, desired.Job == nil)
+	assert.Assert(t, desired.ConfigMap == nil)
+	assert.Assert(t, desired.TmStatefulSet == nil)
+
+	// A failed job is still cleaned up.
+	observed.cluster.Spec.JobManager.DeploymentType = v1beta1.JobManagerDeploymentTypeDeployment
+	observed.cluster.Status.Components.Job.State = v1beta1.JobStateFailed
+	desired = getDesiredClusterState(observed)
+	assert.Assert(t, desired.JmDeployment == nil)
+	assert.Assert(t, desired.ConfigMap == nil)
 }

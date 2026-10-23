@@ -577,6 +577,11 @@ func IsApplicationModeCluster(cluster *v1beta1.FlinkCluster) bool {
 	return cluster.Spec.Job.IsApplicationMode()
 }
 
+// isJobManagerDeployment returns true if the application mode JobManager runs as a Kubernetes Deployment.
+func isJobManagerDeployment(cluster *v1beta1.FlinkCluster) bool {
+	return cluster.Spec.JobManager.GetDeploymentType() == v1beta1.JobManagerDeploymentTypeDeployment
+}
+
 // checks if job-cancel was requested
 func wasJobCancelRequested(controlStatus *v1beta1.FlinkClusterControlStatus) bool {
 	return controlStatus != nil && controlStatus.Name == v1beta1.ControlNameJobCancel
