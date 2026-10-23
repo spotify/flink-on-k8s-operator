@@ -45,6 +45,9 @@ import (
 
 const (
 	jobSubmitterPodMainContainerName = "main"
+	jobManagerContainerName          = "jobmanager"
+	// Restarts of a JobManager Deployment's container that never became ready, after which the deployment has failed.
+	jobManagerDeployFailedRestartCount = 3
 )
 
 // ClusterStatusUpdater updates the status of the FlinkCluster CR.
@@ -633,6 +636,54 @@ func isNonZeroExitCode(exitCode int32) bool {
 	return exitCode != 0 && exitCode != -1
 }
 
+// deriveJobManagerDeploymentJobState derives the job state when the JobManager runs as a Deployment.
+// Kubernetes recreates a lost JobManager pod, which recovers the job from its high availability metadata,
+// so terminal states come only from the Flink API and the recorded state is kept while the API is unavailable.
+func deriveJobManagerDeploymentJobState(observed *ObservedClusterState, newJob *v1beta1.JobStatus) v1beta1.JobState {
+	var oldJob = observed.cluster.Status.Components.Job
+	var observedFlinkJob = observed.flinkJob.status
+	// A lost job is tracked again once the Flink API reports it.
+	var lostJobFound = oldJob.State == v1beta1.JobStateLost && observedFlinkJob != nil
+
+	switch {
+	case oldJob.IsStopped() && !lostJobFound:
+		return oldJob.State
+	case oldJob.IsPending() && oldJob.DeployTime != "":
+		return v1beta1.JobStateDeploying
+	case observedFlinkJob != nil:
+		if observedFlinkJob.Id != "" {
+			newJob.ID = observedFlinkJob.Id
+		}
+		if observedFlinkJob.Name != "" {
+			newJob.Name = observedFlinkJob.Name
+		}
+		return getFlinkJobDeploymentState(observedFlinkJob.State)
+	case shouldStopJob(observed.cluster):
+		return v1beta1.JobStateCancelled
+	// The Flink API is up but does not know the job.
+	case oldJob.State == v1beta1.JobStateRunning && isFlinkAPIReady(observed.flinkJob.list):
+		return v1beta1.JobStateLost
+	case oldJob.State == v1beta1.JobStateDeploying && observed.flinkJobSubmitter.deployment == nil:
+		return v1beta1.JobStateLost
+	case oldJob.State == v1beta1.JobStateDeploying && isJobManagerCrashLooping(observed.flinkJobSubmitter.pod):
+		return v1beta1.JobStateDeployFailed
+	}
+	return oldJob.State
+}
+
+// isJobManagerCrashLooping returns true if the JobManager container keeps restarting without becoming ready.
+func isJobManagerCrashLooping(pod *corev1.Pod) bool {
+	if pod == nil {
+		return false
+	}
+	for _, containerStatus := range pod.Status.ContainerStatuses {
+		if containerStatus.Name == jobManagerContainerName {
+			return !containerStatus.Ready && containerStatus.RestartCount >= jobManagerDeployFailedRestartCount
+		}
+	}
+	return false
+}
+
 func (updater *ClusterStatusUpdater) deriveJobStatus(ctx context.Context) *v1beta1.JobStatus {
 	log := logr.FromContextOrDiscard(ctx)
 
@@ -675,6 +726,8 @@ func (updater *ClusterStatusUpdater) deriveJobStatus(ctx context.Context) *v1bet
 		newJobState = v1beta1.JobStatePending
 	case shouldUpdateJob(&observed):
 		newJobState = v1beta1.JobStateUpdating
+	case isJobManagerDeployment(observedCluster):
+		newJobState = deriveJobManagerDeploymentJobState(&observed, newJob)
 	case oldJob.IsStopped():
 		// When a new job is deploying, update the job state to deploying.
 		if observedSubmitter.job != nil && (observedSubmitter.job.Status.Active == 1 || isJobInitialising(observedSubmitter.job.Status)) {

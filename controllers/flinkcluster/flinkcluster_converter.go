@@ -158,7 +158,7 @@ func newJobManagerContainer(flinkCluster *v1beta1.FlinkCluster) *corev1.Containe
 	}
 
 	container := &corev1.Container{
-		Name:            "jobmanager",
+		Name:            jobManagerContainerName,
 		Image:           imageSpec.Name,
 		ImagePullPolicy: imageSpec.PullPolicy,
 		Args:            []string{"jobmanager"},
