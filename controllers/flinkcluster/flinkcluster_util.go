@@ -427,7 +427,11 @@ func isClusterUpdateToDate(observed *ObservedClusterState) bool {
 	}
 
 	if IsApplicationModeCluster(observed.cluster) && !isScaleUpdate(observed.revisions, observed.cluster) {
-		components = append(components, observed.flinkJobSubmitter.job)
+		if isJobManagerDeployment(observed.cluster) {
+			components = append(components, observed.flinkJobSubmitter.deployment)
+		} else {
+			components = append(components, observed.flinkJobSubmitter.job)
+		}
 	} else if !IsApplicationModeCluster(observed.cluster) {
 		components = append(components, observed.jmStatefulSet)
 	}

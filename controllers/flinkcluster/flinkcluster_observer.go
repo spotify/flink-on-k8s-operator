@@ -85,8 +85,10 @@ type FlinkJob struct {
 
 type FlinkJobSubmitter struct {
 	job *batchv1.Job
-	pod *corev1.Pod
-	log *SubmitterLog
+	// JobManager Deployment, observed instead of job when spec.jobManager.deploymentType is Deployment.
+	deployment *appsv1.Deployment
+	pod        *corev1.Pod
+	log        *SubmitterLog
 }
 
 type SubmitterLog struct {
@@ -265,18 +267,35 @@ func (observer *ClusterStateObserver) observeJob(
 		jobName = getSubmitterJobName(observed.cluster.Name)
 	}
 
-	// Job resource.
-	job := new(batchv1.Job)
-	if err := observer.observeObject(ctx, jobName, job); err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			log.Error(err, "job submitter batchv1.Job")
+	// Job or JobManager Deployment resource.
+	var job *batchv1.Job
+	var deployment *appsv1.Deployment
+	var podSelector *metav1.LabelSelector
+	if isJobManagerDeployment(observed.cluster) {
+		deployment = new(appsv1.Deployment)
+		if err := observer.observeObject(ctx, jobName, deployment); err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				log.Error(err, "JobManager appsv1.Deployment")
+			}
+			deployment = nil
+		} else {
+			podSelector = deployment.Spec.Selector
 		}
-		job = nil
+	} else {
+		job = new(batchv1.Job)
+		if err := observer.observeObject(ctx, jobName, job); err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				log.Error(err, "job submitter batchv1.Job")
+			}
+			job = nil
+		} else {
+			podSelector = job.Spec.Selector
+		}
 	}
 
 	// Get job submitter pod resource.
 	var jobPod *corev1.Pod
-	if err := observer.observeJobSubmitterPod(ctx, job, &jobPod); err != nil {
+	if err := observer.observeJobSubmitterPod(ctx, podSelector, &jobPod); err != nil {
 		if client.IgnoreNotFound(err) != nil {
 			log.Error(err, "job submitter corev1.Pod")
 		}
@@ -299,9 +318,10 @@ func (observer *ClusterStateObserver) observeJob(
 	}
 
 	observed.flinkJobSubmitter = FlinkJobSubmitter{
-		job: job,
-		pod: jobPod,
-		log: submitterLog,
+		job:        job,
+		deployment: deployment,
+		pod:        jobPod,
+		log:        submitterLog,
 	}
 
 	if isJobManagerReady(applicationMode, observed, jobPod) {
@@ -619,18 +639,18 @@ func (observer *ClusterStateObserver) observeJobManagerIngress(
 	return nil
 }
 
-// observeJobSubmitterPod observes job submitter pod.
+// observeJobSubmitterPod observes the job submitter or JobManager pod matching the selector of its workload.
 func (observer *ClusterStateObserver) observeJobSubmitterPod(
 	ctx context.Context,
-	job *batchv1.Job,
+	selector *metav1.LabelSelector,
 	observedPod **corev1.Pod) error {
 	*observedPod = nil
-	if job == nil {
+	if selector == nil {
 		return nil
 	}
 
 	var clusterNamespace = observer.request.Namespace
-	var podSelector, err = metav1.LabelSelectorAsSelector(job.Spec.Selector)
+	var podSelector, err = metav1.LabelSelectorAsSelector(selector)
 	if err != nil {
 		return err
 	}
@@ -644,11 +664,35 @@ func (observer *ClusterStateObserver) observeJobSubmitterPod(
 	if err != nil {
 		return err
 	}
-	if len(podList.Items) > 0 {
-		*observedPod = podList.Items[0].DeepCopy()
+	if pod := getNewestPod(podList.Items); pod != nil {
+		*observedPod = pod.DeepCopy()
 	}
 
 	return nil
+}
+
+// getNewestPod returns the most recently created pod, preferring pods that are not being deleted,
+// such as the replacement of a JobManager pod that the Deployment recreated.
+func getNewestPod(pods []corev1.Pod) *corev1.Pod {
+	var newest *corev1.Pod
+	for i := range pods {
+		pod := &pods[i]
+		if newest == nil {
+			newest = pod
+			continue
+		}
+		podDeleted, newestDeleted := pod.DeletionTimestamp != nil, newest.DeletionTimestamp != nil
+		if podDeleted != newestDeleted {
+			if !podDeleted {
+				newest = pod
+			}
+			continue
+		}
+		if newest.CreationTimestamp.Before(&pod.CreationTimestamp) {
+			newest = pod
+		}
+	}
+	return newest
 }
 
 func (observer *ClusterStateObserver) observePersistentVolumeClaims(

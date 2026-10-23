@@ -392,6 +392,43 @@ func TestGetUpdateStateApplicationModeRequiresNextRevisionJob(t *testing.T) {
 	assert.Equal(t, getUpdateState(&observed), UpdateStateFinished)
 }
 
+func TestGetUpdateStateJobManagerDeploymentRequiresNextRevisionDeployment(t *testing.T) {
+	var applicationMode = v1beta1.JobModeApplication
+	var nextRevisionLabel = "cluster-next"
+	var observed = ObservedClusterState{
+		cluster: &v1beta1.FlinkCluster{
+			Spec: v1beta1.FlinkClusterSpec{
+				JobManager:  &v1beta1.JobManagerSpec{DeploymentType: v1beta1.JobManagerDeploymentTypeDeployment},
+				TaskManager: &v1beta1.TaskManagerSpec{DeploymentType: v1beta1.DeploymentTypeDeployment},
+				Job:         &v1beta1.JobSpec{Mode: &applicationMode},
+			},
+			Status: v1beta1.FlinkClusterStatus{
+				Components: v1beta1.FlinkClusterComponentsStatus{
+					Job: &v1beta1.JobStatus{State: v1beta1.JobStateUpdating, FinalSavepoint: true},
+				},
+				Revision: v1beta1.RevisionStatus{
+					CurrentRevision: "cluster-current-2",
+					NextRevision:    "cluster-next-3",
+				},
+			},
+		},
+		configMap: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: nextRevisionLabel}}},
+		tmService: &corev1.Service{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: nextRevisionLabel}}},
+		jmService: &corev1.Service{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: nextRevisionLabel}}},
+		tmDeployment: &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+			RevisionNameLabel: nextRevisionLabel,
+		}}},
+	}
+
+	// The old JobManager Deployment was deleted and the next one is not created yet.
+	assert.Equal(t, getUpdateState(&observed), UpdateStateInProgress)
+
+	observed.flinkJobSubmitter.deployment = &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{
+		Labels: map[string]string{RevisionNameLabel: nextRevisionLabel},
+	}}
+	assert.Equal(t, getUpdateState(&observed), UpdateStateFinished)
+}
+
 func TestGetUpdateStateApplicationModeScaleDoesNotRequireNewJob(t *testing.T) {
 	var applicationMode = v1beta1.JobModeApplication
 	var nextRevisionLabel = "cluster-scale"
