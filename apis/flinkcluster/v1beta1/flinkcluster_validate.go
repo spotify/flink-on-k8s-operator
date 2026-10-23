@@ -259,8 +259,7 @@ func (v *Validator) checkSavepointGeneration(
 		"you cannot update savepointGeneration with others at the same time")
 }
 
-// The CRD's CEL rule also keeps deploymentType immutable if the webhook is bypassed, but it cannot see
-// an unset -> Deployment change, which this check rejects.
+// The CRD's CEL rule on JobManagerSpec also keeps deploymentType immutable if the webhook is bypassed.
 func (v *Validator) validateJobManagerUpdate(old *FlinkCluster, new *FlinkCluster) error {
 	// Old FlinkClusters created before deploymentType was added have it unset, which means Job.
 	if old.Spec.JobManager.GetDeploymentType() != new.Spec.JobManager.GetDeploymentType() {
