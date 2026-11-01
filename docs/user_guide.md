@@ -471,6 +471,43 @@ The default Flink docker entrypoint expects this directory to contain two files:
 An example of using this parameter to make logs visible in both the Flink UI and on stdout
 [can be found here](../examples/log_config.yaml).
 
+### Configure the operator's own logs
+
+The section above covers logs from your Flink clusters. The operator's own logs are configured separately, with
+command-line flags on the operator container. These flags come from
+[controller-runtime's zap logger](https://pkg.go.dev/sigs.k8s.io/controller-runtime/pkg/log/zap#Options.BindFlags).
+
+| Flag | Values | What it controls |
+| --- | --- | --- |
+| `--zap-devel` | `true`, `false` | Which set of defaults to use. Development mode logs in console format at `debug` level and adds stack traces from `warn` up. Production mode logs JSON at `info` level and adds stack traces from `error` up. |
+| `--zap-encoder` | `json`, `console` | The log format. |
+| `--zap-log-level` | `debug`, `info`, `error`, `panic`, or an integer greater than 0 | The lowest level that gets logged. An integer turns on extra debug levels, and higher numbers log more. |
+| `--zap-stacktrace-level` | `info`, `error`, `panic` | The lowest level that includes a stack trace. |
+| `--zap-time-encoding` | `epoch`, `millis`, `nano`, `iso8601`, `rfc3339`, `rfc3339nano` | The timestamp format. The default is `rfc3339`, even though the flag's help text says `epoch`. |
+
+The operator binary starts in development mode by default, which is what you get with `make run`. The manifests behind
+the release YAML and `make deploy`, as well as the Helm chart, all pass `--zap-devel=false`, so a normal install logs
+JSON at `info` level. The other flags override whichever defaults `--zap-devel` picked, so you can stay in production
+mode and change just one thing. For example, this keeps JSON output and turns on debug logs:
+
+```yaml
+args:
+  - --zap-devel=false
+  - --zap-log-level=debug
+```
+
+To change the flags on a running operator, edit its Deployment and add them to the operator container's `args`. With
+the default namespace and name prefix, that looks like this:
+
+```bash
+kubectl -n flink-operator-system edit deployment flink-operator-controller-manager
+```
+
+The operator container is called `manager` if you installed with the release YAML or `make deploy`, and
+`flink-operator` if you installed with Helm. With `make deploy` you can also put the flags in
+`config/default/manager_config_patch.yaml` before deploying. The Helm chart doesn't have a value for extra flags yet,
+so running `helm upgrade` will undo a manual edit.
+
 ### Control Security and Permissions in Pods
 
 You can set various security-related attributes of the JobManager, TaskManager, and Job Pods using a
