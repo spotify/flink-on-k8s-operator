@@ -278,8 +278,8 @@ job status and logs accordingly.
 
 ### Flink web UI, REST API, and CLI
 
-You can also access the Flink web UI, [REST API](https://ci.apache.org/projects/flink/flink-docs-stable/monitoring/rest_api.html)
-and [CLI](https://ci.apache.org/projects/flink/flink-docs-stable/ops/cli.html)
+You can also access the Flink web UI, [REST API](https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/rest_api/)
+and [CLI](https://nightlies.apache.org/flink/flink-docs-stable/docs/deployment/cli/)
 by first creating a port forward from you local machine to the JobManager
 service UI port (8081 by default).
 
@@ -384,11 +384,11 @@ Status:
 ### Monitoring with Prometheus
 
 Flink cluster can be monitored with Prometheus in various ways. Here, we introduce the method using PodMonitor
-custom resource of [Prometheus operator](https://github.com/coreos/prometheus-operator).
+custom resource of [Prometheus operator](https://github.com/prometheus-operator/prometheus-operator).
 First, create a FlinkCluster with the metric exporter activated and its port exposed.
 Next, create a PodMonitor which will be used to generate service discovery configurations and register it to Prometheus.
 Exposed Flink metric port must be set as the endpoint of the PodMonitor. See the
-[Prometheus API docs](https://github.com/coreos/prometheus-operator/blob/master/Documentation/api.md) for details.
+[Prometheus API docs](https://prometheus-operator.dev/docs/api-reference/api/) for details.
 
 You can create Prometheus metric exporter activated [FlinkCluster](../examples/prometheus/flink_metric_cluster.yaml)
 and [PodMonitor](../examples/prometheus/pod-monitor.yaml) like this.
@@ -474,7 +474,7 @@ An example of using this parameter to make logs visible in both the Flink UI and
 ### Control Security and Permissions in Pods
 
 You can set various security-related attributes of the JobManager, TaskManager, and Job Pods using a
-[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#podsecuritycontext-v1-core)
+[PodSecurityContext](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context)
 object. It is possible to run the entrypoint of the container process as a different user or group,
 and to modify ownership of mounted volumes.
 

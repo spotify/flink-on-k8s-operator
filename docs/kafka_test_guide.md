@@ -34,7 +34,7 @@ helm status my-kafka -n kafka
 ### 2. Ingest streaming data into Kafka
 
 Deploy the [ClickGenerator](https://github.com/apache/flink-playgrounds/blob/master/docker/ops-playground-image/java/flink-playground-clickcountjob/src/main/java/org/apache/flink/playgrounds/ops/clickcount/ClickEventGenerator.java) application from the
-[Flink Operations Playground](https://ci.apache.org/projects/flink/flink-docs-stable/getting-started/docker-playgrounds/flink-operations-playground.html) to write data to the Kafka cluster.
+[Flink Operations Playground](https://github.com/apache/flink-playgrounds/tree/master/operations-playground) to write data to the Kafka cluster.
 
 You can create a Docker image from the [Dockerfile](https://github.com/functicons/flink-playgrounds/blob/master/docker/ops-playground-image/Dockerfile) or use the existing image `functicons/flink-ops-playground:2-FLINK-1.9-scala_2.11` to create a deployment manifest.
 
