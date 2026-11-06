@@ -1040,10 +1040,12 @@ func newJobManagerDeploymentReconcilerTest(
 	t *testing.T,
 	cluster *v1beta1.FlinkCluster,
 	observedDeployment *appsv1.Deployment,
-	desiredDeployment *appsv1.Deployment) (*ClusterReconciler, client.Client) {
+	desiredDeployment *appsv1.Deployment) (*ClusterReconciler, client.WithWatch) {
 	var scheme = runtime.NewScheme()
 	assert.NilError(t, v1beta1.AddToScheme(scheme))
 	assert.NilError(t, appsv1.AddToScheme(scheme))
+	assert.NilError(t, corev1.AddToScheme(scheme))
+	assert.NilError(t, batchv1.AddToScheme(scheme))
 
 	var objects = []client.Object{cluster}
 	if observedDeployment != nil {
@@ -1113,6 +1115,53 @@ func TestReconcileJobCreatesJobManagerDeploymentFromUpdateSavepoint(t *testing.T
 	var updated v1beta1.FlinkCluster
 	assert.NilError(t, fakeClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), &updated))
 	assert.Equal(t, updated.Status.Components.Job.FromSavepoint, "gs://bucket/savepoint-1")
+	assert.Assert(t, updated.Status.Components.Job.DeployTime != "")
+}
+
+func TestReconcileJobWaitsForOldJobManagerPodsBeforeReplacement(t *testing.T) {
+	// given: an update with a final savepoint; the old Deployment is gone but its pod still exists
+	ctx := context.Background()
+	const jobID = "0123456789abcdef0123456789abcdef"
+	const savepoint = "gs://bucket/savepoint-1"
+	cluster := newJobManagerDeploymentReconcilerTestCluster(
+		&v1beta1.JobStatus{ID: jobID, State: v1beta1.JobStateUpdating, FinalSavepoint: true},
+		v1beta1.RevisionStatus{CurrentRevision: "cluster-current-1", NextRevision: "cluster-next-2"})
+	desired := newJobManagerDeploymentForRevision("cluster-next",
+		"standalone-job", "--job-id", jobID, "--fromSavepoint", savepoint)
+	reconciler, fakeClient := newJobManagerDeploymentReconcilerTest(t, cluster, nil, desired)
+	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+		Name: "old-jobmanager", Namespace: cluster.Namespace,
+		Labels: map[string]string{"cluster": cluster.Name, "component": "jobmanager"},
+	}}
+	assert.NilError(t, fakeClient.Create(ctx, pod))
+
+	for i := 0; i < 3; i++ {
+		// when: the job is reconciled repeatedly while the old remaining pod
+		result, err := reconciler.reconcileJob(ctx)
+		assert.NilError(t, err)
+
+		// then: replacement is deferred and the job status stays unchanged
+		assert.Equal(t, result, requeueResult)
+		assert.Assert(t, apierrors.IsNotFound(fakeClient.Get(ctx, client.ObjectKeyFromObject(desired), &appsv1.Deployment{})))
+		var updated v1beta1.FlinkCluster
+		assert.NilError(t, fakeClient.Get(ctx, client.ObjectKeyFromObject(cluster), &updated))
+		assert.DeepEqual(t, updated.Status.Components.Job, cluster.Status.Components.Job)
+	}
+
+	// when: the old pod is fully removed and the job is reconciled again
+	assert.NilError(t, fakeClient.Delete(ctx, pod))
+	result, err := reconciler.reconcileJob(ctx)
+	assert.NilError(t, err)
+	assert.Equal(t, result, requeueResult)
+
+	// then: the replacement is created with the same job ID and the final savepoint
+	var created appsv1.Deployment
+	assert.NilError(t, fakeClient.Get(ctx, client.ObjectKeyFromObject(desired), &created))
+	assert.DeepEqual(t, created.Spec.Template.Spec.Containers, desired.Spec.Template.Spec.Containers)
+	var updated v1beta1.FlinkCluster
+	assert.NilError(t, fakeClient.Get(ctx, client.ObjectKeyFromObject(cluster), &updated))
+	assert.Equal(t, updated.Status.Components.Job.ID, jobID)
+	assert.Equal(t, updated.Status.Components.Job.FromSavepoint, savepoint)
 	assert.Assert(t, updated.Status.Components.Job.DeployTime != "")
 }
 

@@ -583,6 +583,19 @@ func (reconciler *ClusterReconciler) reconcileJob(ctx context.Context) (ctrl.Res
 			return ctrl.Result{}, nil
 		}
 
+		// Deployment deletion can complete before its pods terminate. Do not start
+		// the replacement with the same job ID while the old JobManager is alive.
+		if isJobManagerDeployment(observed.cluster) && observedSubmitter == nil && reconciler.desired.JmDeployment != nil {
+			podsRemaining, err := reconciler.jobManagerPodsRemaining(ctx)
+			if err != nil {
+				return requeueResult, err
+			}
+			if podsRemaining {
+				log.Info("Waiting for JobManager pods to terminate before creating replacement Deployment")
+				return requeueResult, nil
+			}
+		}
+
 		// Create Flink job submitter
 		log.Info("Updating job status to proceed creating new job submitter")
 		// Job status must be updated before creating a job submitter to ensure the observed job is the job submitted by the operator.
