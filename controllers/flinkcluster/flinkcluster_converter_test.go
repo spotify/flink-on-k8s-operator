@@ -1740,16 +1740,6 @@ func TestClassPath(t *testing.T) {
 	assert.DeepEqual(t, args, expectedArgs)
 }
 
-func getJobManagerDeploymentObservedClusterState() *ObservedClusterState {
-	var observed = getObservedClusterState()
-	var jobMode = v1beta1.JobModeApplication
-	var restartPolicy = v1beta1.JobRestartPolicyNever
-	observed.cluster.Spec.Job.Mode = &jobMode
-	observed.cluster.Spec.Job.RestartPolicy = &restartPolicy
-	observed.cluster.Spec.JobManager.DeploymentType = v1beta1.JobManagerDeploymentTypeDeployment
-	return observed
-}
-
 func TestJmDeploymentTypeDeployment(t *testing.T) {
 	var observed = getJobManagerDeploymentObservedClusterState()
 	var desired = getDesiredClusterState(observed)
@@ -1784,9 +1774,13 @@ func TestJmDeploymentTypeShutdownOnApplicationFinish(t *testing.T) {
 	observed.cluster.Spec.FlinkProperties = map[string]string{shutdownOnApplicationFinishKey: "true"}
 	var flinkConf = getDesiredClusterState(observed).ConfigMap.Data["flink-conf.yaml"]
 	assert.Assert(t, strings.Contains(flinkConf, shutdownOnApplicationFinishKey+": false\n"))
+}
 
+func TestJmJobTypeShutdownOnApplicationFinish(t *testing.T) {
+	var observed = getJobManagerDeploymentObservedClusterState()
 	observed.cluster.Spec.JobManager.DeploymentType = v1beta1.JobManagerDeploymentTypeJob
-	flinkConf = getDesiredClusterState(observed).ConfigMap.Data["flink-conf.yaml"]
+	observed.cluster.Spec.FlinkProperties = map[string]string{shutdownOnApplicationFinishKey: "true"}
+	var flinkConf = getDesiredClusterState(observed).ConfigMap.Data["flink-conf.yaml"]
 	assert.Assert(t, strings.Contains(flinkConf, shutdownOnApplicationFinishKey+": true\n"))
 }
 
@@ -1870,4 +1864,14 @@ func TestJmDeploymentTypeRemovedByDeleteClusterPolicy(t *testing.T) {
 
 	assert.Assert(t, desired.JmDeployment == nil)
 	assert.Assert(t, desired.ConfigMap == nil)
+}
+
+func getJobManagerDeploymentObservedClusterState() *ObservedClusterState {
+	var observed = getObservedClusterState()
+	var jobMode = v1beta1.JobModeApplication
+	var restartPolicy = v1beta1.JobRestartPolicyNever
+	observed.cluster.Spec.Job.Mode = &jobMode
+	observed.cluster.Spec.Job.RestartPolicy = &restartPolicy
+	observed.cluster.Spec.JobManager.DeploymentType = v1beta1.JobManagerDeploymentTypeDeployment
+	return observed
 }
