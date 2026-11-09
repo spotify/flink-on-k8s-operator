@@ -72,7 +72,8 @@ func (j *JobSpec) IsApplicationMode() bool {
 // ShouldRestart returns true if the controller should restart failed job.
 // The controller can restart the job if policy is set to FromSavepointOnFailure.
 // Job will restart from savepoint if the savepoint was taken successfully.
-// The restart policy has no effect with a JobManager Deployment: Kubernetes recreates the JobManager pod,
+// Validation forbids restartPolicy FromSavepointOnFailure for a JobManager Deployment.
+// The guard below is retained defensively. Kubernetes recreates the JobManager pod,
 // which recovers the job from its high availability metadata instead of a savepoint.
 func (j *JobStatus) ShouldRestart(spec *FlinkClusterSpec) bool {
 	if j == nil || !j.IsFailed() || spec == nil || spec.Job == nil ||

@@ -248,8 +248,8 @@ const (
 // +kubebuilder:validation:XValidation:rule="(has(self.deploymentType) ? self.deploymentType : 'Job') == (has(oldSelf.deploymentType) ? oldSelf.deploymentType : 'Job')",message="jobManager deploymentType is immutable"
 type JobManagerSpec struct {
 	// _(Optional)_ Defines the JobManager workload's type in application mode: `Job` or `Deployment`. If not specified, the default value is `Job`.
-	// `Deployment` requires `spec.job.mode: Application` and high availability. With `Deployment`, `spec.job.restartPolicy` has no effect:
-	// Kubernetes recreates a lost JobManager pod and the job recovers from its high availability metadata, never from a savepoint.
+	// `Deployment` requires `spec.job.mode: Application`, high availability, and `spec.job.restartPolicy: Never`.
+	// Kubernetes recreates a lost JobManager pod and the job recovers from its high availability metadata.
 	// It cannot be updated.
 	// +kubebuilder:validation:Enum=Job;Deployment
 	DeploymentType JobManagerDeploymentType `json:"deploymentType,omitempty"`

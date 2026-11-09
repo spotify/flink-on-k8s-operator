@@ -400,7 +400,7 @@ func TestJobManagerDeploymentType(t *testing.T) {
 		expectedErr string
 	}{
 		{
-			"valid deployment",
+			"valid deployment with restartPolicy Never",
 			func(cluster *FlinkCluster) {},
 			"",
 		},
@@ -443,8 +443,25 @@ func TestJobManagerDeploymentType(t *testing.T) {
 			"jobManager deploymentType Deployment requires high availability to be enabled",
 		},
 		{
-			"valid deployment with restartPolicy FromSavepointOnFailure, which has no effect",
+			"deployment rejects restartPolicy FromSavepointOnFailure",
 			func(cluster *FlinkCluster) {
+				var restartPolicy = JobRestartPolicyFromSavepointOnFailure
+				cluster.Spec.Job.RestartPolicy = &restartPolicy
+			},
+			"jobManager deploymentType Deployment does not support job restartPolicy FromSavepointOnFailure",
+		},
+		{
+			"deployment rejects unknown restartPolicy",
+			func(cluster *FlinkCluster) {
+				restartPolicy := JobRestartPolicy("Unknown")
+				cluster.Spec.Job.RestartPolicy = &restartPolicy
+			},
+			"invalid job restartPolicy: Unknown",
+		},
+		{
+			"valid job with restartPolicy FromSavepointOnFailure",
+			func(cluster *FlinkCluster) {
+				cluster.Spec.JobManager.DeploymentType = JobManagerDeploymentTypeJob
 				var restartPolicy = JobRestartPolicyFromSavepointOnFailure
 				cluster.Spec.Job.RestartPolicy = &restartPolicy
 			},
@@ -479,6 +496,19 @@ func TestUpdateJob(t *testing.T) {
 	err := validator.ValidateUpdate(&oldCluster, &newCluster)
 	expectedErr := "removing savepointsDir is not allowed"
 	assert.Equal(t, err.Error(), expectedErr)
+
+	// cannot enable savepoint-based restarts with a JobManager Deployment
+	oldCluster = getJobManagerDeploymentFlinkCluster()
+	newCluster = *oldCluster.DeepCopy()
+	restartPolicy := JobRestartPolicyFromSavepointOnFailure
+	newCluster.Spec.Job.RestartPolicy = &restartPolicy
+	err = validator.ValidateUpdate(&oldCluster, &newCluster)
+	assert.Error(t, err, "jobManager deploymentType Deployment does not support job restartPolicy FromSavepointOnFailure")
+
+	// Unknown policies are rejected by general job validation, not the Deployment-specific rule.
+	restartPolicy = JobRestartPolicy("Unknown")
+	err = validator.ValidateUpdate(&oldCluster, &newCluster)
+	assert.Error(t, err, "invalid job restartPolicy: Unknown")
 
 	// cannot change cluster type
 	oldCluster = getSimpleFlinkCluster()

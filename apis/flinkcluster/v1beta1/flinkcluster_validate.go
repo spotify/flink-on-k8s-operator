@@ -77,11 +77,11 @@ func (v *Validator) ValidateCreate(cluster *FlinkCluster) error {
 	if err != nil {
 		return err
 	}
-	err = v.validateJob(cluster.Spec.Job)
+	err = v.validateJobManagerDeploymentType(cluster)
 	if err != nil {
 		return err
 	}
-	err = v.validateJobManagerDeploymentType(cluster)
+	err = v.validateJob(cluster.Spec.Job)
 	if err != nil {
 		return err
 	}
@@ -542,7 +542,7 @@ func (v *Validator) validateJob(jobSpec *JobSpec) error {
 }
 
 // A JobManager Deployment relies on Flink high availability to recover the job when its pod is recreated.
-// spec.job.restartPolicy is allowed but has no effect, see JobStatus.ShouldRestart.
+// Operator-managed restarts from savepoints are not supported, see JobStatus.ShouldRestart.
 func (v *Validator) validateJobManagerDeploymentType(cluster *FlinkCluster) error {
 	if cluster.Spec.JobManager.GetDeploymentType() != JobManagerDeploymentTypeDeployment {
 		return nil
@@ -552,6 +552,8 @@ func (v *Validator) validateJobManagerDeploymentType(cluster *FlinkCluster) erro
 		return fmt.Errorf("jobManager deploymentType Deployment requires job mode Application")
 	case !cluster.IsHighAvailabilityEnabled():
 		return fmt.Errorf("jobManager deploymentType Deployment requires high availability to be enabled")
+	case cluster.Spec.Job.RestartPolicy != nil && *cluster.Spec.Job.RestartPolicy == JobRestartPolicyFromSavepointOnFailure:
+		return fmt.Errorf("jobManager deploymentType Deployment does not support job restartPolicy FromSavepointOnFailure")
 	}
 	return nil
 }
