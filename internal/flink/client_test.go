@@ -3,9 +3,12 @@ package flink
 import (
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/go-logr/logr"
 	"gotest.tools/v3/assert"
@@ -137,4 +140,38 @@ func TestStopJobWithSavepointPayload(t *testing.T) {
 			assert.DeepEqual(t, capturedBody, tt.expectedBody)
 		})
 	}
+}
+
+func TestErrorResponseReusesConnection(t *testing.T) {
+	var mu sync.Mutex
+	var opened int
+
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = io.WriteString(w, `{"errors":["internal error"]}`)
+	}))
+	server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			mu.Lock()
+			opened++
+			mu.Unlock()
+		}
+	}
+	server.Start()
+	defer server.Close()
+
+	// Same shape as NewDefaultClient, with its own transport so the test does
+	// not share http.DefaultTransport with the rest of the package.
+	client := NewClient(logr.Discard(), &http.Client{
+		Timeout:   30 * time.Second,
+		Transport: &http.Transport{},
+	})
+	for i := 0; i < 5; i++ {
+		_, err := client.GetJobsOverview(server.URL)
+		assert.ErrorContains(t, err, "500 Internal Server Error")
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, opened, 1)
 }
