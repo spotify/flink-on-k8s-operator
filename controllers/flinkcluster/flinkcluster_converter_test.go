@@ -1808,10 +1808,21 @@ func TestJmDeploymentTypeLostJobRecoveryTimeout(t *testing.T) {
 	assert.Assert(t, desired.ConfigMap == nil)
 	assert.Assert(t, desired.TmStatefulSet == nil)
 
-	// A lost JobManager Job is cleaned up right away.
-	observed.observeTime = lostTime
+}
+
+func TestJmJobTypeLostJobCleanupWithoutRecoveryDelay(t *testing.T) {
+	var lostTime = time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	var observed = getJobManagerDeploymentObservedClusterState()
 	observed.cluster.Spec.JobManager.DeploymentType = v1beta1.JobManagerDeploymentTypeJob
-	desired = getDesiredClusterState(observed)
+	observed.cluster.Spec.Job.CleanupPolicy = &v1beta1.CleanupPolicy{AfterJobFails: v1beta1.CleanupActionDeleteCluster}
+	observed.cluster.Status.Components.Job = &v1beta1.JobStatus{
+		State:          v1beta1.JobStateLost,
+		CompletionTime: &metav1.Time{Time: lostTime},
+	}
+	observed.cluster.Status.Revision.CurrentRevision = observed.cluster.Status.Revision.NextRevision
+	observed.observeTime = lostTime
+
+	var desired = getDesiredClusterState(observed)
 	assert.Assert(t, desired.Job == nil)
 	assert.Assert(t, desired.ConfigMap == nil)
 }
