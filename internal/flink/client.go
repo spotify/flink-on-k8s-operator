@@ -31,6 +31,10 @@ import (
 const (
 	savepointStateInProgress = "IN_PROGRESS"
 	savepointStateCompleted  = "COMPLETED"
+
+	// Upper bound on how much of an error response body is read before the
+	// connection is handed back to the transport.
+	maxErrorBodyDrain = 64 << 10
 )
 
 // Client - Flink API client.
@@ -61,6 +65,11 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (res *http.Response, e erro
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		// The caller never sees this response, so drain and close the body
+		// here. Without it the transport cannot reuse the connection and
+		// every non-2xx reply costs a new one.
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxErrorBodyDrain))
+		resp.Body.Close()
 		return nil, &responseError{StatusCode: resp.StatusCode, Status: resp.Status}
 	}
 
