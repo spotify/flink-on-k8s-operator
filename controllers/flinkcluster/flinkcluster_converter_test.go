@@ -19,7 +19,6 @@ package flinkcluster
 import (
 	"reflect"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -33,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/yaml"
 )
 
 // Defaults used in the upcoming tests
@@ -1769,19 +1769,70 @@ func TestJmDeploymentTypeDeployment(t *testing.T) {
 	assert.DeepEqual(t, deployment.Spec.Template.Spec, *jobPodSpec, cmpopts.IgnoreUnexported(resource.Quantity{}))
 }
 
-func TestJmDeploymentTypeShutdownOnApplicationFinish(t *testing.T) {
-	var observed = getJobManagerDeploymentObservedClusterState()
-	observed.cluster.Spec.FlinkProperties = map[string]string{shutdownOnApplicationFinishKey: "true"}
-	var flinkConf = getDesiredClusterState(observed).ConfigMap.Data["flink-conf.yaml"]
-	assert.Assert(t, strings.Contains(flinkConf, shutdownOnApplicationFinishKey+": false\n"))
+func TestNewConfigMapEnforcesDeploymentLifecycleSettings(t *testing.T) {
+	tests := []struct {
+		name       string
+		properties map[string]string
+	}{
+		{
+			name: "settings_not_specified",
+		},
+		{
+			name: "settings_already_compatible",
+			properties: map[string]string{
+				"execution.shutdown-on-application-finish":         "false",
+				"execution.submit-failed-job-on-application-error": "true",
+			},
+		},
+		{
+			name: "conflicting_settings",
+			properties: map[string]string{
+				"execution.shutdown-on-application-finish":         "true",
+				"execution.submit-failed-job-on-application-error": "false",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var cluster = getJobManagerDeploymentObservedClusterState().cluster
+			cluster.Spec.FlinkVersion = "2.3.0"
+			cluster.Spec.FlinkProperties = test.properties
+
+			var configMap = newConfigMap(cluster)
+
+			var properties map[string]string
+			assert.NilError(t, yaml.Unmarshal([]byte(configMap.Data["config.yaml"]), &properties))
+			assert.Equal(t, properties["execution.shutdown-on-application-finish"], "false")
+			assert.Equal(t, properties["execution.submit-failed-job-on-application-error"], "true")
+		})
+	}
 }
 
-func TestJmJobTypeShutdownOnApplicationFinish(t *testing.T) {
-	var observed = getJobManagerDeploymentObservedClusterState()
-	observed.cluster.Spec.JobManager.DeploymentType = v1beta1.JobManagerDeploymentTypeJob
-	observed.cluster.Spec.FlinkProperties = map[string]string{shutdownOnApplicationFinishKey: "true"}
-	var flinkConf = getDesiredClusterState(observed).ConfigMap.Data["flink-conf.yaml"]
-	assert.Assert(t, strings.Contains(flinkConf, shutdownOnApplicationFinishKey+": true\n"))
+func TestNewConfigMapPreservesJobLifecycleSettings(t *testing.T) {
+	for _, workload := range []struct {
+		name           string
+		deploymentType v1beta1.JobManagerDeploymentType
+	}{
+		{name: "explicit_job", deploymentType: v1beta1.JobManagerDeploymentTypeJob},
+		{name: "default_job"},
+	} {
+		t.Run(workload.name, func(t *testing.T) {
+			var cluster = getJobManagerDeploymentObservedClusterState().cluster
+			cluster.Spec.FlinkVersion = "2.3.0"
+			cluster.Spec.JobManager.DeploymentType = workload.deploymentType
+			cluster.Spec.FlinkProperties = nil
+
+			var configMap = newConfigMap(cluster)
+
+			var properties map[string]string
+			assert.NilError(t, yaml.Unmarshal([]byte(configMap.Data["config.yaml"]), &properties))
+			_, shutdownAdded := properties["execution.shutdown-on-application-finish"]
+			_, failedJobReportingAdded := properties["execution.submit-failed-job-on-application-error"]
+			assert.Assert(t, !shutdownAdded)
+			assert.Assert(t, !failedJobReportingAdded)
+		})
+	}
 }
 
 func TestJmDeploymentTypeLostJobRecoveryTimeout(t *testing.T) {

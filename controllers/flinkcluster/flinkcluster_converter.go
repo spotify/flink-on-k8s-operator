@@ -62,8 +62,9 @@ const (
 )
 
 const (
-	jobManagerContainerName        = "jobmanager"
-	shutdownOnApplicationFinishKey = "execution.shutdown-on-application-finish"
+	jobManagerContainerName              = "jobmanager"
+	shutdownOnApplicationFinishKey       = "execution.shutdown-on-application-finish"
+	submitFailedJobOnApplicationErrorKey = "execution.submit-failed-job-on-application-error"
 	// How long a JobManager Deployment may take to recover a lost job before the job is cleaned up as failed.
 	lostJobRecoveryTimeout = 10 * time.Minute
 )
@@ -759,6 +760,8 @@ func newConfigMap(flinkCluster *v1beta1.FlinkCluster) *corev1.ConfigMap {
 	// Keep the JobManager running after the job reaches a terminal state, otherwise the Deployment would restart it.
 	if isJobManagerDeployment(flinkCluster) {
 		flinkProps[shutdownOnApplicationFinishKey] = "false"
+		// Expose main() failures as failed jobs so the operator can detect them even while the JobManager stays alive.
+		flinkProps[submitFailedJobOnApplicationErrorKey] = "true"
 	}
 	var configData = getLogConf(flinkCluster.Spec)
 	flinkConfFileName := "flink-conf.yaml"
