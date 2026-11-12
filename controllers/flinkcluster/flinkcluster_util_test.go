@@ -163,6 +163,7 @@ func TestNewRevisionDataPatchExcludesSavepointFormatType(t *testing.T) {
 					SavepointsDir:       &savepointDir,
 					SavepointFormatType: ft,
 				},
+				JobManager: &v1beta1.JobManagerSpec{},
 			},
 		}
 	}
