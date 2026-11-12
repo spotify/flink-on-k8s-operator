@@ -77,7 +77,7 @@ func (v *Validator) ValidateCreate(cluster *FlinkCluster) error {
 	if err != nil {
 		return err
 	}
-	err = v.validateJobManagerDeploymentType(cluster)
+	err = v.validateJobManagerDeploymentType(flinkVersion, cluster)
 	if err != nil {
 		return err
 	}
@@ -543,11 +543,14 @@ func (v *Validator) validateJob(jobSpec *JobSpec) error {
 
 // A JobManager Deployment relies on Flink high availability to recover the job when its pod is recreated.
 // Operator-managed restarts from savepoints are not supported, see JobStatus.ShouldRestart.
-func (v *Validator) validateJobManagerDeploymentType(cluster *FlinkCluster) error {
+func (v *Validator) validateJobManagerDeploymentType(flinkVersion *version.Version, cluster *FlinkCluster) error {
 	if cluster.Spec.JobManager.GetDeploymentType() != JobManagerDeploymentTypeDeployment {
 		return nil
 	}
+	var minFlinkVersion, _ = version.NewVersion("1.15")
 	switch {
+	case flinkVersion == nil || flinkVersion.LessThan(minFlinkVersion):
+		return fmt.Errorf("jobManager deploymentType Deployment requires Flink version 1.15 or later")
 	case !cluster.Spec.Job.IsApplicationMode():
 		return fmt.Errorf("jobManager deploymentType Deployment requires job mode Application")
 	case !cluster.IsHighAvailabilityEnabled():

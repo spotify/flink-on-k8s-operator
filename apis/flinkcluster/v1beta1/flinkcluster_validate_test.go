@@ -400,8 +400,23 @@ func TestJobManagerDeploymentType(t *testing.T) {
 		expectedErr string
 	}{
 		{
-			"valid deployment with restartPolicy Never",
+			"valid deployment with Flink 1.15 and restartPolicy Never",
 			func(cluster *FlinkCluster) {},
+			"",
+		},
+		{
+			"deployment requires Flink 1.15 or later",
+			func(cluster *FlinkCluster) {
+				cluster.Spec.FlinkVersion = "1.14"
+			},
+			"jobManager deploymentType Deployment requires Flink version 1.15 or later",
+		},
+		{
+			"valid job with Flink before 1.15",
+			func(cluster *FlinkCluster) {
+				cluster.Spec.JobManager.DeploymentType = JobManagerDeploymentTypeJob
+				cluster.Spec.FlinkVersion = "1.14"
+			},
 			"",
 		},
 		{
@@ -950,7 +965,16 @@ func getSimpleFlinkCluster() FlinkCluster {
 func getJobManagerDeploymentFlinkCluster() FlinkCluster {
 	var restartPolicy = JobRestartPolicyNever
 	var jobMode = JobModeApplication
+	var memoryProcessRatio int32 = 25
 	cluster := getSimpleFlinkCluster()
+	cluster.Spec.FlinkVersion = "1.15"
+	cluster.Spec.Image.Name = "flink:1.15"
+	cluster.Spec.JobManager.MemoryOffHeapRatio = nil
+	cluster.Spec.JobManager.MemoryOffHeapMin = resource.Quantity{}
+	cluster.Spec.JobManager.MemoryProcessRatio = &memoryProcessRatio
+	cluster.Spec.TaskManager.MemoryOffHeapRatio = nil
+	cluster.Spec.TaskManager.MemoryOffHeapMin = resource.Quantity{}
+	cluster.Spec.TaskManager.MemoryProcessRatio = &memoryProcessRatio
 	cluster.Spec.JobManager.DeploymentType = JobManagerDeploymentTypeDeployment
 	cluster.Spec.FlinkProperties = map[string]string{
 		haConfigTypeNew:    "kubernetes",
