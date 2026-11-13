@@ -103,6 +103,9 @@ func (v *VolcanoBatchScheduler) setSchedulerMeta(pg *scheduling.PodGroup, state 
 	if state.Job != nil {
 		setMeta(&state.Job.Spec.Template)
 	}
+	if state.JmDeployment != nil {
+		setMeta(&state.JmDeployment.Spec.Template)
+	}
 }
 
 func (v *VolcanoBatchScheduler) getPodGroup(podGroupName, namespace string) (*scheduling.PodGroup, error) {
@@ -206,6 +209,12 @@ func getClusterResourceList(state *model.DesiredClusterState) (*corev1.ResourceL
 		size += 1
 		jobResource := getPodResource(&state.Job.Spec.Template.Spec)
 		addResourceRequirements(reqs, jobResource)
+	}
+
+	if state.JmDeployment != nil {
+		size += 1
+		jobManagerResource := getPodResource(&state.JmDeployment.Spec.Template.Spec)
+		addResourceRequirements(reqs, jobManagerResource)
 	}
 
 	return &reqs, size

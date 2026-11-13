@@ -45,6 +45,12 @@ import (
 
 const (
 	jobSubmitterPodMainContainerName = "main"
+	// Restarts after which a JobManager container in CrashLoopBackOff is considered to be crash looping.
+	jobManagerCrashLoopRestartCount = 3
+	// Runs shorter than this count towards a crash loop. The kubelet resets the restart backoff after 10 minutes.
+	jobManagerCrashLoopMaxRunDuration = 10 * time.Minute
+	// How long a started JobManager may take to recover its job from high availability metadata.
+	jobManagerRecoveryGracePeriod = 5 * time.Minute
 )
 
 // ClusterStatusUpdater updates the status of the FlinkCluster CR.
@@ -633,6 +639,58 @@ func isNonZeroExitCode(exitCode int32) bool {
 	return exitCode != 0 && exitCode != -1
 }
 
+// getJobManagerCrashLoopReason returns why the JobManager container keeps crashing, or "" if it does not.
+// The container is crash looping when it waits in CrashLoopBackOff after jobManagerCrashLoopRestartCount
+// restarts and its last run was short.
+func getJobManagerCrashLoopReason(pod *corev1.Pod) string {
+	status := getJobManagerContainerStatus(pod)
+	if status == nil {
+		return ""
+	}
+	waiting, terminated := status.State.Waiting, status.LastTerminationState.Terminated
+	if waiting == nil || waiting.Reason != "CrashLoopBackOff" || status.RestartCount < jobManagerCrashLoopRestartCount ||
+		terminated == nil || terminated.FinishedAt.Sub(terminated.StartedAt.Time) >= jobManagerCrashLoopMaxRunDuration {
+		return ""
+	}
+	return fmt.Sprintf("JobManager container is crash looping after %d restarts, last exit code %d: %s %s",
+		status.RestartCount, terminated.ExitCode, terminated.Reason, terminated.Message)
+}
+
+// isJobManagerRecovering returns true if the JobManager container started recently enough to still be
+// recovering its job from high availability metadata.
+func isJobManagerRecovering(pod *corev1.Pod, now time.Time) bool {
+	status := getJobManagerContainerStatus(pod)
+	return status != nil && status.State.Running != nil &&
+		now.Sub(status.State.Running.StartedAt.Time) < jobManagerRecoveryGracePeriod
+}
+
+func getJobManagerContainerStatus(pod *corev1.Pod) *corev1.ContainerStatus {
+	if pod == nil {
+		return nil
+	}
+	for i := range pod.Status.ContainerStatuses {
+		if pod.Status.ContainerStatuses[i].Name == jobManagerContainerName {
+			return &pod.Status.ContainerStatuses[i]
+		}
+	}
+	return nil
+}
+
+// isJobManagerDeploymentRedeployed returns true if a JobManager Deployment that can run was created for the current
+// or next revision after the job stopped, for example to resume the job from the savepoint taken for an update.
+func isJobManagerDeploymentRedeployed(observed *ObservedClusterState) bool {
+	var job = observed.cluster.Status.Components.Job
+	var deployment = observed.flinkJobSubmitter.deployment
+	if deployment == nil || job.DeployTime == "" || job.CompletionTime != nil ||
+		(deployment.Spec.Replicas != nil && *deployment.Spec.Replicas == 0) ||
+		observed.flinkJobSubmitter.getState() == JobDeployStateFailed {
+		return false
+	}
+	var revision = &observed.cluster.Status.Revision
+	var deploymentRevision = deployment.Labels[RevisionNameLabel]
+	return deploymentRevision == getNextRevisionName(revision) || deploymentRevision == getCurrentRevisionName(revision)
+}
+
 func (updater *ClusterStatusUpdater) deriveJobStatus(ctx context.Context) *v1beta1.JobStatus {
 	log := logr.FromContextOrDiscard(ctx)
 
@@ -669,15 +727,18 @@ func (updater *ClusterStatusUpdater) deriveJobStatus(ctx context.Context) *v1bet
 		}
 	}
 
+	var jobManagerDeploymentMode = isJobManagerDeployment(observedCluster)
 	var newJobState v1beta1.JobState
 	switch {
 	case oldJob == nil:
 		newJobState = v1beta1.JobStatePending
 	case shouldUpdateJob(&observed):
 		newJobState = v1beta1.JobStateUpdating
-	case oldJob.IsStopped():
+	// A JobManager Deployment recovers a lost job, which is tracked again once the Flink API reports it.
+	case oldJob.IsStopped() && !(oldJob.State == v1beta1.JobStateLost && observedSubmitter.deployment != nil && observedFlinkJob != nil):
 		// When a new job is deploying, update the job state to deploying.
-		if observedSubmitter.job != nil && (observedSubmitter.job.Status.Active == 1 || isJobInitialising(observedSubmitter.job.Status)) {
+		if observedSubmitter.job != nil && (observedSubmitter.job.Status.Active == 1 || isJobInitialising(observedSubmitter.job.Status)) ||
+			isJobManagerDeploymentRedeployed(&observed) {
 			newJobState = v1beta1.JobStateDeploying
 		} else {
 			newJobState = oldJob.State
@@ -716,8 +777,19 @@ func (updater *ClusterStatusUpdater) deriveJobStatus(ctx context.Context) *v1bet
 		}
 	case shouldStopJob(observedCluster):
 		newJobState = v1beta1.JobStateCancelled
+	// A missing JobManager Deployment of an active job is created again, and its JobManager recovers the job.
+	case jobManagerDeploymentMode && oldJob.IsActive() && observedSubmitter.deployment == nil:
+		newJobState = v1beta1.JobStatePending
+	case jobManagerDeploymentMode && oldJob.State == v1beta1.JobStateRunning && getJobManagerCrashLoopReason(observedSubmitter.pod) != "":
+		newJobState = v1beta1.JobStateFailed
 	// When Flink job not found in JobManager or JobManager is unavailable
 	case isFlinkAPIReady(observed.flinkJob.list):
+		// A recreated JobManager lists the job once it recovered it from high availability metadata.
+		if oldJob.State == v1beta1.JobStateRunning && jobManagerDeploymentMode &&
+			isJobManagerRecovering(observedSubmitter.pod, observed.observeTime) {
+			newJobState = oldJob.State
+			break
+		}
 		if oldJob.State == v1beta1.JobStateRunning {
 			newJobState = v1beta1.JobStateLost
 			break
@@ -731,7 +803,7 @@ func (updater *ClusterStatusUpdater) deriveJobStatus(ctx context.Context) *v1bet
 		}
 		// Job must be in deployment but the submitter not found or tracking failed.
 		var jobDeployState = observedSubmitter.getState()
-		if observedSubmitter.job == nil || jobDeployState == JobDeployStateUnknown {
+		if observedSubmitter.workload() == nil || jobDeployState == JobDeployStateUnknown {
 			newJobState = v1beta1.JobStateLost
 			break
 		}
@@ -774,6 +846,8 @@ func (updater *ClusterStatusUpdater) deriveJobStatus(ctx context.Context) *v1bet
 					for _, e := range exceptions.Exceptions {
 						newJob.FailureReasons = append(newJob.FailureReasons, e.Exception)
 					}
+				} else if reason := getJobManagerCrashLoopReason(observedSubmitter.pod); jobManagerDeploymentMode && reason != "" {
+					newJob.FailureReasons = append(newJob.FailureReasons, reason)
 				} else if observedSubmitter.log != nil {
 					newJob.FailureReasons = append(newJob.FailureReasons, observedSubmitter.log.message)
 				}

@@ -370,6 +370,134 @@ func TestTaskManagerDeploymentTypeUpdate(t *testing.T) {
 	assert.Equal(t, err.Error(), expectedErr)
 }
 
+func TestJobManagerDeploymentTypeUpdate(t *testing.T) {
+	// unset and Job are equivalent
+	var oldCluster = getJobManagerDeploymentFlinkCluster()
+	oldCluster.Spec.JobManager.DeploymentType = ""
+	var newCluster = getJobManagerDeploymentFlinkCluster()
+	newCluster.Spec.JobManager.DeploymentType = JobManagerDeploymentTypeJob
+	err := validator.ValidateUpdate(&oldCluster, &newCluster)
+	assert.NilError(t, err)
+
+	// cannot update deploymentType
+	oldCluster = getJobManagerDeploymentFlinkCluster()
+	oldCluster.Spec.JobManager.DeploymentType = ""
+	newCluster = getJobManagerDeploymentFlinkCluster()
+	err = validator.ValidateUpdate(&oldCluster, &newCluster)
+	assert.Error(t, err, "updating jobManager deploymentType is not allowed")
+
+	oldCluster = getJobManagerDeploymentFlinkCluster()
+	newCluster = getJobManagerDeploymentFlinkCluster()
+	newCluster.Spec.JobManager.DeploymentType = JobManagerDeploymentTypeJob
+	err = validator.ValidateUpdate(&oldCluster, &newCluster)
+	assert.Error(t, err, "updating jobManager deploymentType is not allowed")
+}
+
+func TestJobManagerDeploymentType(t *testing.T) {
+	data := []struct {
+		testName    string
+		modify      func(cluster *FlinkCluster)
+		expectedErr string
+	}{
+		{
+			"valid deployment with Flink 1.15 and restartPolicy Never",
+			func(cluster *FlinkCluster) {},
+			"",
+		},
+		{
+			"deployment requires Flink 1.15 or later",
+			func(cluster *FlinkCluster) {
+				cluster.Spec.FlinkVersion = "1.14"
+			},
+			"jobManager deploymentType Deployment requires Flink version 1.15 or later",
+		},
+		{
+			"valid job with Flink before 1.15",
+			func(cluster *FlinkCluster) {
+				cluster.Spec.JobManager.DeploymentType = JobManagerDeploymentTypeJob
+				cluster.Spec.FlinkVersion = "1.14"
+			},
+			"",
+		},
+		{
+			"valid job without high availability",
+			func(cluster *FlinkCluster) {
+				cluster.Spec.JobManager.DeploymentType = JobManagerDeploymentTypeJob
+				cluster.Spec.FlinkProperties = nil
+			},
+			"",
+		},
+		{
+			"valid deployment with legacy high-availability key",
+			func(cluster *FlinkCluster) {
+				delete(cluster.Spec.FlinkProperties, haConfigTypeNew)
+				cluster.Spec.FlinkProperties[haConfigType] = "kubernetes"
+			},
+			"",
+		},
+		{
+			"deployment requires application mode",
+			func(cluster *FlinkCluster) {
+				var jobMode = JobModeDetached
+				cluster.Spec.Job.Mode = &jobMode
+			},
+			"jobManager deploymentType Deployment requires job mode Application",
+		},
+		{
+			"deployment requires a job",
+			func(cluster *FlinkCluster) {
+				cluster.Spec.Job = nil
+			},
+			"jobManager deploymentType Deployment requires job mode Application",
+		},
+		{
+			"deployment requires high availability",
+			func(cluster *FlinkCluster) {
+				cluster.Spec.FlinkProperties = nil
+			},
+			"jobManager deploymentType Deployment requires high availability to be enabled",
+		},
+		{
+			"deployment rejects restartPolicy FromSavepointOnFailure",
+			func(cluster *FlinkCluster) {
+				var restartPolicy = JobRestartPolicyFromSavepointOnFailure
+				cluster.Spec.Job.RestartPolicy = &restartPolicy
+			},
+			"jobManager deploymentType Deployment does not support job restartPolicy FromSavepointOnFailure",
+		},
+		{
+			"deployment rejects unknown restartPolicy",
+			func(cluster *FlinkCluster) {
+				restartPolicy := JobRestartPolicy("Unknown")
+				cluster.Spec.Job.RestartPolicy = &restartPolicy
+			},
+			"invalid job restartPolicy: Unknown",
+		},
+		{
+			"valid job with restartPolicy FromSavepointOnFailure",
+			func(cluster *FlinkCluster) {
+				cluster.Spec.JobManager.DeploymentType = JobManagerDeploymentTypeJob
+				var restartPolicy = JobRestartPolicyFromSavepointOnFailure
+				cluster.Spec.Job.RestartPolicy = &restartPolicy
+			},
+			"",
+		},
+	}
+
+	for _, tt := range data {
+		t.Run(tt.testName, func(t *testing.T) {
+			cluster := getJobManagerDeploymentFlinkCluster()
+			tt.modify(&cluster)
+			err := validator.ValidateCreate(&cluster)
+			if tt.expectedErr == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.Error(t, err, tt.expectedErr)
+			}
+		})
+	}
+}
+
 func TestUpdateJob(t *testing.T) {
 	var validator = &Validator{}
 	var tc = &util.TimeConverter{}
@@ -383,6 +511,19 @@ func TestUpdateJob(t *testing.T) {
 	err := validator.ValidateUpdate(&oldCluster, &newCluster)
 	expectedErr := "removing savepointsDir is not allowed"
 	assert.Equal(t, err.Error(), expectedErr)
+
+	// cannot enable savepoint-based restarts with a JobManager Deployment
+	oldCluster = getJobManagerDeploymentFlinkCluster()
+	newCluster = *oldCluster.DeepCopy()
+	restartPolicy := JobRestartPolicyFromSavepointOnFailure
+	newCluster.Spec.Job.RestartPolicy = &restartPolicy
+	err = validator.ValidateUpdate(&oldCluster, &newCluster)
+	assert.Error(t, err, "jobManager deploymentType Deployment does not support job restartPolicy FromSavepointOnFailure")
+
+	// Unknown policies are rejected by general job validation, not the Deployment-specific rule.
+	restartPolicy = JobRestartPolicy("Unknown")
+	err = validator.ValidateUpdate(&oldCluster, &newCluster)
+	assert.Error(t, err, "invalid job restartPolicy: Unknown")
 
 	// cannot change cluster type
 	oldCluster = getSimpleFlinkCluster()
@@ -818,6 +959,31 @@ func getSimpleFlinkCluster() FlinkCluster {
 			},
 		},
 	}
+}
+
+// A valid application mode FlinkCluster with high availability and a JobManager Deployment.
+func getJobManagerDeploymentFlinkCluster() FlinkCluster {
+	var restartPolicy = JobRestartPolicyNever
+	var jobMode = JobModeApplication
+	var memoryProcessRatio int32 = 25
+	cluster := getSimpleFlinkCluster()
+	cluster.Spec.FlinkVersion = "1.15"
+	cluster.Spec.Image.Name = "flink:1.15"
+	cluster.Spec.JobManager.MemoryOffHeapRatio = nil
+	cluster.Spec.JobManager.MemoryOffHeapMin = resource.Quantity{}
+	cluster.Spec.JobManager.MemoryProcessRatio = &memoryProcessRatio
+	cluster.Spec.TaskManager.MemoryOffHeapRatio = nil
+	cluster.Spec.TaskManager.MemoryOffHeapMin = resource.Quantity{}
+	cluster.Spec.TaskManager.MemoryProcessRatio = &memoryProcessRatio
+	cluster.Spec.JobManager.DeploymentType = JobManagerDeploymentTypeDeployment
+	cluster.Spec.FlinkProperties = map[string]string{
+		haConfigTypeNew:    "kubernetes",
+		haConfigClusterId:  "mycluster",
+		haConfigStorageDir: "gs://my-bucket/ha",
+	}
+	cluster.Spec.Job.RestartPolicy = &restartPolicy
+	cluster.Spec.Job.Mode = &jobMode
+	return cluster
 }
 
 func TestFlinkClusterValidation(t *testing.T) {

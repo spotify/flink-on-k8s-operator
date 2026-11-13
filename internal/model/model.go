@@ -32,6 +32,7 @@ type DesiredClusterState struct {
 	TmService               *corev1.Service
 	ConfigMap               *corev1.ConfigMap
 	Job                     *batchv1.Job
+	JmDeployment            *appsv1.Deployment
 	PodDisruptionBudget     *policyv1.PodDisruptionBudget
 	HorizontalPodAutoscaler *autoscalingv2.HorizontalPodAutoscaler
 }

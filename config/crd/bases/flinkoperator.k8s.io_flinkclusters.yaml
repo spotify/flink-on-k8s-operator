@@ -2950,6 +2950,11 @@ spec:
                               x-kubernetes-list-type: atomic
                           type: object
                       type: object
+                    deploymentType:
+                      enum:
+                        - Job
+                        - Deployment
+                      type: string
                     extraPorts:
                       items:
                         properties:
@@ -5953,6 +5958,9 @@ spec:
                         type: object
                       type: array
                   type: object
+                  x-kubernetes-validations:
+                    - message: jobManager deploymentType is immutable
+                      rule: '(has(self.deploymentType) ? self.deploymentType : ''Job'') == (has(oldSelf.deploymentType) ? oldSelf.deploymentType : ''Job'')'
                 logConfig:
                   additionalProperties:
                     type: string

@@ -19,8 +19,10 @@ package flinkcluster
 import (
 	"context"
 	"testing"
+	"time"
 
 	v1beta1 "github.com/spotify/flink-on-k8s-operator/apis/flinkcluster/v1beta1"
+	"github.com/spotify/flink-on-k8s-operator/internal/flink"
 	"gotest.tools/v3/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -306,6 +308,182 @@ func TestStoppedApplicationClusterRecoversFromActiveJob(t *testing.T) {
 
 			assert.Equal(t, status.Components.Job.State, v1beta1.JobStateDeploying)
 			assert.Equal(t, status.State, test.expectedClusterState)
+		})
+	}
+}
+
+func TestDeriveJobStatusJobManagerDeployment(t *testing.T) {
+	const jobID = "a1b2c3"
+	var applicationMode = v1beta1.JobModeApplication
+	var now = time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	var revision = v1beta1.RevisionStatus{CurrentRevision: "cluster-85dc8f749-1", NextRevision: "cluster-85dc8f749-1"}
+	flinkJob := func(state string) FlinkJob {
+		job := flink.Job{Id: jobID, State: state}
+		return FlinkJob{status: &job, list: &flink.JobsOverview{Jobs: []flink.Job{job}}}
+	}
+	// A JobManager container waiting in CrashLoopBackOff after the given restarts and last run.
+	crashingPod := func(restartCount int32, lastRun time.Duration) *corev1.Pod {
+		finished := metav1.NewTime(now.Add(-time.Second))
+		return &corev1.Pod{Status: corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{{
+			Name:         jobManagerContainerName,
+			RestartCount: restartCount,
+			State:        corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: "CrashLoopBackOff"}},
+			LastTerminationState: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{
+				ExitCode:   1,
+				Reason:     "Error",
+				StartedAt:  metav1.NewTime(finished.Add(-lastRun)),
+				FinishedAt: finished,
+			}},
+		}}}}
+	}
+	runningPod := func(startedAgo time.Duration) *corev1.Pod {
+		return &corev1.Pod{Status: corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{{
+			Name:  jobManagerContainerName,
+			State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{StartedAt: metav1.NewTime(now.Add(-startedAgo))}},
+		}}}}
+	}
+	deployment := func(replicas int32) *appsv1.Deployment {
+		return &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{RevisionNameLabel: getNextRevisionName(&revision)}},
+			Spec:       appsv1.DeploymentSpec{Replicas: &replicas},
+		}
+	}
+	completionTime := metav1.NewTime(now.Add(-time.Hour))
+
+	for _, test := range []struct {
+		name           string
+		oldJob         v1beta1.JobStatus
+		flinkJob       FlinkJob
+		deployment     *appsv1.Deployment
+		pod            *corev1.Pod
+		expectedState  v1beta1.JobState
+		expectedReason string
+	}{
+		{
+			name:          "running job is kept while the Flink API is unavailable",
+			oldJob:        v1beta1.JobStatus{State: v1beta1.JobStateRunning},
+			deployment:    deployment(1),
+			pod:           crashingPod(1, time.Second),
+			expectedState: v1beta1.JobStateRunning,
+		},
+		{
+			name:          "failed job is taken from the Flink API",
+			oldJob:        v1beta1.JobStatus{State: v1beta1.JobStateRunning},
+			flinkJob:      flinkJob("FAILED"),
+			deployment:    deployment(1),
+			expectedState: v1beta1.JobStateFailed,
+		},
+		{
+			name:          "finished job is taken from the Flink API",
+			oldJob:        v1beta1.JobStatus{State: v1beta1.JobStateRunning},
+			flinkJob:      flinkJob("FINISHED"),
+			deployment:    deployment(1),
+			expectedState: v1beta1.JobStateSucceeded,
+		},
+		{
+			name:          "running job unknown to the Flink API is lost",
+			oldJob:        v1beta1.JobStatus{State: v1beta1.JobStateRunning},
+			flinkJob:      FlinkJob{list: &flink.JobsOverview{}},
+			deployment:    deployment(1),
+			pod:           runningPod(jobManagerRecoveryGracePeriod),
+			expectedState: v1beta1.JobStateLost,
+		},
+		{
+			name:          "running job unknown to a recently started JobManager is kept while it recovers",
+			oldJob:        v1beta1.JobStatus{State: v1beta1.JobStateRunning},
+			flinkJob:      FlinkJob{list: &flink.JobsOverview{}},
+			deployment:    deployment(1),
+			pod:           runningPod(time.Minute),
+			expectedState: v1beta1.JobStateRunning,
+		},
+		{
+			name:          "lost job reported again by the Flink API is running",
+			oldJob:        v1beta1.JobStatus{State: v1beta1.JobStateLost, CompletionTime: &completionTime},
+			flinkJob:      flinkJob("RUNNING"),
+			deployment:    deployment(1),
+			expectedState: v1beta1.JobStateRunning,
+		},
+		{
+			name:          "deploying job with a restarting JobManager keeps deploying",
+			oldJob:        v1beta1.JobStatus{State: v1beta1.JobStateDeploying},
+			deployment:    deployment(1),
+			pod:           crashingPod(jobManagerCrashLoopRestartCount-1, time.Second),
+			expectedState: v1beta1.JobStateDeploying,
+		},
+		{
+			name:           "deploying job with a crash looping JobManager failed to deploy",
+			oldJob:         v1beta1.JobStatus{State: v1beta1.JobStateDeploying},
+			deployment:     deployment(1),
+			pod:            crashingPod(jobManagerCrashLoopRestartCount, time.Second),
+			expectedState:  v1beta1.JobStateDeployFailed,
+			expectedReason: "JobManager container is crash looping after 3 restarts, last exit code 1: Error ",
+		},
+		{
+			name:           "running job with a crash looping JobManager failed",
+			oldJob:         v1beta1.JobStatus{State: v1beta1.JobStateRunning},
+			deployment:     deployment(1),
+			pod:            crashingPod(jobManagerCrashLoopRestartCount, time.Second),
+			expectedState:  v1beta1.JobStateFailed,
+			expectedReason: "JobManager container is crash looping after 3 restarts, last exit code 1: Error ",
+		},
+		{
+			name:          "running job with a JobManager that restarted after long runs keeps running",
+			oldJob:        v1beta1.JobStatus{State: v1beta1.JobStateRunning},
+			deployment:    deployment(1),
+			pod:           crashingPod(jobManagerCrashLoopRestartCount, time.Hour),
+			expectedState: v1beta1.JobStateRunning,
+		},
+		{
+			name:          "deploying job without the JobManager Deployment is deployed again",
+			oldJob:        v1beta1.JobStatus{State: v1beta1.JobStateDeploying},
+			expectedState: v1beta1.JobStatePending,
+		},
+		{
+			name:          "running job without the JobManager Deployment is deployed again",
+			oldJob:        v1beta1.JobStatus{State: v1beta1.JobStateRunning},
+			expectedState: v1beta1.JobStatePending,
+		},
+		{
+			name:          "stopped job with a redeployed JobManager Deployment is deploying",
+			oldJob:        v1beta1.JobStatus{State: v1beta1.JobStateSucceeded, FinalSavepoint: true, DeployTime: "2026-01-01T11:59:00Z"},
+			deployment:    deployment(1),
+			expectedState: v1beta1.JobStateDeploying,
+		},
+		{
+			name: "stopped job with a scaled down JobManager Deployment stays stopped",
+			oldJob: v1beta1.JobStatus{
+				State: v1beta1.JobStateSucceeded, DeployTime: "2026-01-01T11:00:00Z", CompletionTime: &completionTime,
+			},
+			deployment:    deployment(0),
+			expectedState: v1beta1.JobStateSucceeded,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var oldJob = test.oldJob
+			oldJob.ID = jobID
+			var observed = ObservedClusterState{
+				cluster: &v1beta1.FlinkCluster{
+					Spec: v1beta1.FlinkClusterSpec{
+						JobManager: &v1beta1.JobManagerSpec{DeploymentType: v1beta1.JobManagerDeploymentTypeDeployment},
+						Job:        &v1beta1.JobSpec{Mode: &applicationMode},
+					},
+					Status: v1beta1.FlinkClusterStatus{
+						Components: v1beta1.FlinkClusterComponentsStatus{Job: &oldJob},
+						Revision:   revision,
+					},
+				},
+				flinkJob:          test.flinkJob,
+				flinkJobSubmitter: FlinkJobSubmitter{deployment: test.deployment, pod: test.pod},
+				observeTime:       now,
+			}
+
+			var updater = &ClusterStatusUpdater{observed: observed}
+			var jobStatus = updater.deriveJobStatus(context.Background())
+
+			assert.Equal(t, jobStatus.State, test.expectedState)
+			if test.expectedReason != "" {
+				assert.DeepEqual(t, jobStatus.FailureReasons, []string{test.expectedReason})
+			}
 		})
 	}
 }
