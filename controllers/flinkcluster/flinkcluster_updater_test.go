@@ -423,7 +423,7 @@ func TestDeriveJobStatusJobManagerDeployment(t *testing.T) {
 			oldJob:         v1beta1.JobStatus{State: v1beta1.JobStateRunning},
 			deployment:     deployment(1),
 			pod:            crashingPod(jobManagerCrashLoopRestartCount, time.Second),
-			expectedState:  v1beta1.JobStateFailed,
+			expectedState:  v1beta1.JobStateLost,
 			expectedReason: "JobManager container is crash looping after 3 restarts, last exit code 1: Error ",
 		},
 		{

@@ -781,7 +781,7 @@ func (updater *ClusterStatusUpdater) deriveJobStatus(ctx context.Context) *v1bet
 	case jobManagerDeploymentMode && oldJob.IsActive() && observedSubmitter.deployment == nil:
 		newJobState = v1beta1.JobStatePending
 	case jobManagerDeploymentMode && oldJob.State == v1beta1.JobStateRunning && getJobManagerCrashLoopReason(observedSubmitter.pod) != "":
-		newJobState = v1beta1.JobStateFailed
+		newJobState = v1beta1.JobStateLost
 	// When Flink job not found in JobManager or JobManager is unavailable
 	case isFlinkAPIReady(observed.flinkJob.list):
 		// A recreated JobManager lists the job once it recovered it from high availability metadata.
