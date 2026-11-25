@@ -62,6 +62,7 @@ func logObservedClusterStateSummary(observed *ObservedClusterState) map[string]a
 		"flinkJobExceptionCount":    logFlinkJobExceptionCount(observed.flinkJob.exceptions),
 		"unexpectedFlinkJobCount":   len(observed.flinkJob.unexpected),
 		"jobSubmitter":              logObjectSummary(observed.flinkJobSubmitter.job),
+		"jobManagerDeployment":      logObjectSummary(observed.flinkJobSubmitter.deployment),
 		"jobSubmitterPod":           logObjectSummary(observed.flinkJobSubmitter.pod),
 		"jobSubmitterLog":           logSubmitterLogSummary(observed.flinkJobSubmitter.log),
 		"savepoint":                 logFlinkSavepointSummary(observed.savepoint.status, observed.savepoint.error),
@@ -90,6 +91,7 @@ func logDesiredClusterStateSummary(desired *model.DesiredClusterState) map[strin
 		"taskManagerService":      logObjectSummary(desired.TmService),
 		"horizontalPodAutoscaler": logObjectSummary(desired.HorizontalPodAutoscaler),
 		"job":                     logObjectSummary(desired.Job),
+		"jobManagerDeployment":    logObjectSummary(desired.JmDeployment),
 	}
 }
 
@@ -116,6 +118,7 @@ func logObservedClusterStateFull(observed *ObservedClusterState) map[string]any 
 		"flinkJobExceptions":      logFullObject(observed.flinkJob.exceptions),
 		"unexpectedFlinkJobs":     observed.flinkJob.unexpected,
 		"jobSubmitter":            logFullObject(observed.flinkJobSubmitter.job),
+		"jobManagerDeployment":    logFullObject(observed.flinkJobSubmitter.deployment),
 		"jobSubmitterPod":         logFullObject(observed.flinkJobSubmitter.pod),
 		"jobSubmitterLog":         logSubmitterLogFull(observed.flinkJobSubmitter.log),
 		"savepoint":               logFullObject(observed.savepoint.status),
@@ -144,6 +147,7 @@ func logDesiredClusterStateFull(desired *model.DesiredClusterState) map[string]a
 		"taskManagerService":      logFullObject(desired.TmService),
 		"horizontalPodAutoscaler": logFullObject(desired.HorizontalPodAutoscaler),
 		"job":                     logFullObject(desired.Job),
+		"jobManagerDeployment":    logFullObject(desired.JmDeployment),
 	}
 }
 
