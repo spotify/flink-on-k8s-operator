@@ -1941,21 +1941,37 @@ func getJobManagerDeploymentObservedClusterState() *ObservedClusterState {
 func TestApplicationModeJarFileArgs(t *testing.T) {
 	tests := []struct {
 		name         string
+		flinkVersion string
 		jarFile      *string
 		wantJarFlags []string
 	}{
 		{
-			name:         "local path gets local:// prefix and -- terminator",
+			name:         "local path gets local:// prefix and -- terminator on Flink 2.3.0",
+			flinkVersion: "2.3.0",
 			jarFile:      strPtr("/tmp/jars/job.jar"),
 			wantJarFlags: []string{"--jars", "local:///tmp/jars/job.jar", "--"},
 		},
 		{
-			name:         "URI with scheme is preserved",
+			name:         "URI with scheme is preserved on Flink 1.19.0",
+			flinkVersion: "1.19.0",
 			jarFile:      strPtr("gs://bucket/job.jar"),
 			wantJarFlags: []string{"--jars", "gs://bucket/job.jar", "--"},
 		},
 		{
+			name:         "Flink 1.18 omits --jars",
+			flinkVersion: "1.18.1",
+			jarFile:      strPtr("/tmp/jars/job.jar"),
+			wantJarFlags: nil,
+		},
+		{
+			name:         "empty flinkVersion omits --jars",
+			flinkVersion: "",
+			jarFile:      strPtr("/tmp/jars/job.jar"),
+			wantJarFlags: nil,
+		},
+		{
 			name:         "nil jarFile omits --jars",
+			flinkVersion: "2.3.0",
 			jarFile:      nil,
 			wantJarFlags: nil,
 		},
@@ -1964,6 +1980,7 @@ func TestApplicationModeJarFileArgs(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			observed := getJobManagerDeploymentObservedClusterState()
+			observed.cluster.Spec.FlinkVersion = tc.flinkVersion
 			observed.cluster.Spec.Job.JarFile = tc.jarFile
 			observed.cluster.Spec.Job.Args = []string{"--job=com.example.Main", "--rate=10"}
 
