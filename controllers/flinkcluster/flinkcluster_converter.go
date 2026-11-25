@@ -202,6 +202,15 @@ func newJobManagerContainer(flinkCluster *v1beta1.FlinkCluster) *corev1.Containe
 			"--job-classname", *jobSpec.ClassName,
 		)
 
+		if jobSpec.JarFile != nil && *jobSpec.JarFile != "" {
+			jarURI := *jobSpec.JarFile
+			if !strings.Contains(jarURI, "://") {
+				jarURI = "local://" + jarURI
+			}
+			// Terminate Commons CLI option parsing before user args because --jars uses hasArgs().
+			args = append(args, "--jars", jarURI, "--")
+		}
+
 		args = append(args, jobSpec.Args...)
 		container.Args = args
 	}

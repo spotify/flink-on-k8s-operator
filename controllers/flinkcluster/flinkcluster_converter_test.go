@@ -1937,3 +1937,54 @@ func getJobManagerDeploymentObservedClusterState() *ObservedClusterState {
 	observed.cluster.Spec.JobManager.DeploymentType = v1beta1.JobManagerDeploymentTypeDeployment
 	return observed
 }
+
+func TestApplicationModeJarFileArgs(t *testing.T) {
+	tests := []struct {
+		name         string
+		jarFile      *string
+		wantJarFlags []string
+	}{
+		{
+			name:         "local path gets local:// prefix and -- terminator",
+			jarFile:      strPtr("/tmp/jars/job.jar"),
+			wantJarFlags: []string{"--jars", "local:///tmp/jars/job.jar", "--"},
+		},
+		{
+			name:         "URI with scheme is preserved",
+			jarFile:      strPtr("gs://bucket/job.jar"),
+			wantJarFlags: []string{"--jars", "gs://bucket/job.jar", "--"},
+		},
+		{
+			name:         "nil jarFile omits --jars",
+			jarFile:      nil,
+			wantJarFlags: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			observed := getJobManagerDeploymentObservedClusterState()
+			observed.cluster.Spec.Job.JarFile = tc.jarFile
+			observed.cluster.Spec.Job.Args = []string{"--job=com.example.Main", "--rate=10"}
+
+			desired := getDesiredClusterState(observed)
+			assert.Assert(t, desired.JmDeployment != nil)
+			args := desired.JmDeployment.Spec.Template.Spec.Containers[0].Args
+
+			jobId, _ := GenJobId(observed.cluster)
+			want := []string{
+				"standalone-job",
+				"-Dparallelism.default=2",
+				"--job-id", jobId,
+				"--job-classname", *observed.cluster.Spec.Job.ClassName,
+			}
+			want = append(want, tc.wantJarFlags...)
+			want = append(want, "--job=com.example.Main", "--rate=10")
+			assert.DeepEqual(t, args, want)
+		})
+	}
+}
+
+func strPtr(s string) *string {
+	return &s
+}
