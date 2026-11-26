@@ -1,6 +1,6 @@
 # Managing savepoints with the Flink Operator
 
-A Flink [savepoint](https://ci.apache.org/projects/flink/flink-docs-stable/ops/state/savepoints.html) is a consistent
+A Flink [savepoint](https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/savepoints/) is a consistent
 image of the execution state of a streaming job. Users can take savepoints of a running job and restart the job from
 them later. This document introduces how the Flink Operator can help you manage savepoints.
 
@@ -22,7 +22,7 @@ spec:
 ```
 
 The `allowNonRestoredState` controls whether to allow non-restored state, see more info about the property in the
-[Flink CLI doc](https://ci.apache.org/projects/flink/flink-docs-stable/ops/cli.html).
+[Flink CLI doc](https://nightlies.apache.org/flink/flink-docs-stable/docs/deployment/cli/).
 
 ## Taking savepoints for a job
 
@@ -176,8 +176,8 @@ Status:
 ### 4. Taking savepoints with the Flink CLI or through the REST API
 
 In some situations, e.g., you didn't specify `savepointsDir` in the FlinkCluster custom resource, you might want to
-bypass the operator and take savepoints by running the [Flink CLI](https://ci.apache.org/projects/flink/flink-docs-stable/ops/cli.html)
-or calling the [Flink REST API](https://ci.apache.org/projects/flink/flink-docs-stable/monitoring/rest_api.html) from
+bypass the operator and take savepoints by running the [Flink CLI](https://nightlies.apache.org/flink/flink-docs-stable/docs/deployment/cli/)
+or calling the [Flink REST API](https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/rest_api/) from
 your local machine.
 
 In this case, you can first create a port forward from your local machine to the JobManager service
