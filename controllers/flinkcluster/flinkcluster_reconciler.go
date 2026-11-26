@@ -397,9 +397,21 @@ func (reconciler *ClusterReconciler) reconcileJobManagerService(ctx context.Cont
 	var observedJmService = reconciler.observed.jmService
 
 	if desiredJmService != nil && observedJmService != nil {
+		// Check before copying ClusterIP so headless <-> ClusterIP transitions still recreate.
+		sameServiceShape := observedJmService.Spec.Type == desiredJmService.Spec.Type &&
+			(observedJmService.Spec.ClusterIP == corev1.ClusterIPNone) == (desiredJmService.Spec.ClusterIP == corev1.ClusterIPNone)
+
 		// v1.Service API does not handle update correctly when below values are empty.
 		desiredJmService.SetResourceVersion(observedJmService.GetResourceVersion())
 		desiredJmService.Spec.ClusterIP = observedJmService.Spec.ClusterIP
+
+		// Update in place instead of deleting on recreateOnUpdate so the ClusterIP stays stable
+		// and fast-booting TaskManagers do not cache a deleted ClusterIP from DNS.
+		if sameServiceShape &&
+			shouldUpdateCluster(&reconciler.observed) &&
+			!isComponentUpdated(observedJmService, reconciler.observed.cluster) {
+			return reconciler.updateComponent(ctx, desiredJmService, "JobManagerService")
+		}
 	}
 
 	return reconciler.reconcileComponent(ctx, "JobManagerService", desiredJmService, observedJmService)

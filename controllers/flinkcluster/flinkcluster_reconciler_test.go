@@ -1244,3 +1244,122 @@ func TestReconcileJobRequeuesLostJobWithJobManagerDeployment(t *testing.T) {
 	// then: the job is checked again before the recovery timeout
 	assert.Equal(t, result, requeueResult)
 }
+
+func TestReconcileJobManagerServiceUpdatesInPlaceOnRecreateOnUpdate(t *testing.T) {
+	recreate := true
+	tests := []struct {
+		name           string
+		observedType   corev1.ServiceType
+		observedIP     string
+		desiredType    corev1.ServiceType
+		desiredIP      string
+		expectDeleted  bool
+		expectRevision string
+	}{
+		{
+			name:           "same ClusterIP service updates in place and preserves ClusterIP",
+			observedType:   corev1.ServiceTypeClusterIP,
+			observedIP:     "10.160.149.189",
+			desiredType:    corev1.ServiceTypeClusterIP,
+			desiredIP:      "",
+			expectDeleted:  false,
+			expectRevision: "cluster-next",
+		},
+		{
+			name:          "different service type falls back to delete and recreate",
+			observedType:  corev1.ServiceTypeClusterIP,
+			observedIP:    "10.160.149.189",
+			desiredType:   corev1.ServiceTypeNodePort,
+			desiredIP:     "",
+			expectDeleted: true,
+		},
+		{
+			name:          "ClusterIP to headless transition falls back to delete and recreate",
+			observedType:  corev1.ServiceTypeClusterIP,
+			observedIP:    "10.160.149.189",
+			desiredType:   corev1.ServiceTypeClusterIP,
+			desiredIP:     corev1.ClusterIPNone,
+			expectDeleted: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			scheme := runtime.NewScheme()
+			assert.NilError(t, corev1.AddToScheme(scheme))
+			assert.NilError(t, v1beta1.AddToScheme(scheme))
+
+			observedSvc := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "cluster-jobmanager",
+					Namespace: "default",
+					Labels: map[string]string{
+						RevisionNameLabel: "cluster-old",
+					},
+				},
+				Spec: corev1.ServiceSpec{
+					Type:      tc.observedType,
+					ClusterIP: tc.observedIP,
+				},
+			}
+			desiredSvc := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "cluster-jobmanager",
+					Namespace: "default",
+					Labels: map[string]string{
+						RevisionNameLabel: "cluster-next",
+					},
+				},
+				Spec: corev1.ServiceSpec{
+					Type:      tc.desiredType,
+					ClusterIP: tc.desiredIP,
+				},
+			}
+
+			cluster := &v1beta1.FlinkCluster{
+				ObjectMeta: metav1.ObjectMeta{Name: "cluster", Namespace: "default"},
+				Spec: v1beta1.FlinkClusterSpec{
+					RecreateOnUpdate: &recreate,
+				},
+				Status: v1beta1.FlinkClusterStatus{
+					Revision: v1beta1.RevisionStatus{
+						CurrentRevision: "cluster-old-1",
+						NextRevision:    "cluster-next-2",
+					},
+					Components: v1beta1.FlinkClusterComponentsStatus{
+						Job: &v1beta1.JobStatus{State: v1beta1.JobStateUpdating},
+					},
+				},
+			}
+
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(observedSvc).
+				Build()
+			reconciler := &ClusterReconciler{
+				k8sClient: fakeClient,
+				observed: ObservedClusterState{
+					cluster:     cluster,
+					jmService:   observedSvc,
+					updateState: UpdateStateInProgress,
+				},
+				desired: model.DesiredClusterState{
+					JmService: desiredSvc,
+				},
+			}
+
+			err := reconciler.reconcileJobManagerService(context.Background())
+			assert.NilError(t, err)
+
+			var got corev1.Service
+			getErr := fakeClient.Get(context.Background(), client.ObjectKeyFromObject(observedSvc), &got)
+			if tc.expectDeleted {
+				assert.Assert(t, apierrors.IsNotFound(getErr))
+			} else {
+				assert.NilError(t, getErr)
+				assert.Equal(t, got.Spec.ClusterIP, tc.observedIP)
+				assert.Equal(t, got.Labels[RevisionNameLabel], tc.expectRevision)
+			}
+		})
+	}
+}
