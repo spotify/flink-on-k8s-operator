@@ -487,3 +487,45 @@ func TestDeriveJobStatusJobManagerDeployment(t *testing.T) {
 		})
 	}
 }
+
+func TestDeriveJobStatusWaitsForStopAfterFinalUpdateSavepoint(t *testing.T) {
+	const jobID = "a1b2c3"
+	var applicationMode = v1beta1.JobModeApplication
+	for _, test := range []struct {
+		flinkState    string
+		expectedState v1beta1.JobState
+	}{
+		// Stop-with-savepoint succeeded but Flink has not started stopping the job yet, so the JobManager must be kept.
+		{flinkState: "RUNNING", expectedState: v1beta1.JobStateRunning},
+		// The savepoint succeeded and Flink is cancelling the job, but it is not terminal yet, so the JobManager must be kept.
+		{flinkState: "CANCELLING", expectedState: v1beta1.JobStateRunning},
+		// The job is terminal, so Flink has removed its high availability metadata.
+		{flinkState: "FINISHED", expectedState: v1beta1.JobStateSucceeded},
+	} {
+		t.Run(test.flinkState, func(t *testing.T) {
+			var flinkJob = flink.Job{Id: jobID, State: test.flinkState}
+			var observed = ObservedClusterState{
+				cluster: &v1beta1.FlinkCluster{
+					Spec: v1beta1.FlinkClusterSpec{Job: &v1beta1.JobSpec{Mode: &applicationMode}},
+					Status: v1beta1.FlinkClusterStatus{
+						Components: v1beta1.FlinkClusterComponentsStatus{Job: &v1beta1.JobStatus{
+							ID: jobID, State: v1beta1.JobStateRunning, FinalSavepoint: true,
+						}},
+						Revision: v1beta1.RevisionStatus{CurrentRevision: "cluster-current-1", NextRevision: "cluster-next-2"},
+						Savepoint: &v1beta1.SavepointStatus{
+							JobID: jobID, TriggerReason: v1beta1.SavepointReasonUpdate, State: v1beta1.SavepointStateSucceeded,
+						},
+					},
+				},
+				flinkJob:    FlinkJob{status: &flinkJob, list: &flink.JobsOverview{Jobs: []flink.Job{flinkJob}}},
+				observeTime: time.Now(),
+			}
+			observed.updateState = getUpdateState(&observed)
+
+			var jobStatus = (&ClusterStatusUpdater{observed: observed}).deriveJobStatus(context.Background())
+
+			assert.Equal(t, observed.updateState, UpdateStatePreparing)
+			assert.Equal(t, jobStatus.State, test.expectedState)
+		})
+	}
+}

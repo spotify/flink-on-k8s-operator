@@ -92,6 +92,36 @@ func TestIsSavepointUpToDate(t *testing.T) {
 	assert.Equal(t, update, true)
 }
 
+func TestUpdateReadyWaitsForJobToStopAfterFinalSavepoint(t *testing.T) {
+	var completionTime = metav1.Now()
+	for _, test := range []struct {
+		name     string
+		job      JobStatus
+		expected bool
+	}{
+		{
+			// Flink reports a job still being stopped (e.g. CANCELLING) as Running.
+			name:     "running job with final savepoint is not ready",
+			job:      JobStatus{State: JobStateRunning, FinalSavepoint: true},
+			expected: false,
+		},
+		{
+			name:     "succeeded job with final savepoint is ready",
+			job:      JobStatus{State: JobStateSucceeded, FinalSavepoint: true, CompletionTime: &completionTime},
+			expected: true,
+		},
+		{
+			name:     "cancelled job with final savepoint is ready",
+			job:      JobStatus{State: JobStateCancelled, FinalSavepoint: true, CompletionTime: &completionTime},
+			expected: true,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.job.UpdateReady(&JobSpec{}, time.Now()), test.expected)
+		})
+	}
+}
+
 func TestShouldRestartJob(t *testing.T) {
 	var tc = &util.TimeConverter{}
 	var restartOnFailure = JobRestartPolicyFromSavepointOnFailure
