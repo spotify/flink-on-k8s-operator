@@ -17,9 +17,10 @@ kind: FlinkCluster
 metadata:
   name: flinkjobcluster-sample
 spec:
-  flinkVersion: "1.14"
+  flinkVersion: "2.3"
   image:
-    name: flink:1.14.2
+    name: flink:2.3.0
+    pullPolicy: IfNotPresent
   jobManager:
     accessScope: Cluster
     ports:
@@ -37,8 +38,18 @@ spec:
   job:
     jarFile: ./examples/streaming/WordCount.jar
     className: org.apache.flink.streaming.examples.wordcount.WordCount
-    args: ["--input", "./README.txt"]
+    args: ["--input", "./README.txt", "--execution-mode", "BATCH"]
     parallelism: 2
     restartPolicy: Never
   flinkProperties:
+    env.java.opts.all: --add-opens=java.base/java.util=ALL-UNNAMED
     taskmanager.numberOfTaskSlots: "1"
+  logConfig:
+    log4j-console.properties: &consoleLogging |
+      rootLogger.level = INFO
+      rootLogger.appenderRef.console.ref = Console
+      appender.console.name = Console
+      appender.console.type = Console
+      appender.console.layout.type = PatternLayout
+      appender.console.layout.pattern = %d{ISO8601} %-5p %c - %m%n
+    log4j-cli.properties: *consoleLogging

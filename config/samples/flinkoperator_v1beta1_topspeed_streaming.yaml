@@ -1,0 +1,41 @@
+apiVersion: flinkoperator.k8s.io/v1beta1
+kind: FlinkCluster
+metadata:
+  name: flinkstreaming-sample
+spec:
+  flinkVersion: "2.3"
+  image:
+    name: flink:2.3.0
+    pullPolicy: IfNotPresent
+  jobManager:
+    accessScope: Cluster
+    ports:
+      ui: 8081
+    resources:
+      limits:
+        memory: "1024Mi"
+        cpu: "250m"
+  taskManager:
+    replicas: 1
+    resources:
+      limits:
+        memory: "2048Mi"
+        cpu: "250m"
+  job:
+    jarFile: ./examples/streaming/TopSpeedWindowing.jar
+    className: org.apache.flink.streaming.examples.windowing.TopSpeedWindowing
+    args: ["--execution-mode", "STREAMING"]
+    parallelism: 1
+    restartPolicy: Never
+  flinkProperties:
+    env.java.opts.all: --add-opens=java.base/java.util=ALL-UNNAMED
+    taskmanager.numberOfTaskSlots: "1"
+  logConfig:
+    log4j-console.properties: &consoleLogging |
+      rootLogger.level = INFO
+      rootLogger.appenderRef.console.ref = Console
+      appender.console.name = Console
+      appender.console.type = Console
+      appender.console.layout.type = PatternLayout
+      appender.console.layout.pattern = %d{ISO8601} %-5p %c - %m%n
+    log4j-cli.properties: *consoleLogging
