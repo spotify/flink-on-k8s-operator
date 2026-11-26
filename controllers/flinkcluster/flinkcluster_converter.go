@@ -202,11 +202,27 @@ func newJobManagerContainer(flinkCluster *v1beta1.FlinkCluster) *corev1.Containe
 			"--job-classname", *jobSpec.ClassName,
 		)
 
+		if jobSpec.JarFile != nil && *jobSpec.JarFile != "" && supportsApplicationModeJars(flinkCluster.Spec.FlinkVersion) {
+			jarURI := *jobSpec.JarFile
+			if !strings.Contains(jarURI, "://") {
+				jarURI = "local://" + jarURI
+			}
+			// Terminate Commons CLI option parsing before user args because --jars uses hasArgs().
+			args = append(args, "--jars", jarURI, "--")
+		}
+
 		args = append(args, jobSpec.Args...)
 		container.Args = args
 	}
 
 	return container
+}
+
+var minApplicationJarsFlinkVersion = version.Must(version.NewVersion("1.19.0"))
+
+func supportsApplicationModeJars(flinkVersion string) bool {
+	appVersion, err := version.NewVersion(flinkVersion)
+	return err == nil && appVersion.GreaterThanOrEqual(minApplicationJarsFlinkVersion)
 }
 
 func newJobManagerPodSpec(mainContainer *corev1.Container, flinkCluster *v1beta1.FlinkCluster) *corev1.PodSpec {
