@@ -30,6 +30,39 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func TestDeriveJobStatusPreservesCancellingStateUntilTerminal(t *testing.T) {
+	var cluster = &v1beta1.FlinkCluster{
+		Spec: v1beta1.FlinkClusterSpec{Job: &v1beta1.JobSpec{}},
+		Status: v1beta1.FlinkClusterStatus{
+			Components: v1beta1.FlinkClusterComponentsStatus{
+				Job: &v1beta1.JobStatus{
+					ID:             "job-123",
+					State:          v1beta1.JobStateRunning,
+					FinalSavepoint: true,
+				},
+			},
+			Revision: v1beta1.RevisionStatus{
+				CurrentRevision: "cluster-current-1",
+				NextRevision:    "cluster-next-2",
+			},
+		},
+	}
+	var observed = ObservedClusterState{
+		cluster: cluster,
+		flinkJob: FlinkJob{status: &flink.Job{
+			Id:    "job-123",
+			State: "CANCELLING",
+		}},
+		observeTime: time.Now(),
+	}
+	observed.updateState = getUpdateState(&observed)
+
+	assert.Equal(t, observed.updateState, UpdateStatePreparing)
+	var updater = &ClusterStatusUpdater{observed: observed}
+	var job = updater.deriveJobStatus(context.Background())
+	assert.Equal(t, job.State, v1beta1.JobStateRunning)
+}
+
 func TestGetStatefulSetStateNotReady(t *testing.T) {
 	var replicas int32 = 3
 	var statefulSet = appsv1.StatefulSet{

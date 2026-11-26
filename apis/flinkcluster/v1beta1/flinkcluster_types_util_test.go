@@ -92,6 +92,19 @@ func TestIsSavepointUpToDate(t *testing.T) {
 	assert.Equal(t, update, true)
 }
 
+func TestUpdateReadyWaitsForTerminalStateAfterFinalSavepoint(t *testing.T) {
+	var jobSpec = JobSpec{}
+	var jobStatus = JobStatus{
+		State:          JobStateRunning,
+		FinalSavepoint: true,
+	}
+
+	assert.Equal(t, jobStatus.UpdateReady(&jobSpec, time.Now()), false)
+
+	jobStatus.State = JobStateCancelled
+	assert.Equal(t, jobStatus.UpdateReady(&jobSpec, time.Now()), true)
+}
+
 func TestShouldRestartJob(t *testing.T) {
 	var tc = &util.TimeConverter{}
 	var restartOnFailure = JobRestartPolicyFromSavepointOnFailure
