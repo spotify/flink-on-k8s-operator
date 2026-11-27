@@ -94,13 +94,10 @@ func (j *JobStatus) UpdateReady(spec *JobSpec, observeTime time.Time) bool {
 	case !isBlank(spec.FromSavepoint):
 		return true
 	case j.IsActive():
-		// When job is active and takeSavepointOnUpdate is true, only after taking savepoint with final job state,
-		// proceed job update.
-		if takeSavepointOnUpdate {
-			if j.FinalSavepoint {
-				return true
-			}
-		} else if j.IsSavepointUpToDate(spec, observeTime) {
+		// When takeSavepointOnUpdate is true, wait for the job to stop even after the final savepoint succeeded.
+		// Flink removes the job's high availability metadata only once the job is terminal, so replacing the
+		// JobManager earlier would let the new one recover the previous job graph.
+		if !takeSavepointOnUpdate && j.IsSavepointUpToDate(spec, observeTime) {
 			return true
 		}
 	case j.State == JobStateUpdating && !takeSavepointOnUpdate:
